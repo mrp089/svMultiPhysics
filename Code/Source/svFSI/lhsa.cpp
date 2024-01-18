@@ -96,6 +96,9 @@ void add_col(const int tnNo, const int row, const int col, int& mnnzeic, Array<i
 //
 void do_assem(ComMod& com_mod, const int d, const Vector<int>& eqN, const Array3<double>& lK, const Array<double>& lR)
 {
+  // do_assem_residual(com_mod, d, eqN, lR);
+  // do_assem_tangent(com_mod, d, eqN, lK);
+
   auto& R = com_mod.R;
   auto& Val = com_mod.Val;
   const auto& rowPtr = com_mod.rowPtr;
@@ -136,6 +139,67 @@ void do_assem(ComMod& com_mod, const int d, const Vector<int>& eqN, const Array3
     }
   }
 }
+
+
+void do_assem_residual(ComMod &com_mod, const int d, const Vector<int> &eqN,
+                       const Array<double> &lR)
+{
+  auto& R = com_mod.R;
+  auto& Val = com_mod.Val;
+  const auto& rowPtr = com_mod.rowPtr;
+  const auto& colPtr = com_mod.colPtr;
+
+  for (int a = 0; a < d; a++) {
+    int rowN = eqN(a);
+    if (rowN == -1) {
+      continue;
+    }
+    for (int i = 0; i < R.nrows(); i++) {
+      R(i,rowN) = R(i,rowN) + lR(i,a);
+    }
+  }
+}
+
+
+void do_assem_tangent(ComMod &com_mod, const int d, const Vector<int> &eqN,
+                      const Array3<double> &lK)
+{
+  auto& R = com_mod.R;
+  auto& Val = com_mod.Val;
+  const auto& rowPtr = com_mod.rowPtr;
+  const auto& colPtr = com_mod.colPtr;
+
+  for (int a = 0; a < d; a++) {
+    int rowN = eqN(a);
+    if (rowN == -1) {
+      continue;
+    }
+    for (int b = 0; b < d; b++) {
+      int colN = eqN(b);
+      if (colN == -1) {
+        continue;
+      }
+
+      int left = rowPtr(rowN);
+      int right = rowPtr(rowN+1);
+      int ptr = (right + left) / 2;
+
+      while (colN != colPtr(ptr)) {
+        if (colN > colPtr(ptr)) { 
+          left  = ptr;
+        } else { 
+          right = ptr;
+        }
+        ptr = (right + left) / 2;
+      }
+
+      for (int i = 0; i < Val.nrows(); i++) {
+        Val(i,ptr) = Val(i,ptr) + lK(i,a,b);
+      }
+    }
+  }
+}
+
 
 //------
 // lhsa

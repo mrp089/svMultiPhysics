@@ -49,6 +49,7 @@
 #include "stokes.h"
 #include "sv_struct.h"
 #include "ustruct.h"
+#include "vtk_xml.h"
 
 #include <math.h>
 
@@ -324,7 +325,7 @@ void b_neu_folw_p(ComMod& com_mod, const faceType& lFa, const Vector<double>& hg
 ///
 /// Ag(tDof,tnNo), Yg(tDof,tnNo), Dg(tDof,tnNo)
 //
-void global_eq_assem(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag, const Array<double>& Yg, const Array<double>& Dg)
+void global_eq_assem(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshType& lM, const Array<double>& Ag, const Array<double>& Yg, const Array<double>& Dg)
 {
   #define n_debug_global_eq_assem
   #ifdef debug_global_eq_assem
@@ -364,6 +365,9 @@ void global_eq_assem(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const 
 
     case EquationType::phys_struct:
       struct_ns::construct_dsolid(com_mod, cep_mod, lM, Ag, Yg, Dg);
+      // struct_ns::construct_gr(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg);
+      com_mod.Val.print("Val");
+      std::terminate();
     break;
 
     case EquationType::phys_ustruct:

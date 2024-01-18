@@ -326,7 +326,7 @@ void iterate_solution(Simulation* simulation)
       #endif
 
       for (int iM = 0; iM < com_mod.nMsh; iM++) {
-        eq_assem::global_eq_assem(com_mod, cep_mod, com_mod.msh[iM], Ag, Yg, Dg);
+        eq_assem::global_eq_assem(com_mod, cep_mod, cm_mod, com_mod.msh[iM], Ag, Yg, Dg);
       }
 
       com_mod.Val.write("Val_as"+ istr);
@@ -480,11 +480,6 @@ void iterate_solution(Simulation* simulation)
 
       pic::picc(simulation);
       com_mod.Yn.write("Yn_picc"+ istr);
-
-      // Add smoothing to growth and remodeling parameters
-      if (com_mod.grEq) {
-        vtk_xml::smooth_output(simulation);
-      }
 
       // Writing out the time passed, residual, and etc.
       if (std::count_if(com_mod.eq.begin(),com_mod.eq.end(),[](eqType& eq){return eq.ok;}) == com_mod.eq.size()) { 

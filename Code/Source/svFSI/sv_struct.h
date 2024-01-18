@@ -45,7 +45,14 @@ void b_struct_3d(const ComMod& com_mod, const int eNoN, const double w, const Ve
     Array<double>& lR, Array3<double>& lK);
 
 void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag, 
-    const Array<double>& Yg, const Array<double>& Dg, const bool assembly=true);
+    const Array<double>& Yg, const Array<double>& Dg);
+
+void construct_gr(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshType& lM, const Array<double>& Ag, 
+    const Array<double>& Yg, const Array<double>& Dg);
+
+void eval_gr(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshType& lM, const Array<double>& Ag, 
+    const Array<double>& Yg, const Array<double>& Dg,
+    const bool central, const double eps=0.0, const int dAc=0, const int di=0);
 
 void eval_dsolid(const int& e, ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag,
     const Array<double>& Yg, const Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK);

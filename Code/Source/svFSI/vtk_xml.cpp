@@ -1434,14 +1434,14 @@ void write_vtus(Simulation* simulation, const Array<double>& lA, const Array<dou
   delete vtk_writer;
 }
 
-void smooth_output(Simulation* simulation)
+void smooth_output(ComMod& com_mod, CmMod& cm_mod)
 {
   using namespace consts;
 
-  auto& com_mod = simulation->com_mod;
+  // auto& com_mod = simulation->com_mod;
   auto& cm = com_mod.cm;
-  auto& cm_mod = simulation->cm_mod;
-  auto& cep_mod = simulation->cep_mod;
+  // auto& cm_mod = simulation->cm_mod;
+  // auto& cep_mod = simulation->cep_mod;
 
   const int nsd = com_mod.nsd;
   const int nEq = com_mod.nEq;
@@ -1591,7 +1591,7 @@ void smooth_output(Simulation* simulation)
     }
   }
 
-  vtk_writer->write();
+  // vtk_writer->write();
   delete vtk_writer;
 }
 

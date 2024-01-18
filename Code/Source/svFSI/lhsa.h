@@ -41,6 +41,12 @@ namespace lhsa_ns {
 
   void do_assem(ComMod& com_mod, const int d, const Vector<int>& eqN, const Array3<double>& lK, const Array<double>& lR);
 
+  void do_assem_residual(ComMod &com_mod, const int d, const Vector<int> &eqN,
+                         const Array<double> &lR);
+
+  void do_assem_tangent(ComMod &com_mod, const int d, const Vector<int> &eqN,
+                        const Array3<double> &lK);
+
   void lhsa(Simulation* simulation, int& nnz);
 
   void resiz(const int tnNo, int& mnnzeic, Array<int>& uInd);

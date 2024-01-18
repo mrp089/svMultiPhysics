@@ -60,7 +60,7 @@ void write_vtu_debug(ComMod& com_mod, mshType& lM, const std::string& fName);
 
 void write_vtus(Simulation* simulation, const Array<double>& lA, const Array<double>& lY, const Array<double>& lD, const bool lAve);
 
-void smooth_output(Simulation* simulation);
+void smooth_output(ComMod& com_mod, CmMod& cm_mod);
 
 };
 

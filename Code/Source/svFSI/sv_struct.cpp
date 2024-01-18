@@ -44,6 +44,7 @@
 #include "mat_models_fixed.h"
 #include "nn.h"
 #include "utils.h"
+#include "vtk_xml.h"
 
 #ifdef WITH_TRILINOS
 #include "trilinos_linear_solver.h"
@@ -200,7 +201,153 @@ void b_struct_3d(const ComMod& com_mod, const int eNoN, const double w, const Ve
   }
 }
 
-void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag, const Array<double>& Yg, const Array<double>& Dg, const bool assembly)
+
+void construct_gr(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, 
+             const mshType& lM, const Array<double>& Ag, 
+             const Array<double>& Yg, const Array<double>& Dg)
+{
+  // Get dimensions
+  const int eNoN = lM.eNoN;
+  const int dof = com_mod.dof;
+  const int tDof = com_mod.tDof;
+  const int tnNo = com_mod.tnNo;
+
+  // Make editable copy
+  // Array<double> e_Ag(tDof,tnNo); 
+  // Array<double> e_Yg(tDof,tnNo); 
+  Array<double> e_Dg(tDof,tnNo);
+  e_Dg = Dg;
+
+  // Initialize residual and tangent
+  Vector<int> ptr(eNoN);
+  Array<double> lR(dof, eNoN);
+  Array3<double> lK(dof * dof, eNoN, eNoN);
+
+  // Set step size for finite difference
+  const double eps = 1.0e-8;
+
+  // Central evaluation
+  eval_gr(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, true, eps);
+
+  // Loop global nodes
+  for (int Ac = 0; Ac < tnNo; ++Ac) {
+    // Loop DOFs
+    for (int i = 0; i < dof; ++i) {
+      // Perturb solution vector
+      e_Dg(i, Ac) += eps;
+
+      // Perturbed evaluation
+      eval_gr(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, false, eps, Ac, i);
+
+      // Restore solution vector
+      e_Dg(i, Ac) = Dg(i, Ac);
+    }
+  }
+}
+
+void eval_gr(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, 
+             const mshType& lM, const Array<double>& Ag, 
+             const Array<double>& Yg, const Array<double>& Dg,
+             const bool central, const double eps, const int dAc, const int di)
+{
+  using namespace consts;
+
+  // Get dimensions
+  const int eNoN = lM.eNoN;
+  const int dof = com_mod.dof;
+
+  // Initialize residual and tangent
+  Vector<int> ptr_dummy(eNoN);
+  Vector<int> ptr(eNoN);
+  Array<double> lR_dummy(dof, eNoN);
+  Array<double> lR(dof, eNoN);
+  Array3<double> lK_dummy(dof * dof, eNoN, eNoN);
+  Array3<double> lK(dof * dof, eNoN, eNoN);
+  ptr = 0;
+  lR = 0.0;
+  lK = 0.0;
+  ptr_dummy = 0;
+  lR_dummy = 0.0;
+  lK_dummy = 0.0;
+
+  // Time integration parameter
+  int cEq = com_mod.cEq;
+  auto& eq = com_mod.eq[cEq];
+  const double dt = com_mod.dt;
+  double afl_eps = eq.af * eq.beta * dt * dt / eps;
+
+  // Loop over all elements of mesh
+  // for (int e = 0; e < lM.nEl; e++) {
+  //   // Evaluate solid equations to update internal G&R variables 
+  //   // (without assembly)
+  //   eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, 
+  //               ptr_dummy, lR_dummy, lK_dummy);
+  // }
+
+  // Smooth internal G&R variables
+  // vtk_xml::smooth_output(com_mod, cm_mod);
+  
+  // Loop over all elements of mesh
+  for (int e = 0; e < lM.nEl; e++) {
+    // Check if element has node
+    if (!central) {
+      bool has_node = false;
+      for (int b = 0; b < eNoN; ++b) {
+        if (lM.IEN(b, e) == dAc) {
+          has_node = true;
+          break;
+        }
+      }
+      if (!has_node) {
+        continue;
+      }
+    }
+    // Reset
+    ptr = 0;
+    lR = 0.0;
+    lK = 0.0;
+
+    // Evaluate solid equations (with smoothed internal G&R variables)
+    eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr, lR, lK_dummy);
+
+    // Assemble into global residual
+    if (central) {
+      lhsa_ns::do_assem_residual(com_mod, lM.eNoN, ptr, lR);
+    }
+
+    // Assemble difference of residual into tangent
+    if (central) {
+      for (int a = 0; a < eNoN; ++a) {
+        for (int b = 0; b < eNoN; ++b) {
+          for (int i = 0; i < dof; ++i) {
+            for (int j = 0; j < dof; ++j) {
+              lK(i * dof + j, a, b) = - lR(i, a) * afl_eps;
+            }
+          }
+        }
+      }
+    }
+    else {
+      for (int a = 0; a < eNoN; ++a) {
+        for (int b = 0; b < eNoN; ++b) {
+          if (lM.IEN(b, e) == dAc) {
+            for (int i = 0; i < dof; ++i) {
+              lK(i * dof + di, a, b) = lR(i, a) * afl_eps;
+            }
+          }
+        }
+      }
+    }
+
+    // Assemble into global tangent
+    lhsa_ns::do_assem_tangent(com_mod, lM.eNoN, ptr, lK);
+  }
+}
+
+/// @brief Loop solid elements and assemble into global matrices
+void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, 
+                      const mshType& lM, const Array<double>& Ag, 
+                      const Array<double>& Yg, const Array<double>& Dg)
 {
   using namespace consts;
 
@@ -241,17 +388,15 @@ void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const
     eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr, lR, lK);
 
     // Assemble into global residual and tangent
-    if (assembly) {
 #ifdef WITH_TRILINOS
-      if (eq.assmTLS) {
-        trilinos_doassem_(const_cast<int&>(eNoN), ptr.data(), lK.data(), lR.data());
-      } else {
+    if (eq.assmTLS) {
+      trilinos_doassem_(const_cast<int&>(eNoN), ptr.data(), lK.data(), lR.data());
+    } else {
 #endif
       lhsa_ns::do_assem(com_mod, eNoN, ptr, lK, lR);
 #ifdef WITH_TRILINOS
-     }
-#endif
     }
+#endif
   }
 }
 
