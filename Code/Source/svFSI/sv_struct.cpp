@@ -237,9 +237,7 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   Array3<double> lK(dof * dof, eNoN, eNoN);
 
   // Central evaluation
-  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, true, true, fa_eps);
-  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, true, false, fy_eps);
-  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, true, false, fd_eps);
+  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, true, fa_eps + fy_eps + fd_eps);
 
   // Loop global nodes
   for (int Ac = 0; Ac < tnNo; ++Ac) {
@@ -251,9 +249,9 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       e_Dg(i, Ac) += eps;
 
       // Perturbed evaluations
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, false, false, fa_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, false, false, fy_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, false, false, fd_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, false, fa_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, false, fy_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, false, fd_eps, Ac, i);
 
       // Restore solution vectors
       e_Ag(i, Ac) = Ag(i, Ac);
@@ -266,8 +264,7 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, 
              const mshType& lM, const Array<double>& Ag, 
              const Array<double>& Yg, const Array<double>& Dg,
-             const bool central, const bool assemble_R, 
-             const double eps, const int dAc, const int di)
+             const bool central, const double eps, const int dAc, const int di)
 {
   using namespace consts;
 
@@ -294,7 +291,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   //   // Evaluate solid equations to update internal G&R variables 
   //   // (without assembly)
   //   eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, 
-  //               ptr_dummy, lR_dummy, lK_dummy);
+  //               ptr_dummy, lR_dummy, lK_dummy, false);
   // }
 
   // Smooth internal G&R variables
@@ -324,7 +321,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
     eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr, lR, lK_dummy);
 
     // Assemble into global residual
-    if (central && assemble_R) {
+    if (central) {
       lhsa_ns::do_assem_residual(com_mod, lM.eNoN, ptr, lR);
     }
 
@@ -418,7 +415,8 @@ void construct_dsolid(ComMod& com_mod, CepMod& cep_mod,
 void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
                  const mshType &lM, const Array<double> &Ag,
                  const Array<double> &Yg, const Array<double> &Dg,
-                 Vector<int> &ptr, Array<double> &lR, Array3<double> &lK)
+                 Vector<int> &ptr, Array<double> &lR, Array3<double> &lK,
+                 const bool eval)
 {
   using namespace consts;
 
@@ -529,7 +527,7 @@ void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
     }
 
     if (nsd == 3) {
-      struct_3d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK);
+      struct_3d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK, eval);
 
     } else if (nsd == 2) {
       struct_2d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK);
@@ -797,7 +795,7 @@ void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
     const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
     const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
     Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_g, Array<double>& gr_props_l,
-    Array<double>& lR, Array3<double>& lK) 
+    Array<double>& lR, Array3<double>& lK, const bool eval) 
 {
   using namespace consts;
   using namespace mat_fun;
@@ -935,6 +933,9 @@ void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
   //
   Array<double> S(3,3), Dm(6,6); 
   mat_models::get_pk2cc(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, gr_int_g, gr_props_g, S, Dm);
+  if(!eval) {
+    return;
+  }
 
   // Elastic + Viscous stresses
   S = S + Svis;
