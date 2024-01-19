@@ -364,10 +364,10 @@ void global_eq_assem(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshT
     break;
 
     case EquationType::phys_struct:
-      struct_ns::construct_dsolid(com_mod, cep_mod, lM, Ag, Yg, Dg);
-      // struct_ns::construct_gr(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg);
-      com_mod.Val.print("Val");
-      std::terminate();
+      // struct_ns::construct_dsolid(com_mod, cep_mod, lM, Ag, Yg, Dg);
+      struct_ns::construct_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg);
+      // com_mod.Val.print("Val");
+      // std::terminate();
     break;
 
     case EquationType::phys_ustruct:

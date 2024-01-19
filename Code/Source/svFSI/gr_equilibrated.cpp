@@ -89,7 +89,7 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 	const int n_t_pre = 1;
 
 	// number of time steps total
-	const int n_t_end = 101;
+	const int n_t_end = 11;
 
 	const double pretime = n_t_pre * dt;
 	const double endtime = n_t_end * dt;							// 11.0 | 31.0-32.0 (TEVG)
