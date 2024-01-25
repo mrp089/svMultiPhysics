@@ -1,5 +1,4 @@
-/**
- * Copyright (c) Stanford University, The Regents of the University of California, and others.
+/* Copyright (c) Stanford University, The Regents of the University of California, and others.
  *
  * All Rights Reserved.
  *
@@ -36,9 +35,6 @@
 #include "Tensor4.h"
 #include "Vector.h"
 
-#include "mat_fun_fixed.h"
-
-
 /// @brief The classes defined here duplicate the data structures in the 
 /// Fortran MATFUN module defined in MATFUN.f. 
 ///
@@ -61,6 +57,8 @@ namespace mat_fun {
     Vector<double> mat_mul(const Array<double>& A, const Vector<double>& v);
     Array<double> mat_mul(const Array<double>& A, const Array<double>& B);
     void mat_mul(const Array<double>& A, const Array<double>& B, Array<double>& result);
+    void mat_mul6x3(const Array<double>& A, const Array<double>& B, Array<double>& C);
+
     Array<double> mat_symm(const Array<double>& A, const int nd);
     Array<double> mat_symm_prod(const Vector<double>& u, const Vector<double>& v, const int nd);
     double mat_trace(const Array<double>& A, const int nd);

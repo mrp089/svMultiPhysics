@@ -1,5 +1,4 @@
-/**
- * Copyright (c) Stanford University, The Regents of the University of California, and others.
+/* Copyright (c) Stanford University, The Regents of the University of California, and others.
  *
  * All Rights Reserved.
  *
@@ -93,7 +92,9 @@ class VtkVtpData : public VtkData {
     void copy_points(Array<double>& points);
     void copy_point_data(const std::string& data_name, Array<double>& mesh_data);
     void copy_point_data(const std::string& data_name, Vector<double>& mesh_data);
+    void copy_point_data(const std::string& data_name, Vector<int>& mesh_data);
     Array<double> get_point_data(const std::string& data_name);
+    std::vector<std::string> get_point_data_names();
     bool has_point_data(const std::string& data_name);
     virtual void cell_to_point_data(const std::string& data_name);
     virtual void smooth_point_data(const std::string& data_name);
@@ -130,8 +131,10 @@ class VtkVtuData : public VtkData {
 
     void copy_point_data(const std::string& data_name, Array<double>& mesh_data);
     void copy_point_data(const std::string& data_name, Vector<double>& mesh_data);
+    void copy_point_data(const std::string& data_name, Vector<int>& mesh_data);
 
     Array<double> get_point_data(const std::string& data_name);
+    std::vector<std::string> get_point_data_names();
     virtual Array<double> get_points();
     bool has_point_data(const std::string& data_name);
     virtual void cell_to_point_data(const std::string& data_name);

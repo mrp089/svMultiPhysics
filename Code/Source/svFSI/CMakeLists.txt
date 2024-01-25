@@ -97,15 +97,23 @@ if(WITH_PETSC)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pedantic -std=c99")
 endif()
 
+if(ENABLE_ARRAY_INDEX_CHECKING)
+  ADD_DEFINITIONS(-DENABLE_ARRAY_INDEX_CHECKING)
+endif()
+
 # svFSI requires LAPACK
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 
-# Including VTK produces warnings when compiling Fortran code.
+# Include VTK either from a local build using SV_LOCAL_VTK_PATH
+# or from a default installed version.
 #
-#   -iframe is valid for C/C++/ObjC/ObjC++ but not for Fortran
-#
-find_package(VTK REQUIRED)
+if("${SV_LOCAL_VTK_PATH}" STREQUAL "")
+  find_package(VTK REQUIRED ) 
+else()
+  find_package(VTK PATHS ${SV_LOCAL_VTK_PATH} NO_DEFAULT_PATH REQUIRED) 
+endif()
+
 include(${VTK_USE_FILE})
 
 set(lib ${SV_LIB_SVFSI_NAME})
@@ -113,7 +121,7 @@ set(lib ${SV_LIB_SVFSI_NAME})
 set(CSRCS 
   Array3.h Array3.cpp 
   Array.h Array.cpp
-  Tensor4.h 
+  Tensor4.h Tensor4.cpp
   Vector.h Vector.cpp 
 
   lapack_defs.h
@@ -147,6 +155,7 @@ set(CSRCS
   ls.h ls.cpp
   main.cpp
   mat_fun.h mat_fun.cpp
+  mat_fun_carray.h mat_fun_carray.cpp
   mat_models.h mat_models.cpp
   mesh.h mesh.cpp
   nn.h nn.cpp
@@ -213,9 +222,6 @@ simvascular_add_executable(${SV_SVFSI_EXE}
   INSTALL_SCRIPT_NAME "svfsi"
   INSTALL_COMP CoreExecutables
   INSTALL_DESTINATION ${SV_INSTALL_RUNTIME_DIR})
-
-message("##### TINY  ${TINYXML_LIBRARY_NAME}")
-message("##### TET ${TETGEN_LIBRARY_NAME}")
 
 target_link_libraries(${SV_SVFSI_EXE}
   ${GLOBAL_LIBRARIES}
