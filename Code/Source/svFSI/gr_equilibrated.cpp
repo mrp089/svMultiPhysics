@@ -33,10 +33,11 @@
 
 namespace gr_equilibrated_ns {
 
-void stress_tangent_(const Array<double>& Fe, const double time, const Vector<double>& eVWP, Vector<double>& grInt, Array<double>& S_out, Tensor4<double>& CC_out)
+// Call with fixed-size arrays (more efficient)
+void stress_tangent_(const double Fe[3][3], const double time, const Vector<double>& eVWP, Vector<double>& grInt, double S_out[3][3], double CC_out[3][3][3][3])
 {
 	// convert deformation gradient to FEBio format
-	mat3d F(Fe(0,0), Fe(0,1), Fe(0,2), Fe(1,0), Fe(1,1), Fe(1,2), Fe(2,0), Fe(2,1), Fe(2,2));
+	mat3d F(Fe[0][0], Fe[0][1], Fe[0][2], Fe[1][0], Fe[1][1], Fe[1][2], Fe[2][0], Fe[2][1], Fe[2][2]);
 
 	// right Cauchy-Green tensor and its inverse
 	const mat3ds C = (F.transpose() * F).sym();
@@ -798,7 +799,7 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 	for (int i=0; i < 3; i++)
 		for (int j=0; j < 3; j++)
 		{
-			S_out(i,j) = S(i, j);
+			S_out[i][j] = S(i, j);
 			if (std::isnan(S(i, j)))
 				std::terminate();
 		}
@@ -808,7 +809,7 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 			for (int k=0; k < 3; k++)
 				for (int l=0; l < 3; l++)
 				{
-					CC_out(i, j, k, l) = css_ref(i, j, k, l);
+					CC_out[i][j][k][l] = css_ref(i, j, k, l);
 					if (std::isnan(css_ref(i, j, k, l)))
 						std::terminate();
 				}
@@ -902,6 +903,33 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 		// 		grInt(k] = Fih(i,j);
 		// 		k++;
 		// 	}
+	}
+}
+
+// Call with variable size arrays
+void stress_tangent_(const Array<double>& Fe, const double time, const Vector<double>& eVWP, Vector<double>& grInt, Array<double>& S_out, Tensor4<double>& CC_out)
+{
+	double F3[3][3];
+	double S3[3][3];
+	double CC3[3][3][3][3];
+
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			F3[i][j] = Fe(i,j);
+		}
+	}
+
+	stress_tangent_(F3, time, eVWP, grInt, S3, CC3);
+
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			S_out(i,j) = S3[i][j];
+			for (int k = 0; k < 3; k++) {
+				for (int l = 0; l < 3; l++) {
+					CC_out(i,j,k,l) = CC3[i][j][k][l];
+				}
+			}
+		}
 	}
 }
 

@@ -75,7 +75,8 @@ void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
 void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
     const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
     const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
-    Vector<double>& pSl, const Vector<double>& ya_l, Array<double>& lR, Array3<double>& lK);
+    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_l, Array<double>& gr_props_l, 
+    Array<double>& lR, Array3<double>& lK, const bool eval=true);
 
 };
 

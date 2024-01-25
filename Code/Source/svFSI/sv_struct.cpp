@@ -527,9 +527,8 @@ void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
     }
 
     if (nsd == 3) {
-      struct_3d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK, eval);
-      //struct_3d_carray(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, lR, lK);
-      //struct_3d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, lR, lK);
+      // struct_3d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK, eval);
+      struct_3d_carray(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK);
 
 #if 0
         if (e == 0 && g == 0) {
@@ -803,7 +802,8 @@ void struct_2d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
 void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
     const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
     const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
-    Vector<double>& pSl, const Vector<double>& ya_l, Array<double>& lR, Array3<double>& lK) 
+    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_g, Array<double>& gr_props_l, 
+    Array<double>& lR, Array3<double>& lK, const bool eval) 
 {
   using namespace consts;
   using namespace mat_fun;
@@ -855,6 +855,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
   double S0[3][3]={}; 
   double vx[3][3]={};
   double ud[3] = {-rho*fb[0], -rho*fb[1], -rho*fb[2]}; 
+  Vector<double> gr_props_g(gr_props_l.nrows());
 
   F[0][0] = 1.0;
   F[1][1] = 1.0;
@@ -894,6 +895,10 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
     S0[2][0] += N(a)*pS0l(5,a);
 
     ya_g = ya_g + N(a)*ya_l(a);
+
+    for (int igr = 0; igr < gr_props_l.nrows(); igr++) {
+      gr_props_g(igr) += gr_props_l(igr,a) * N(a);
+    }
   }
 
 
@@ -943,7 +948,10 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
   double S[3][3]; 
   double Dm[6][6]; 
 
-  mat_models_carray::get_pk2cc<3>(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, S, Dm);
+  mat_models_carray::get_pk2cc<3>(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, gr_int_g, gr_props_g, S, Dm);
+  if(!eval) {
+    return;
+  }
 
   // Elastic + Viscous stresses
   for (int i = 0; i < 3; i++) {
