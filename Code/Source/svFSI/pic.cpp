@@ -96,6 +96,10 @@ void picc(Simulation* simulation)
   auto& pSn = com_mod.pSn;
   auto& Xion = cep_mod.Xion;
 
+  auto& gr_0 = com_mod.grInt_0;
+  auto& gr_a = com_mod.grInt_a;
+  auto& gr_n = com_mod.grInt_n;
+
   int s = eq.s;
   int e = eq.e;
 
@@ -205,6 +209,17 @@ void picc(Simulation* simulation)
     }
 
     pSa = 0.0;
+  }
+
+  if (com_mod.grEq) {
+    for (int a = 0; a < tnNo; a++) {
+      if (!utils::is_zero(gr_n(a))) {
+        for (int i = 0; i < gr_n.nrows(); i++) {
+          gr_n(i,a) /= gr_a(a);
+        }
+      }
+    }
+    gr_a = 0.0;
   }
 
   // Filter out the non-wall displacements for CMM equation
@@ -533,6 +548,10 @@ void pici(Simulation* simulation, Array<double>& Ag, Array<double>& Yg, Array<do
     com_mod.pSn = 0.0;
     com_mod.pSa = 0.0;
   }
+  if (com_mod.grEq) {
+    com_mod.grInt_n = 0.0;
+    com_mod.grInt_a = 0.0;
+  }
 }
 
 //------
@@ -580,6 +599,10 @@ void picp(Simulation* simulation)
      Ao = 0.0;
      Yo = 0.0;
      Do = 0.0;
+  }
+
+  if (com_mod.grEq) {
+    com_mod.grInt_0 = com_mod.grInt_n;
   }
 
   // IB treatment: Set dirichlet BC and update traces. For explicit

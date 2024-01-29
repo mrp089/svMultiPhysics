@@ -434,6 +434,9 @@ void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
   auto& pS0 = com_mod.pS0;
   auto& pSn = com_mod.pSn;
   auto& pSa = com_mod.pSa;
+  auto& gr_0 = com_mod.grInt_0;
+  auto& gr_n = com_mod.grInt_n;
+  auto& gr_a = com_mod.grInt_a;
   bool pstEq = com_mod.pstEq;
 
   int eNoN = lM.eNoN;
@@ -451,18 +454,17 @@ void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
   #endif
 
   // STRUCT: dof = nsd
-  Vector<double> pSl(nsymd), ya_l(eNoN), N(eNoN), gr_int_g(com_mod.nGrInt), gr_props_g(lM.n_gr_props);
+  Vector<double> pSl(nsymd), ya_l(eNoN), N(eNoN), gr_int_g(com_mod.nGrInt);
   Array<double> xl(nsd,eNoN), al(tDof,eNoN), yl(tDof,eNoN), dl(tDof,eNoN), 
                 bfl(nsd,eNoN), fN(nsd,nFn), pS0l(nsymd,eNoN), Nx(nsd,eNoN),
-                gr_props_l(lM.n_gr_props,eNoN);
+                gr_int_l(com_mod.nGrInt,eNoN), gr_props_l(lM.n_gr_props,eNoN);
   
   // Create local copies
   fN  = 0.0;
   pS0l = 0.0;
   ya_l = 0.0;
-  gr_int_g = 0.0;
+  gr_int_l = 0.0;
   gr_props_l = 0.0;
-  gr_props_g = 0.0;
 
   for (int a = 0; a < eNoN; a++) {
     int Ac = lM.IEN(a,e);
@@ -496,8 +498,11 @@ void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
     }
 
     if (lM.gr_props.size() != 0) {
-      for (int igr = 0; igr < lM.n_gr_props; igr++) {
-        gr_props_l(igr,a) = lM.gr_props(igr,Ac);
+      for (int i = 0; i < lM.n_gr_props; i++) {
+        gr_props_l(i,a) = lM.gr_props(i,Ac);
+      }
+      for (int i = 0; i < com_mod.nGrInt; i++) {
+        gr_int_l(i,a) = gr_0(i,Ac);
       }
     }
   }
@@ -518,17 +523,9 @@ void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
     N = lM.N.col(g);
     pSl = 0.0;
 
-    // Get internal growth and remodeling variables
-    if (com_mod.grEq) {
-      // todo mrp089: add a function like rslice for vectors to Array3
-      for (int i = 0; i < com_mod.nGrInt; i++) {
-          gr_int_g(i) = com_mod.grInt(e,g,i);
-      }
-    }
-
     if (nsd == 3) {
-      // struct_3d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK, eval);
-      struct_3d_carray(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK);
+      struct_3d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_int_l, gr_props_l, lR, lK, eval);
+      // struct_3d_carray(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK);
 
 #if 0
         if (e == 0 && g == 0) {
@@ -543,11 +540,14 @@ void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
       struct_2d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK);
     }
 
-    // Set internal growth and remodeling variables
+    // Project G&R internal variables to nodes
     if (com_mod.grEq) {
-      // todo mrp089: add a function like rslice for vectors to Array3
-      for (int i = 0; i < com_mod.nGrInt; i++) {
-          com_mod.grInt(e,g,i) = gr_int_g(i);
+      for (int a = 0; a < eNoN; a++) {
+        int Ac = ptr(a);
+        gr_a(Ac) += w * N(a);
+        for (int i = 0; i < gr_n.nrows(); i++) {
+          gr_n(i,Ac) += w * N(a) * gr_int_g(i);
+        }
       }
     }
 
@@ -1203,7 +1203,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
 void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
     const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
     const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
-    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_g, Array<double>& gr_props_l,
+    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_g, Array<double>& gr_int_l, Array<double> gr_props_l,
     Array<double>& lR, Array3<double>& lK, const bool eval) 
 {
   using namespace consts;
@@ -1315,8 +1315,12 @@ void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
 
     ya_g = ya_g + N(a)*ya_l(a);
 
-    for (int igr = 0; igr < gr_props_l.nrows(); igr++) {
-      gr_props_g(igr) += gr_props_l(igr,a) * N(a);
+    // Project G&R parameters and variables to Gauss point
+    for (int i = 0; i < gr_props_l.nrows(); i++) {
+      gr_props_g(i) += gr_props_l(i,a) * N(a);
+    }
+    for (int i = 0; i < gr_int_l.nrows(); i++) {
+      gr_int_g(i) += gr_int_l(i,a) * N(a);
     }
   }
 

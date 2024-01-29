@@ -1729,9 +1729,8 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
   Vector<double> resl(m); 
   Array<double> Nx(nsd,fs.eNoN); 
   Vector<double> N(fs.eNoN);
-  Vector<double> gr_int_l(com_mod.nGrInt);
-  Array<double> gr_props_l(lM.n_gr_props,fs.eNoN);
-  Vector<double> gr_props_g(lM.n_gr_props);
+  Array<double> gr_int_l(com_mod.nGrInt,fs.eNoN), gr_props_l(lM.n_gr_props,fs.eNoN);
+  Vector<double> gr_int_g(com_mod.nGrInt), gr_props_g(lM.n_gr_props);
 
   double ya = 0.0;
 
@@ -1859,9 +1858,14 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
 
       // Get internal growth and remodeling variables
       if (com_mod.grEq) {
-        // todo mrp089: add a function like rslice for vectors to Array3
-        for (int i = 0; i < com_mod.nGrInt; i++) {
-            gr_int_l(i) = com_mod.grInt(e,g,i);
+        for (int a = 0; a < fs.eNoN; a++) {
+          int Ac = lM.IEN(a,e);
+          for (int i = 0; i < lM.n_gr_props; i++) {
+            gr_props_l(i,a) = lM.gr_props(i,Ac);
+          }
+          for (int i = 0; i < com_mod.nGrInt; i++) {
+            gr_int_l(i,a) = com_mod.grInt_n(i,Ac);
+          }
         }
       }
 
@@ -1969,7 +1973,7 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
 
           } else if (cPhys == EquationType::phys_struct) {
             Array<double> Dm(nsymd,nsymd);
-            mat_models::get_pk2cc(com_mod, cep_mod, eq.dmn[cDmn], F, nFn, fN, ya, gr_int_l, gr_props_g, S, Dm);
+            mat_models::get_pk2cc(com_mod, cep_mod, eq.dmn[cDmn], F, nFn, fN, ya, gr_int_g, gr_props_g, S, Dm);
 
             auto P1 = mat_mul(F, S);
             sigma = mat_mul(P1, transpose(F));

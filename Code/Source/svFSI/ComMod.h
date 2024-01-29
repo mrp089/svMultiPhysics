@@ -1556,7 +1556,9 @@ class ComMod {
     Array<double>  Bf;
 
     /// @brief Internal growth and remodeling variables
-    Array3<double> grInt;
+    Array<double> grInt_0;
+    Array<double> grInt_n;
+    Vector<double> grInt_a;
 
     //-----------------------------------------------------
     // Additional arrays for velocity-based formulation of 
