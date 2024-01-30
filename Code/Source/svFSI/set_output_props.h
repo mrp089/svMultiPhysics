@@ -81,6 +81,7 @@ std::map<consts::OutputType, OutputProps> output_props_map =
   {OutputType::out_voltage,      std::make_tuple(OutputType::outGrp_Y,      0, 1,             "Action_potential") },
   {OutputType::out_vortex,       std::make_tuple(OutputType::outGrp_vortex, 0, 1,             "Vortex") },
   {OutputType::out_vorticity,    std::make_tuple(OutputType::outGrp_vort,   0, maxNSD,        "Vorticity") },
-  {OutputType::out_WSS,          std::make_tuple(OutputType::outGrp_WSS,    0, maxNSD,        "WSS") }
+  {OutputType::out_WSS,          std::make_tuple(OutputType::outGrp_WSS,    0, maxNSD,        "WSS") },
+  {OutputType::out_gr,           std::make_tuple(OutputType::outGrp_gr,     0, 50,            "GR") }
 };
 

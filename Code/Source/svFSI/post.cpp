@@ -1920,6 +1920,7 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
         case OutputType::outGrp_stress:
         case OutputType::outGrp_cauchy: 
         case OutputType::outGrp_mises:
+        case OutputType::outGrp_gr:
           Array<double> sigma(nsd,nsd);
           Array<double> S(nsd,nsd);
 
@@ -2018,6 +2019,8 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
             double vmises = sqrt(mat_ddot(sigma, sigma, nsd));
             resl(0) = vmises;
             sE(e) = sE(e) + w*vmises;
+          } else if (outGrp == OutputType::outGrp_gr) {
+            resl = gr_int_g;
           }
         break;
 
