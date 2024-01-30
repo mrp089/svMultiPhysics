@@ -1815,6 +1815,7 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
       auto F = Im;
 
       gr_props_g = 0;
+      gr_int_g = 0;
       for (int a = 0; a < fs.eNoN; a++) {
         if (nsd == 3) {
           F(0,0) = F(0,0) + Nx(0,a)*dl(i,a);
