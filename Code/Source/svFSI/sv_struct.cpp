@@ -522,6 +522,7 @@ void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
     double w = lM.w(g) * Jac;
     N = lM.N.col(g);
     pSl = 0.0;
+    gr_int_g = 0.0;
 
     if (nsd == 3) {
       struct_3d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_int_l, gr_props_l, lR, lK, eval);

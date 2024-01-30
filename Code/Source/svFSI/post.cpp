@@ -1789,8 +1789,11 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
         yl(i,a) = lY(i,Ac);
       }
       if (lM.gr_props.size() != 0) {
-        for (int igr = 0; igr < lM.n_gr_props; igr++) {
-          gr_props_l(igr,a) = lM.gr_props(igr,Ac);
+        for (int i = 0; i < lM.n_gr_props; i++) {
+          gr_props_l(i,a) = lM.gr_props(i,Ac);
+        }
+        for (int i = 0; i < com_mod.nGrInt; i++) {
+          gr_int_l(i,a) = com_mod.grInt_0(i,Ac);
         }
       }
     }
@@ -1830,8 +1833,12 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
           F(1,1) = F(1,1) + Nx(1,a)*dl(j,a);
         }
 
-        for (int igr = 0; igr < lM.n_gr_props; igr++) {
-          gr_props_g(igr) += gr_props_l(igr,a) * N(a);
+        // Project G&R parameters and variables to Gauss point
+        for (int i = 0; i < gr_props_l.nrows(); i++) {
+          gr_props_g(i) += gr_props_l(i,a) * N(a);
+        }
+        for (int i = 0; i < gr_int_l.nrows(); i++) {
+          gr_int_g(i) += gr_int_l(i,a) * N(a);
         }
       }
 

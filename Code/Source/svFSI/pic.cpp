@@ -549,6 +549,11 @@ void pici(Simulation* simulation, Array<double>& Ag, Array<double>& Yg, Array<do
     com_mod.pSa = 0.0;
   }
   if (com_mod.grEq) {
+    for (int a = 0; a < tnNo; a++) {
+      for (int i = 0; i < com_mod.grInt_n.nrows(); i++) {
+        com_mod.grInt_0(i, a) = com_mod.grInt_n(i, a);
+      }
+    }
     com_mod.grInt_n = 0.0;
     com_mod.grInt_a = 0.0;
   }
@@ -599,10 +604,6 @@ void picp(Simulation* simulation)
      Ao = 0.0;
      Yo = 0.0;
      Do = 0.0;
-  }
-
-  if (com_mod.grEq) {
-    com_mod.grInt_0 = com_mod.grInt_n;
   }
 
   // IB treatment: Set dirichlet BC and update traces. For explicit
