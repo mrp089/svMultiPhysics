@@ -1268,6 +1268,7 @@ void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
   F(1,1) = 1.0;
   F(2,2) = 1.0;
   S0 = 0.0;
+  gr_props_g = 0.0;
   double ya_g = 0.0;
 
   for (int a = 0; a < eNoN; a++) {
