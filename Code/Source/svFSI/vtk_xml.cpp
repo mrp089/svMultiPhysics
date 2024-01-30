@@ -1120,6 +1120,7 @@ void write_vtus(Simulation* simulation, const Array<double>& lA, const Array<dou
           case OutputType::outGrp_stress:
           case OutputType::outGrp_cauchy:
           case OutputType::outGrp_mises:
+          case OutputType::outGrp_gr:
             #ifdef debug_write_vtus 
             dmsg << "case " << " outGrp_stress";
             #endif
