@@ -2020,7 +2020,7 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
             resl(0) = vmises;
             sE(e) = sE(e) + w*vmises;
           } else if (outGrp == OutputType::outGrp_gr) {
-            resl = gr_int_g;
+            resl = gr_int_l;
           }
         break;
 
