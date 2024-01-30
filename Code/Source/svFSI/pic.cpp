@@ -96,7 +96,6 @@ void picc(Simulation* simulation)
   auto& pSn = com_mod.pSn;
   auto& Xion = cep_mod.Xion;
 
-  auto& gr_0 = com_mod.grInt_0;
   auto& gr_a = com_mod.grInt_a;
   auto& gr_n = com_mod.grInt_n;
 
@@ -213,7 +212,7 @@ void picc(Simulation* simulation)
 
   if (com_mod.grEq) {
     for (int a = 0; a < tnNo; a++) {
-      if (!utils::is_zero(gr_n(a))) {
+      if (!utils::is_zero(gr_a(a))) {
         for (int i = 0; i < gr_n.nrows(); i++) {
           gr_n(i,a) /= gr_a(a);
         }
