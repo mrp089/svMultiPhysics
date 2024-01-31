@@ -73,6 +73,11 @@ GetElementGausIntMapType get_element_gauss_int_data = {
     xi(0,7) = t; 
     xi(1,7) = s; 
     xi(2,7) = s;
+    for (int i = 0; i < 8; i++) {
+      // xi(0,i) = 0.0;
+      xi(1,i) = 0.0;
+      xi(2,i) = 0.0;
+    }
     }
   },
 
@@ -292,6 +297,11 @@ SetElementGausIntMapType set_element_gauss_int_data = {
       mesh.xi(0,5) = s; mesh.xi(1,5) = t; mesh.xi(2,5) = s;
       mesh.xi(0,6) = s; mesh.xi(1,6) = s; mesh.xi(2,6) = s;
       mesh.xi(0,7) = t; mesh.xi(1,7) = s; mesh.xi(2,7) = s;
+      for (int i = 0; i < 8; i++) {
+        // mesh.xi(0,i) = 0.0;
+        mesh.xi(1,i) = 0.0;
+        mesh.xi(2,i) = 0.0;
+      }
     }
   },
 
