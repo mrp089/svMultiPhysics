@@ -548,6 +548,12 @@ void pici(Simulation* simulation, Array<double>& Ag, Array<double>& Yg, Array<do
     com_mod.pSa = 0.0;
   }
   if (com_mod.grEq) {
+    // Update only G&R, leave pre-load constant
+    for (int a = 0; a < tnNo; a++) {
+      for (int i = 26; i < com_mod.nGrInt; i++) {
+        com_mod.grInt_0(i, a) = com_mod.grInt_n(i, a);
+      }
+    }
     com_mod.grInt_n = 0.0;
     com_mod.grInt_a = 0.0;
   }
