@@ -251,7 +251,7 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
     }
   }
 
-  // Create map: node -> element -> node -> element
+  // Create map: (node -> element)^2
   std::map<int, std::set<int>> map_node_ele_gen2;
 
   // Loop all nodes
@@ -264,6 +264,24 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
         // Loop attached elements
         for (int ele2 : map_node_ele_gen1[Ac]) {
           map_node_ele_gen2[pair1.first].insert(ele2);
+        }
+      }
+    }
+  }
+
+  // Create map: (node -> element)^3
+  std::map<int, std::set<int>> map_node_ele_gen3;
+
+  // Loop all nodes
+  for (const auto& pair1 : map_node_ele_gen2) {
+    // Loop attached elements
+    for (int ele1 : pair1.second) {
+      // Loop attached nodes
+      for (int b = 0; b < eNoN; ++b) {
+        int Ac = lM.IEN(b, ele1);
+        // Loop attached elements
+        for (int ele2 : map_node_ele_gen2[Ac]) {
+          map_node_ele_gen3[pair1.first].insert(ele2);
         }
       }
     }
@@ -288,9 +306,9 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       e_Dg(i, Ac) += eps;
 
       // Perturbed evaluations
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, map_node_ele_gen1[Ac], fa_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, map_node_ele_gen1[Ac], fy_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, map_node_ele_gen1[Ac], fd_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, map_node_ele_gen2[Ac], fa_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, map_node_ele_gen2[Ac], fy_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, map_node_ele_gen2[Ac], fd_eps, Ac, i);
 
       // Restore solution vectors
       e_Ag(i, Ac) = Ag(i, Ac);
@@ -336,14 +354,14 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
   // Smooth internal G&R variables
   enum Smoothing { none, vtk, element, elementnode };
-  Smoothing smooth = none;
+  Smoothing smooth = elementnode;
 
   // Index of Lagrange multiplier
   const int igr = 30;
 
 
   // std::cout<<"Before"<<std::endl;
-  // for (int e = 0; e < lM.gnEl; e++) {
+  // for (int e : elements) {
   //   std::cout<<e<<" "<<com_mod.grInt(e, 0, igr)<<std::endl;
   // }
   
@@ -361,7 +379,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
     // Average over Gauss points in element
     case element: {
-      for (int e = 0; e < lM.gnEl; e++) {
+      for (int e : elements) {
         double avg = 0.0;
         for (int g = 0; g < lM.nG; g++) {
           avg += com_mod.grInt(e, g, igr);
@@ -383,7 +401,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       grInt_n = 0.0;
 
       // Project from elements to nodes
-      for (int e = 0; e < lM.gnEl; e++) {
+      for (int e : elements) {
         // Average over Gauss points in element
         double avg = 0.0;
         for (int g = 0; g < lM.nG; g++) {
@@ -402,41 +420,27 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
         }
       }
 
-      // grInt_n.print("grInt_n");
-      // counter.print("counter");
-
-      // todo: create node -> ele map beforehand
-
       // Project from nodes to elements
-      for (int Ac = 0; Ac < lM.gnNo; Ac++) {
-        // Loop all elements
-        for (int e = 0; e < lM.gnEl; e++) {
-          // Check if element contains node
-          for (int a = 0; a < eNoN; ++a) {
-            if (lM.IEN(a, e) == Ac) {
-              // Project from node to element (1st Gauss point)
-              com_mod.grInt(e, 0, igr) += grInt_n(Ac) / counter(Ac) / eNoN;
-            }
+      for (int e : elements) {
+        // Project from node to element
+        for (int a = 0; a < lM.eNoN; a++) {
+          int Ac = lM.IEN(a, e);
+          double val = grInt_n(Ac) / counter(Ac) / eNoN;
+          for (int g = 0; g < lM.nG; g++) {
+            com_mod.grInt(e, g, igr) = val;
           }
-        }
-      }
-
-      // Assign the same value to all Gauss points
-      for (int e = 0; e < lM.gnEl; e++) {
-        for (int g = 1; g < lM.nG; g++) {
-          com_mod.grInt(e, g, igr) = com_mod.grInt(e, 0, igr);
         }
       }
       break;
     }
   }
   // std::cout<<"After"<<std::endl;
-  // for (int e = 0; e < lM.gnEl; e++) {
+  // for (int e : elements) {
   //   std::cout<<e<<" "<<com_mod.grInt(e, 0, igr)<<std::endl;
   // }
   // std::terminate();
 
-  // Check if this is the central evaluation
+  // Check if this is the central evaluation (evaluate at all elements)
   const bool central = elements.size() == lM.gnEl;
   
   // Loop over all elements of mesh
@@ -467,9 +471,9 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       }
     }
     else {
-      for (int a = 0; a < eNoN; ++a) {
-        for (int b = 0; b < eNoN; ++b) {
-          if (lM.IEN(b, e) == dAc) {
+      for (int b = 0; b < eNoN; ++b) {
+        if (lM.IEN(b, e) == dAc) {
+          for (int a = 0; a < eNoN; ++a) {
             for (int i = 0; i < dof; ++i) {
               lK(i * dof + di, a, b) = lR(i, a) * eps;
             }
