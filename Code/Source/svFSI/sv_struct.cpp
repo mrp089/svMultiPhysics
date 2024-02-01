@@ -254,13 +254,21 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   // Create map: (node -> element)^2
   std::map<int, std::set<int>> map_node_ele_gen2;
 
+  // Create map: node -> surrounding nodes
+  std::map<int, std::set<int>> map_node_node_gen1;
+  std::map<int, std::set<int>> map_node_node_gen2;
+
   // Loop all nodes
   for (const auto& pair1 : map_node_ele_gen1) {
+    // Insert the node itself
+    map_node_node_gen1[pair1.first].insert(pair1.first);
+    map_node_node_gen2[pair1.first].insert(pair1.first);
     // Loop attached elements
     for (int ele1 : pair1.second) {
       // Loop attached nodes
       for (int b = 0; b < eNoN; ++b) {
         int Ac = lM.IEN(b, ele1);
+        map_node_node_gen2[pair1.first].insert(Ac);
         // Loop attached elements
         for (int ele2 : map_node_ele_gen1[Ac]) {
           map_node_ele_gen2[pair1.first].insert(ele2);
@@ -270,16 +278,28 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   }
 
   // Set containing all elements
-  std::set<int> all_ele;
+  std::set<int> elements;
   for (int i = 0; i < lM.nEl; ++i) {
-    all_ele.insert(i);
+    elements.insert(i);
+  }
+  std::set<int> nodes;
+  for (int i = 0; i < lM.gnNo; ++i) {
+    nodes.insert(i);
   }
 
   // Central evaluation
-  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, all_ele, all_ele, fa_eps + fy_eps + fd_eps);
+  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, elements, nodes, false, fa_eps + fy_eps + fd_eps);
 
   // Loop global nodes
   for (int Ac = 0; Ac < tnNo; ++Ac) {
+    // Pick element sets neighboring node (1st and 2nd degree)
+    std::set<int> ele = map_node_ele_gen1[Ac];
+    // std::set<int> ele = map_node_ele_gen2[Ac];
+    std::set<int> nod = map_node_node_gen1[Ac];
+    // std::set<int> nod = map_node_node_gen2[Ac];
+
+    eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, ele, nod, true, fa_eps + fy_eps + fd_eps);
+
     // Loop DOFs
     for (int i = 0; i < dof; ++i) {
       // Perturb solution vectors
@@ -288,11 +308,9 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       e_Dg(i, Ac) += eps;
 
       // Perturbed evaluations
-      std::set<int> ele_1 = map_node_ele_gen1[Ac];
-      std::set<int> ele_2 = map_node_ele_gen2[Ac];
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, ele_1, ele_2, fa_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, ele_1, ele_2, fy_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, ele_1, ele_2, fd_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, ele, nod, false, fa_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, ele, nod, false, fy_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, ele, nod, false, fd_eps, Ac, i);
 
       // Restore solution vectors
       e_Ag(i, Ac) = Ag(i, Ac);
@@ -305,8 +323,8 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, 
              const mshType& lM, const Array<double>& Ag, 
              const Array<double>& Yg, const Array<double>& Dg,
-             const std::set<int>& elements_1, const std::set<int>& elements_2, 
-             const double eps, const int dAc, const int di)
+             const std::set<int>& elements, const std::set<int>& nodes, 
+             const bool central, const double eps, const int dAc, const int di)
 {
   using namespace consts;
 
@@ -330,17 +348,10 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
   // Smooth internal G&R variables
   enum Smoothing { none, element, elementnode };
-  Smoothing smooth = element;
-
-  // Pick element sets for evaluation
-  std::set<int> ele_sm = elements_1;
-  std::set<int> ele_fd = elements_1;
-  if (smooth == elementnode) {
-    ele_sm = elements_2;
-  }
+  Smoothing smooth = none;
 
   // Update internal G&R variables without assembly
-  for (int e : ele_sm) {
+  for (int e : elements) {
     eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr_dummy, lR_dummy, lK_dummy, false);
   }
 
@@ -350,7 +361,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   const bool output = false;
   if(output) {
     std::cout<<"Before"<<std::endl;
-    for (int e : ele_sm) {
+    for (int e : elements) {
       std::cout<<"e "<<e<<std::endl;
       for (int g = 0; g < lM.nG; g++) {
         std::cout<<"  "<<com_mod.grInt(e, g, igr)<<std::endl;
@@ -366,7 +377,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
     // Average over Gauss points in element
     case element: {
-      for (int e : ele_sm) {
+      for (int e : elements) {
         double avg = 0.0;
         for (int g = 0; g < lM.nG; g++) {
           avg += com_mod.grInt(e, g, igr);
@@ -396,7 +407,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       for (int g = 0; g < lM.nG; g++) {
         w = lM.w(g);
         N = lM.N.col(g);
-        for (int e : ele_sm) {
+        for (int e : elements) {
           val = com_mod.grInt(e, g, igr);
           for (int a = 0; a < lM.eNoN; a++) {
             Ac = lM.IEN(a, e);
@@ -408,7 +419,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       }
 
       // Project: nodes -> integration points
-      for (int e : ele_sm) {
+      for (int e : elements) {
         for (int g = 0; g < lM.nG; g++) {
           N = lM.N.col(g);
           val = 0.0;
@@ -425,7 +436,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
   if(output) {
     std::cout<<"After"<<std::endl;
-    for (int e : ele_sm) {
+    for (int e : elements) {
       std::cout<<"e "<<e<<std::endl;
       for (int g = 0; g < lM.nG; g++) {
         std::cout<<"  "<<com_mod.grInt(e, g, igr)<<std::endl;
@@ -434,24 +445,11 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   }
   // std::terminate();
 
-  // Check if this is the central evaluation (evaluate at all elements)
-  const bool central = ele_fd.size() == lM.gnEl;
-  
+  // Check if the residual should be assembled
+  const bool residual = elements.size() == lM.gnEl;
+
   // Loop over all elements of mesh
-  for (int e : ele_fd) {
-    // Check if element has node
-    if (!central) {
-      bool has_node = false;
-      for (int b = 0; b < eNoN; ++b) {
-        if (lM.IEN(b, e) == dAc) {
-          has_node = true;
-          break;
-        }
-      }
-      if (!has_node) {
-        continue;
-      }
-    }
+  for (int e : elements) {
     // Reset
     ptr = 0;
     lR = 0.0;
@@ -461,28 +459,23 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
     eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr, lR, lK_dummy);
 
     // Assemble into global residual
-    if (central) {
+    if (residual) {
       lhsa_ns::do_assem_residual(com_mod, lM.eNoN, ptr, lR);
     }
-
+    
     // Assemble difference of residual into tangent
-    if (central) {
+    else {
       for (int a = 0; a < eNoN; ++a) {
         for (int b = 0; b < eNoN; ++b) {
-          for (int i = 0; i < dof; ++i) {
-            for (int j = 0; j < dof; ++j) {
-              lK(i * dof + j, a, b) = - lR(i, a) * eps;
-            }
-          }
-        }
-      }
-    }
-    else {
-      for (int b = 0; b < eNoN; ++b) {
-        if (lM.IEN(b, e) == dAc) {
-          for (int a = 0; a < eNoN; ++a) {
+          if (nodes.count(lM.IEN(b, e)) > 0) {
             for (int i = 0; i < dof; ++i) {
-              lK(i * dof + di, a, b) = lR(i, a) * eps;
+              if (central) {
+                for (int j = 0; j < dof; ++j) {
+                  lK(i * dof + j, a, b) = - lR(i, a) * eps;
+                }
+              } else {
+                lK(i * dof + di, a, b) = lR(i, a) * eps;
+              }
             }
           }
         }
