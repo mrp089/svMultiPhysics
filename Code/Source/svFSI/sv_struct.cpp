@@ -306,9 +306,9 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       e_Dg(i, Ac) += eps;
 
       // Perturbed evaluations
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, map_node_ele_gen2[Ac], fa_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, map_node_ele_gen2[Ac], fy_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, map_node_ele_gen2[Ac], fd_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, map_node_ele_gen1[Ac], fa_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, map_node_ele_gen1[Ac], fy_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, map_node_ele_gen1[Ac], fd_eps, Ac, i);
 
       // Restore solution vectors
       e_Ag(i, Ac) = Ag(i, Ac);
@@ -343,26 +343,24 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   lR_dummy = 0.0;
   lK_dummy = 0.0;
 
-  // Loop over all elements of mesh
-  // Updates internal G&R variables without assembly
-  // Make sure to hit all elements that might be affected by the smoothing
+  // Update internal G&R variables without assembly
   for (int e : elements) {
-    // Evaluate solid equations to update internal G&R variables 
-    // (without assembly)
     eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr_dummy, lR_dummy, lK_dummy, false);
   }
 
   // Smooth internal G&R variables
   enum Smoothing { none, vtk, element, elementnode };
-  Smoothing smooth = elementnode;
+  Smoothing smooth = element;
 
   // Index of Lagrange multiplier
   const int igr = 30;
 
-
   // std::cout<<"Before"<<std::endl;
   // for (int e : elements) {
-  //   std::cout<<e<<" "<<com_mod.grInt(e, 0, igr)<<std::endl;
+  //   std::cout<<"e "<<e<<std::endl;
+  //   for (int g = 0; g < lM.nG; g++) {
+  //     std::cout<<"  "<<com_mod.grInt(e, g, igr)<<std::endl;
+  //   }
   // }
   
   switch(smooth) {
@@ -394,7 +392,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
     case elementnode: {
       // Initialize arrays
-      // todo: do outside
+      // todo: this could be of size elements.size() * lM.eNoN
       Vector<double> counter(lM.gnNo);
       Vector<double> grInt_n(lM.gnNo);
       counter = 0.0;
@@ -425,7 +423,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
         // Project from node to element
         for (int a = 0; a < lM.eNoN; a++) {
           int Ac = lM.IEN(a, e);
-          double val = grInt_n(Ac) / counter(Ac) / eNoN;
+          double val = grInt_n(Ac) / counter(Ac);
           for (int g = 0; g < lM.nG; g++) {
             com_mod.grInt(e, g, igr) = val;
           }
@@ -434,11 +432,14 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       break;
     }
   }
+
   // std::cout<<"After"<<std::endl;
   // for (int e : elements) {
-  //   std::cout<<e<<" "<<com_mod.grInt(e, 0, igr)<<std::endl;
+  //   std::cout<<"e "<<e<<std::endl;
+  //   for (int g = 0; g < lM.nG; g++) {
+  //     std::cout<<"  "<<com_mod.grInt(e, g, igr)<<std::endl;
+  //   }
   // }
-  // std::terminate();
 
   // Check if this is the central evaluation (evaluate at all elements)
   const bool central = elements.size() == lM.gnEl;
