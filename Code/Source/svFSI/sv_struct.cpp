@@ -236,6 +236,45 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   Array<double> lR(dof, eNoN);
   Array3<double> lK(dof * dof, eNoN, eNoN);
 
+  // Create map: node -> element
+  std::map<int, std::set<int>> map_node_ele_gen1;
+
+  // Loop all nodes
+  for (int Ac = 0; Ac < tnNo; ++Ac) {
+    for (int e = 0; e < lM.nEl; e++) {
+      for (int b = 0; b < eNoN; ++b) {
+        if (lM.IEN(b, e) == Ac) {
+          map_node_ele_gen1[Ac].insert(e);
+          break;
+        }
+      }
+    }
+  }
+
+  // Create map: node -> element -> node -> element
+  std::map<int, std::set<int>> map_node_ele_gen2;
+
+  // Loop all nodes
+  for (const auto& pair1 : map_node_ele_gen1) {
+    // Loop attached elements
+    for (int ele1 : pair1.second) {
+      // Loop attached nodes
+      for (int b = 0; b < eNoN; ++b) {
+        int Ac = lM.IEN(b, ele1);
+        // Loop attached elements
+        for (int ele2 : map_node_ele_gen1[Ac]) {
+          map_node_ele_gen2[pair1.first].insert(ele2);
+        }
+      }
+    }
+  }
+
+  // Set containing all elements
+  std::set<int> all_ele;
+  for (int i = 0; i < lM.nEl; ++i) {
+    all_ele.insert(i);
+  }
+
   // Central evaluation
   eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, true, fa_eps + fy_eps + fd_eps);
 
@@ -287,15 +326,128 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   lK_dummy = 0.0;
 
   // Loop over all elements of mesh
-  // for (int e = 0; e < lM.nEl; e++) {
-  //   // Evaluate solid equations to update internal G&R variables 
-  //   // (without assembly)
-  //   eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, 
-  //               ptr_dummy, lR_dummy, lK_dummy, false);
-  // }
+  // Updates internal G&R variables without assembly
+  // Make sure to hit all elements that might be affected by the smoothing
+  for (int e = 0; e < lM.nEl; e++) {
+    // Check if element has node
+    if (!central) {
+      bool has_node = false;
+      for (int b = 0; b < eNoN; ++b) {
+        if (lM.IEN(b, e) == dAc) {
+          has_node = true;
+          break;
+        }
+      }
+      if (!has_node) {
+        continue;
+      }
+    }
+    // Evaluate solid equations to update internal G&R variables 
+    // (without assembly)
+    eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr_dummy, lR_dummy, lK_dummy, false);
+  }
 
   // Smooth internal G&R variables
-  // vtk_xml::smooth_output(com_mod, cm_mod);
+  enum Smoothing { none, vtk, element, elementnode };
+  Smoothing smooth = none;
+
+  // Index of Lagrange multiplier
+  const int igr = 30;
+
+
+  // std::cout<<"Before"<<std::endl;
+  // for (int e = 0; e < lM.gnEl; e++) {
+  //   std::cout<<e<<" "<<com_mod.grInt(e, 0, igr)<<std::endl;
+  // }
+  
+  switch(smooth) {
+    // No smoothing
+    case none: {
+      break;
+    }
+
+    // Extremely slow and non-local
+    case vtk: {
+      vtk_xml::smooth_output(com_mod, cm_mod);
+      break;
+    }
+
+    // Average over Gauss points in element
+    case element: {
+      for (int e = 0; e < lM.gnEl; e++) {
+        double avg = 0.0;
+        for (int g = 0; g < lM.nG; g++) {
+          avg += com_mod.grInt(e, g, igr);
+        }
+        avg /= lM.nG;
+        for (int g = 0; g < lM.nG; g++) {
+          com_mod.grInt(e, g, igr) = avg;
+        }
+      }
+      break;
+    }
+
+    case elementnode: {
+      // Initialize arrays
+      // todo: do outside
+      Vector<double> counter(lM.gnNo);
+      Vector<double> grInt_n(lM.gnNo);
+      counter = 0.0;
+      grInt_n = 0.0;
+
+      // Project from elements to nodes
+      for (int e = 0; e < lM.gnEl; e++) {
+        // Average over Gauss points in element
+        double avg = 0.0;
+        for (int g = 0; g < lM.nG; g++) {
+          avg += com_mod.grInt(e, g, igr);
+
+          // Reset
+          com_mod.grInt(e, g, igr) = 0.0;
+        }
+        avg /= lM.nG;
+
+        // Project from element to nodes
+        for (int a = 0; a < lM.eNoN; a++) {
+          int Ac = lM.IEN(a, e);
+          grInt_n(Ac) += avg;
+          counter(Ac) += 1.0;
+        }
+      }
+
+      // grInt_n.print("grInt_n");
+      // counter.print("counter");
+
+      // todo: create node -> ele map beforehand
+
+      // Project from nodes to elements
+      for (int Ac = 0; Ac < lM.gnNo; Ac++) {
+        // Loop all elements
+        for (int e = 0; e < lM.gnEl; e++) {
+          // Check if element contains node
+          for (int a = 0; a < eNoN; ++a) {
+            if (lM.IEN(a, e) == Ac) {
+              // Project from node to element (1st Gauss point)
+              com_mod.grInt(e, 0, igr) += grInt_n(Ac) / counter(Ac) / eNoN;
+            }
+          }
+        }
+      }
+
+      // Assign the same value to all Gauss points
+      for (int e = 0; e < lM.gnEl; e++) {
+        for (int g = 1; g < lM.nG; g++) {
+          com_mod.grInt(e, g, igr) = com_mod.grInt(e, 0, igr);
+        }
+      }
+      break;
+    }
+  }
+  // std::cout<<"After"<<std::endl;
+  // for (int e = 0; e < lM.gnEl; e++) {
+  //   std::cout<<e<<" "<<com_mod.grInt(e, 0, igr)<<std::endl;
+  // }
+  // std::terminate();
   
   // Loop over all elements of mesh
   for (int e = 0; e < lM.nEl; e++) {

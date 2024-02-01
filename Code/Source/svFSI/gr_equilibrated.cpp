@@ -462,7 +462,9 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 		// Lagrange multiplier during prestress
 		p = -lm*log(Jdep*J);
 
-		S = Sx + Ci*lm*log(Jdep*J);
+		// S = Sx + Ci*lm*log(Jdep*J);
+		const double p_smooth = grInt(30);
+		S = Sx - p_smooth * Ci;
 
 		// compute tangent
 		const mat3ds tent = dyad(F*N[1]);
@@ -702,7 +704,8 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 		// p = po - kappa * (J - J_star) * (1 - dJ_star_dJ); // second part is always 0
 		// p = po + svh;
 
-		S = Sx - J*p*Ci;
+		const double p_smooth = grInt(30);
+		S = Sx - J * p_smooth * Ci;
 		// S = Sx + Sp;
 		// S = Sx * svo/svh;
 		// S = Sx - kappa*ups * J*Ci;
