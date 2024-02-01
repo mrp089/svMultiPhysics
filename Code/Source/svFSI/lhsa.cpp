@@ -200,6 +200,47 @@ void do_assem_tangent(ComMod &com_mod, const int d, const Vector<int> &eqN,
 }
 
 
+void do_assem_tangent(ComMod &com_mod, const int d, 
+                      const Vector<int> &eqN_row, const Vector<int> &eqN_col,
+                      const Array3<double> &lK)
+{
+  auto& R = com_mod.R;
+  auto& Val = com_mod.Val;
+  const auto& rowPtr = com_mod.rowPtr;
+  const auto& colPtr = com_mod.colPtr;
+
+  for (int a = 0; a < d; a++) {
+    int rowN = eqN_row(a);
+    if (rowN == -1) {
+      continue;
+    }
+    for (int b = 0; b < d; b++) {
+      int colN = eqN_col(b);
+      if (colN == -1) {
+        continue;
+      }
+
+      int left = rowPtr(rowN);
+      int right = rowPtr(rowN+1);
+      int ptr = (right + left) / 2;
+
+      while (colN != colPtr(ptr)) {
+        if (colN > colPtr(ptr)) { 
+          left  = ptr;
+        } else { 
+          right = ptr;
+        }
+        ptr = (right + left) / 2;
+      }
+
+      for (int i = 0; i < Val.nrows(); i++) {
+        Val(i,ptr) = Val(i,ptr) + lK(i,a,b);
+      }
+    }
+  }
+}
+
+
 //------
 // lhsa
 //------
