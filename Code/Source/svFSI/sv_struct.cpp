@@ -276,7 +276,7 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   }
 
   // Central evaluation
-  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, true, fa_eps + fy_eps + fd_eps);
+  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, all_ele, fa_eps + fy_eps + fd_eps);
 
   // Loop global nodes
   for (int Ac = 0; Ac < tnNo; ++Ac) {
@@ -288,9 +288,9 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       e_Dg(i, Ac) += eps;
 
       // Perturbed evaluations
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, false, fa_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, false, fy_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, false, fd_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, map_node_ele_gen1[Ac], fa_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, map_node_ele_gen1[Ac], fy_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, map_node_ele_gen1[Ac], fd_eps, Ac, i);
 
       // Restore solution vectors
       e_Ag(i, Ac) = Ag(i, Ac);
@@ -303,7 +303,7 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, 
              const mshType& lM, const Array<double>& Ag, 
              const Array<double>& Yg, const Array<double>& Dg,
-             const bool central, const double eps, const int dAc, const int di)
+             const std::set<int>& elements, const double eps, const int dAc, const int di)
 {
   using namespace consts;
 
@@ -328,20 +328,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   // Loop over all elements of mesh
   // Updates internal G&R variables without assembly
   // Make sure to hit all elements that might be affected by the smoothing
-  for (int e = 0; e < lM.nEl; e++) {
-    // Check if element has node
-    if (!central) {
-      bool has_node = false;
-      for (int b = 0; b < eNoN; ++b) {
-        if (lM.IEN(b, e) == dAc) {
-          has_node = true;
-          break;
-        }
-      }
-      if (!has_node) {
-        continue;
-      }
-    }
+  for (int e : elements) {
     // Evaluate solid equations to update internal G&R variables 
     // (without assembly)
     eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr_dummy, lR_dummy, lK_dummy, false);
@@ -448,22 +435,12 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   //   std::cout<<e<<" "<<com_mod.grInt(e, 0, igr)<<std::endl;
   // }
   // std::terminate();
+
+  // Check if this is the central evaluation
+  const bool central = elements.size() == lM.gnEl;
   
   // Loop over all elements of mesh
-  for (int e = 0; e < lM.nEl; e++) {
-    // Check if element has node
-    if (!central) {
-      bool has_node = false;
-      for (int b = 0; b < eNoN; ++b) {
-        if (lM.IEN(b, e) == dAc) {
-          has_node = true;
-          break;
-        }
-      }
-      if (!has_node) {
-        continue;
-      }
-    }
+  for (int e : elements) {
     // Reset
     ptr = 0;
     lR = 0.0;
