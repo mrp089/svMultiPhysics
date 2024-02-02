@@ -892,9 +892,8 @@ class mshType
 
     /// @brief map: node -> element
     std::map<int, std::set<int>> map_node_ele_gen1;
-
-    /// @brief map: (node -> element)^2
     std::map<int, std::set<int>> map_node_ele_gen2;
+    std::map<int, std::set<int>> map_node_ele_gen3;
 
     /// @brief gIEN mapper from old to new
     Vector<int> otnIEN;

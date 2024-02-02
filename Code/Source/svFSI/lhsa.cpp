@@ -298,6 +298,7 @@ void lhsa(Simulation* simulation, int& nnz)
     }
 
     // Create map: (node -> element)^2
+    msh.map_node_ele_gen2 = msh.map_node_ele_gen1;
     for (int Ac = 0; Ac < tnNo; ++Ac) {
       // Loop attached elements
       for (int ele1 : msh.map_node_ele_gen1[Ac]) {
@@ -307,6 +308,22 @@ void lhsa(Simulation* simulation, int& nnz)
           // Loop attached elements
           for (int ele2 : msh.map_node_ele_gen1[Ac]) {
             msh.map_node_ele_gen2[Ac].insert(ele2);
+          }
+        }
+      }
+    }
+
+    // Create map: (node -> element)^3
+    msh.map_node_ele_gen3 = msh.map_node_ele_gen2;
+    for (int Ac = 0; Ac < tnNo; ++Ac) {
+      // Loop attached elements
+      for (int ele1 : msh.map_node_ele_gen2[Ac]) {
+        // Loop attached nodes
+        for (int b = 0; b < msh.eNoN; ++b) {
+          int Ac = msh.IEN(b, ele1);
+          // Loop attached elements
+          for (int ele2 : msh.map_node_ele_gen2[Ac]) {
+            msh.map_node_ele_gen3[Ac].insert(ele2);
           }
         }
       }
