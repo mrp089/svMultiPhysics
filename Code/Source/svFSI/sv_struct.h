@@ -56,8 +56,7 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshT
 
 void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshType& lM, const Array<double>& Ag, 
     const Array<double>& Yg, const Array<double>& Dg,
-    const std::set<int>& elements_1, const std::set<int>& elements_2, 
-    const bool central, const double eps=0.0, const int dAc=0, const int di=0);
+    const std::set<int>& elements, const bool central, const double eps=0.0, const int dAc=0, const int di=0);
 
 void eval_dsolid(const int& e, ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag,
     const Array<double>& Yg, const Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK,

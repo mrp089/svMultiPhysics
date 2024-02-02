@@ -254,21 +254,13 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   // Create map: (node -> element)^2
   std::map<int, std::set<int>> map_node_ele_gen2;
 
-  // Create map: node -> surrounding nodes
-  std::map<int, std::set<int>> map_node_node_gen1;
-  std::map<int, std::set<int>> map_node_node_gen2;
-
   // Loop all nodes
   for (const auto& pair1 : map_node_ele_gen1) {
-    // Insert the node itself
-    map_node_node_gen1[pair1.first].insert(pair1.first);
-    map_node_node_gen2[pair1.first].insert(pair1.first);
     // Loop attached elements
     for (int ele1 : pair1.second) {
       // Loop attached nodes
       for (int b = 0; b < eNoN; ++b) {
         int Ac = lM.IEN(b, ele1);
-        map_node_node_gen2[pair1.first].insert(Ac);
         // Loop attached elements
         for (int ele2 : map_node_ele_gen1[Ac]) {
           map_node_ele_gen2[pair1.first].insert(ele2);
@@ -282,23 +274,17 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   for (int i = 0; i < lM.nEl; ++i) {
     elements.insert(i);
   }
-  std::set<int> nodes;
-  for (int i = 0; i < lM.gnNo; ++i) {
-    nodes.insert(i);
-  }
 
   // Central evaluation
-  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, elements, nodes, false, fa_eps + fy_eps + fd_eps);
+  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, elements, false, fa_eps + fy_eps + fd_eps);
 
   // Loop global nodes
   for (int Ac = 0; Ac < tnNo; ++Ac) {
     // Pick element sets neighboring node (1st and 2nd degree)
     std::set<int> ele = map_node_ele_gen1[Ac];
     // std::set<int> ele = map_node_ele_gen2[Ac];
-    std::set<int> nod = map_node_node_gen1[Ac];
-    // std::set<int> nod = map_node_node_gen2[Ac];
 
-    eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, ele, nod, true, fa_eps + fy_eps + fd_eps, Ac);
+    eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, ele, true, fa_eps + fy_eps + fd_eps, Ac);
 
     // Loop DOFs
     for (int i = 0; i < dof; ++i) {
@@ -308,9 +294,9 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       e_Dg(i, Ac) += eps;
 
       // Perturbed evaluations
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, ele, nod, false, fa_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, ele, nod, false, fy_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, ele, nod, false, fd_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, ele, false, fa_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, ele, false, fy_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, ele, false, fd_eps, Ac, i);
 
       // Restore solution vectors
       e_Ag(i, Ac) = Ag(i, Ac);
@@ -323,8 +309,7 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, 
              const mshType& lM, const Array<double>& Ag, 
              const Array<double>& Yg, const Array<double>& Dg,
-             const std::set<int>& elements, const std::set<int>& nodes, 
-             const bool central, const double eps, const int dAc, const int dj)
+             const std::set<int>& elements, const bool central, const double eps, const int dAc, const int dj)
 {
   using namespace consts;
 
@@ -448,7 +433,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   Array<double> lR(dof, eNoN);
   Array3<double> lK(dof * dof, eNoN, 1);
 
-  // Assemble only the FD node and dof indices
+  // Assemble only the FD node
   ptr_col = dAc;
 
   // Loop over all elements of mesh
@@ -467,6 +452,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       continue;
     }
 
+    // Components of FD: central and difference
     for (int a = 0; a < eNoN; ++a) {
       for (int i = 0; i < dof; ++i) {
         if (central) {
@@ -478,6 +464,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
         }
       }
     }
+
     // Assemble into global tangent
     lhsa_ns::do_assem_tangent(com_mod, lM.eNoN, 1, ptr_row, ptr_col, lK);
   }
