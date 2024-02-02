@@ -200,7 +200,7 @@ void do_assem_tangent(ComMod &com_mod, const int d, const Vector<int> &eqN,
 }
 
 
-void do_assem_tangent(ComMod &com_mod, const int d, 
+void do_assem_tangent(ComMod &com_mod, const int d_row, const int d_col, 
                       const Vector<int> &eqN_row, const Vector<int> &eqN_col,
                       const Array3<double> &lK)
 {
@@ -209,12 +209,12 @@ void do_assem_tangent(ComMod &com_mod, const int d,
   const auto& rowPtr = com_mod.rowPtr;
   const auto& colPtr = com_mod.colPtr;
 
-  for (int a = 0; a < d; a++) {
+  for (int a = 0; a < d_row; a++) {
     int rowN = eqN_row(a);
     if (rowN == -1) {
       continue;
     }
-    for (int b = 0; b < d; b++) {
+    for (int b = 0; b < d_col; b++) {
       int colN = eqN_col(b);
       if (colN == -1) {
         continue;

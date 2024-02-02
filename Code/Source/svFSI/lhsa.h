@@ -46,7 +46,7 @@ namespace lhsa_ns {
   void do_assem_tangent(ComMod &com_mod, const int d, const Vector<int> &eqN,
                         const Array3<double> &lK);
 
-  void do_assem_tangent(ComMod &com_mod, const int d, const Vector<int> &eqN_row, const Vector<int> &eqN_col,
+  void do_assem_tangent(ComMod &com_mod, const int d_row, const int d_col, const Vector<int> &eqN_row, const Vector<int> &eqN_col,
                         const Array3<double> &lK);
 
   void lhsa(Simulation* simulation, int& nnz);

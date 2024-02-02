@@ -298,7 +298,7 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
     std::set<int> nod = map_node_node_gen1[Ac];
     // std::set<int> nod = map_node_node_gen2[Ac];
 
-    eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, ele, nod, true, fa_eps + fy_eps + fd_eps);
+    eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, ele, nod, true, fa_eps + fy_eps + fd_eps, Ac);
 
     // Loop DOFs
     for (int i = 0; i < dof; ++i) {
@@ -324,7 +324,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
              const mshType& lM, const Array<double>& Ag, 
              const Array<double>& Yg, const Array<double>& Dg,
              const std::set<int>& elements, const std::set<int>& nodes, 
-             const bool central, const double eps, const int dAc, const int di)
+             const bool central, const double eps, const int dAc, const int dj)
 {
   using namespace consts;
 
@@ -334,14 +334,8 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
   // Initialize residual and tangent
   Vector<int> ptr_dummy(eNoN);
-  Vector<int> ptr(eNoN);
   Array<double> lR_dummy(dof, eNoN);
-  Array<double> lR(dof, eNoN);
   Array3<double> lK_dummy(dof * dof, eNoN, eNoN);
-  Array3<double> lK(dof * dof, eNoN, eNoN);
-  ptr = 0;
-  lR = 0.0;
-  lK = 0.0;
   ptr_dummy = 0;
   lR_dummy = 0.0;
   lK_dummy = 0.0;
@@ -448,6 +442,11 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   // Check if the residual should be assembled
   const bool residual = elements.size() == lM.gnEl;
 
+  // Initialzie arrays for Finite Difference (FD)
+  Vector<int> ptr(eNoN);
+  Array<double> lR(dof, eNoN);
+  Array3<double> lK(dof * dof, eNoN, eNoN);
+
   // Loop over all elements of mesh
   for (int e : elements) {
     // Reset
@@ -461,29 +460,32 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
     // Assemble into global residual
     if (residual) {
       lhsa_ns::do_assem_residual(com_mod, lM.eNoN, ptr, lR);
+      continue;
     }
-    
-    // Assemble difference of residual into tangent
-    else {
-      for (int a = 0; a < eNoN; ++a) {
-        for (int b = 0; b < eNoN; ++b) {
-          if (nodes.count(lM.IEN(b, e)) > 0) {
-            for (int i = 0; i < dof; ++i) {
-              if (central) {
-                for (int j = 0; j < dof; ++j) {
-                  lK(i * dof + j, a, b) = - lR(i, a) * eps;
-                }
-              } else {
-                lK(i * dof + di, a, b) = lR(i, a) * eps;
-              }
-            }
+
+    // Get local index of FD node
+    auto it = std::find(ptr.begin(), ptr.end(), dAc);
+    if (it == ptr.end()) {
+      std::cout<<"no node in element "<<e<<std::endl;
+      continue;
+    }
+
+    // Assemble only the FD node index
+    int db = std::distance(ptr.begin(), it);
+
+    for (int a = 0; a < eNoN; ++a) {
+      for (int i = 0; i < dof; ++i) {
+        if (central) {
+          for (int j = 0; j < dof; ++j) {
+            lK(i * dof + j, a, db) = - lR(i, a) * eps;
           }
+        } else {
+          lK(i * dof + dj, a, db) = lR(i, a) * eps;
         }
       }
     }
-
     // Assemble into global tangent
-    lhsa_ns::do_assem_tangent(com_mod, lM.eNoN, ptr, lK);
+    lhsa_ns::do_assem_tangent(com_mod, lM.eNoN, lM.eNoN, ptr, ptr, lK);
   }
 }
 
