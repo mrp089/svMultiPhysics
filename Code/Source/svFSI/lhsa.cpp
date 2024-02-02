@@ -319,7 +319,18 @@ void lhsa(Simulation* simulation, int& nnz)
         for (int b = 0; b < msh.eNoN; b++) {
           int colN = msh.IEN(b,e);
           add_col(tnNo, rowN, colN, mnnzeic, uInd);
-          // std::cout<<" rowN "<<rowN<<" colN "<<colN<<" mnnzeic "<<mnnzeic<<std::endl;
+        }
+      }
+    }
+
+    // Reserve off-diagonal memory
+    if (com_mod.grEq) {
+      for (int rowN = 0; rowN < tnNo; ++rowN) {
+        for (int e : msh.map_node_ele_gen2[rowN]) {
+          for (int b = 0; b < msh.eNoN; b++) {
+            int colN = msh.IEN(b,e);
+            add_col(tnNo, rowN, colN, mnnzeic, uInd);
+          }
         }
       }
     }
