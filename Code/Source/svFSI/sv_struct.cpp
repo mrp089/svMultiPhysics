@@ -213,7 +213,7 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   const int tnNo = com_mod.tnNo;
 
   // Set step size for finite difference
-  const double eps = 1.0e-10;
+  const double eps = 1.0e-8;
 
   // Time integration parameters
   int cEq = com_mod.cEq;
@@ -236,22 +236,13 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   Array<double> lR(dof, eNoN);
   Array3<double> lK(dof * dof, eNoN, eNoN);
 
-  // Set containing all elements
-  std::set<int> elements;
-  for (int i = 0; i < lM.nEl; ++i) {
-    elements.insert(i);
-  }
-
   // Central evaluation
-  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, elements, false, fa_eps + fy_eps + fd_eps);
+  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, fa_eps + fy_eps + fd_eps);
 
   // Loop global nodes
   for (int Ac = 0; Ac < tnNo; ++Ac) {
-    // Pick element set neighboring node (1st and 2nd degree)
-    const std::set<int>& ele = lM.map_node_ele_gen1.at(Ac);
-
     // Central evaluation
-    eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, ele, true, fa_eps + fy_eps + fd_eps, Ac);
+    eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, fa_eps + fy_eps + fd_eps, Ac);
 
     // Loop DOFs
     for (int i = 0; i < dof; ++i) {
@@ -261,9 +252,9 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       e_Dg(i, Ac) += eps;
 
       // Perturbed evaluations
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, ele, false, fa_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, ele, false, fy_eps, Ac, i);
-      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, ele, false, fd_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, fa_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, fy_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, fd_eps, Ac, i);
 
       // Restore solution vectors
       e_Ag(i, Ac) = Ag(i, Ac);
@@ -276,9 +267,15 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, 
              const mshType& lM, const Array<double>& Ag, 
              const Array<double>& Yg, const Array<double>& Dg,
-             const std::set<int>& elements, const bool central, const double eps, const int dAc, const int dj)
+             const double eps, const int dAc, const int dj)
 {
   using namespace consts;
+
+  // Check if the residual should be assembled
+  const bool residual = (dAc == -1) && (dj == -1);
+
+  // Check if this is the central evaluation
+  const bool central = (dAc != -1) && (dj == -1);
 
   // Get dimensions
   const int eNoN = lM.eNoN;
@@ -296,8 +293,37 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   enum Smoothing { none, element, elementnode };
   Smoothing smooth = none;
 
+  // Select element set to evaluate
+  std::set<int> ele_fd;
+  std::set<int> ele_smooth;
+
+  // Residual evaluation: evaluate all elements
+  if (residual) {
+    for (int i = 0; i < lM.nEl; ++i) {
+      ele_fd.insert(i);
+    }
+    ele_smooth = ele_fd;
+  }
+
+  // Pick elements according to smoothing algorithm
+  else {
+    switch(smooth) {
+      case none: 
+      case element: {
+        ele_fd = lM.map_node_ele_gen1.at(dAc);
+        ele_smooth = ele_fd;
+        break;
+      }
+      case elementnode: {
+        ele_fd = lM.map_node_ele_gen2.at(dAc);
+        ele_smooth = lM.map_node_ele_gen3.at(dAc);
+        break;
+      }
+    }
+  }
+
   // Update internal G&R variables without assembly
-  for (int e : elements) {
+  for (int e : ele_smooth) {
     eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr_dummy, lR_dummy, lK_dummy, false);
   }
 
@@ -307,7 +333,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   const bool output = false;
   if(output) {
     std::cout<<"Before"<<std::endl;
-    for (int e : elements) {
+    for (int e : ele_smooth) {
       std::cout<<"e "<<e<<std::endl;
       for (int g = 0; g < lM.nG; g++) {
         std::cout<<"  "<<com_mod.grInt(e, g, igr)<<std::endl;
@@ -323,7 +349,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
     // Average over Gauss points in element
     case element: {
-      for (int e : elements) {
+      for (int e : ele_smooth) {
         double avg = 0.0;
         for (int g = 0; g < lM.nG; g++) {
           avg += com_mod.grInt(e, g, igr);
@@ -353,7 +379,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       for (int g = 0; g < lM.nG; g++) {
         w = lM.w(g);
         N = lM.N.col(g);
-        for (int e : elements) {
+        for (int e : ele_smooth) {
           val = com_mod.grInt(e, g, igr);
           for (int a = 0; a < lM.eNoN; a++) {
             Ac = lM.IEN(a, e);
@@ -365,7 +391,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       }
 
       // Project: nodes -> integration points
-      for (int e : elements) {
+      for (int e : ele_smooth) {
         for (int g = 0; g < lM.nG; g++) {
           N = lM.N.col(g);
           val = 0.0;
@@ -382,7 +408,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
   if(output) {
     std::cout<<"After"<<std::endl;
-    for (int e : elements) {
+    for (int e : ele_smooth) {
       std::cout<<"e "<<e<<std::endl;
       for (int g = 0; g < lM.nG; g++) {
         std::cout<<"  "<<com_mod.grInt(e, g, igr)<<std::endl;
@@ -390,9 +416,6 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
     }
   }
   // std::terminate();
-
-  // Check if the residual should be assembled
-  const bool residual = elements.size() == lM.gnEl;
 
   // Initialzie arrays for Finite Difference (FD)
   Vector<int> ptr_row(eNoN);
@@ -404,7 +427,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   ptr_col = dAc;
 
   // Loop over all elements of mesh
-  for (int e : elements) {
+  for (int e : ele_fd) {
     // Reset
     ptr_row = 0;
     lR = 0.0;
