@@ -443,41 +443,29 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   const bool residual = elements.size() == lM.gnEl;
 
   // Initialzie arrays for Finite Difference (FD)
-  Vector<int> ptr(eNoN);
   Vector<int> ptr_row(eNoN);
   Vector<int> ptr_col(1);
   Array<double> lR(dof, eNoN);
   Array3<double> lK(dof * dof, eNoN, 1);
 
+  // Assemble only the FD node and dof indices
+  ptr_col = dAc;
+
   // Loop over all elements of mesh
   for (int e : elements) {
     // Reset
-    ptr = 0;
     ptr_row = 0;
-    ptr_col = 0;
     lR = 0.0;
     lK = 0.0;
 
     // Evaluate solid equations (with smoothed internal G&R variables)
-    eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr, lR, lK_dummy);
+    eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr_row, lR, lK_dummy);
 
     // Assemble into global residual
     if (residual) {
-      lhsa_ns::do_assem_residual(com_mod, lM.eNoN, ptr, lR);
+      lhsa_ns::do_assem_residual(com_mod, lM.eNoN, ptr_row, lR);
       continue;
     }
-
-    // Get local index of FD node
-    auto it = std::find(ptr.begin(), ptr.end(), dAc);
-    if (it == ptr.end()) {
-      std::cout<<"no node in element "<<e<<std::endl;
-      continue;
-    }
-
-    // Assemble only the FD node and dof indices
-    int db = std::distance(ptr.begin(), it);
-    ptr_col = dAc;
-    ptr_row = ptr;
 
     for (int a = 0; a < eNoN; ++a) {
       for (int i = 0; i < dof; ++i) {
