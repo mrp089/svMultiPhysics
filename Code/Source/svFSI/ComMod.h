@@ -55,6 +55,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <set>
 
 /// @brief Fourier coefficients that are used to specify unsteady BCs
 //
@@ -868,7 +869,7 @@ class mshType
     /// @brief IB: Mesh size parameter
     double dx = 0.0;
 
-    /// @breif ordering: node ordering for boundaries
+    /// @brief ordering: node ordering for boundaries
     std::vector<std::vector<int>> ordering;
 
     /// @brief Element distribution between processors
@@ -888,6 +889,12 @@ class mshType
 
     /// @brief The connectivity array mapping eNoN,nEl --> nNo
     Array<int> IEN;
+
+    /// @brief map: node -> element
+    std::map<int, std::set<int>> map_node_ele_gen1;
+
+    /// @brief map: (node -> element)^2
+    std::map<int, std::set<int>> map_node_ele_gen2;
 
     /// @brief gIEN mapper from old to new
     Vector<int> otnIEN;

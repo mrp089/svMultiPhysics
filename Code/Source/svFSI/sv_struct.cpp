@@ -236,39 +236,6 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   Array<double> lR(dof, eNoN);
   Array3<double> lK(dof * dof, eNoN, eNoN);
 
-  // Create map: node -> element
-  std::map<int, std::set<int>> map_node_ele_gen1;
-
-  // Loop all nodes
-  for (int Ac = 0; Ac < tnNo; ++Ac) {
-    for (int e = 0; e < lM.nEl; e++) {
-      for (int b = 0; b < eNoN; ++b) {
-        if (lM.IEN(b, e) == Ac) {
-          map_node_ele_gen1[Ac].insert(e);
-          break;
-        }
-      }
-    }
-  }
-
-  // Create map: (node -> element)^2
-  std::map<int, std::set<int>> map_node_ele_gen2;
-
-  // Loop all nodes
-  for (const auto& pair1 : map_node_ele_gen1) {
-    // Loop attached elements
-    for (int ele1 : pair1.second) {
-      // Loop attached nodes
-      for (int b = 0; b < eNoN; ++b) {
-        int Ac = lM.IEN(b, ele1);
-        // Loop attached elements
-        for (int ele2 : map_node_ele_gen1[Ac]) {
-          map_node_ele_gen2[pair1.first].insert(ele2);
-        }
-      }
-    }
-  }
-
   // Set containing all elements
   std::set<int> elements;
   for (int i = 0; i < lM.nEl; ++i) {
@@ -280,10 +247,10 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
   // Loop global nodes
   for (int Ac = 0; Ac < tnNo; ++Ac) {
-    // Pick element sets neighboring node (1st and 2nd degree)
-    std::set<int> ele = map_node_ele_gen1[Ac];
-    // std::set<int> ele = map_node_ele_gen2[Ac];
+    // Pick element set neighboring node (1st and 2nd degree)
+    const std::set<int>& ele = lM.map_node_ele_gen1.at(Ac);
 
+    // Central evaluation
     eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, ele, true, fa_eps + fy_eps + fd_eps, Ac);
 
     // Loop DOFs

@@ -284,12 +284,42 @@ void lhsa(Simulation* simulation, int& nnz)
     if (com_mod.shlEq && msh.eType == ElementType::TRI3) {
       continue;
     }
+
+    // Create map: node -> element
+    for (int Ac = 0; Ac < tnNo; ++Ac) {
+      for (int e = 0; e < msh.nEl; e++) {
+        for (int b = 0; b < msh.eNoN; ++b) {
+          if (msh.IEN(b, e) == Ac) {
+            msh.map_node_ele_gen1[Ac].insert(e);
+            break;
+          }
+        }
+      }
+    }
+
+    // Create map: (node -> element)^2
+    for (int Ac = 0; Ac < tnNo; ++Ac) {
+      // Loop attached elements
+      for (int ele1 : msh.map_node_ele_gen1[Ac]) {
+        // Loop attached nodes
+        for (int b = 0; b < msh.eNoN; ++b) {
+          int Ac = msh.IEN(b, ele1);
+          // Loop attached elements
+          for (int ele2 : msh.map_node_ele_gen1[Ac]) {
+            msh.map_node_ele_gen2[Ac].insert(ele2);
+          }
+        }
+      }
+    }
+
+    // Reserve memory
     for (int e = 0; e < msh.nEl; e++) {
       for (int a = 0; a < msh.eNoN; a++) { 
         int rowN = msh.IEN(a,e);
         for (int b = 0; b < msh.eNoN; b++) {
           int colN = msh.IEN(b,e);
           add_col(tnNo, rowN, colN, mnnzeic, uInd);
+          // std::cout<<" rowN "<<rowN<<" colN "<<colN<<" mnnzeic "<<mnnzeic<<std::endl;
         }
       }
     }
