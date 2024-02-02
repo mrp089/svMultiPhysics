@@ -444,13 +444,17 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
   // Initialzie arrays for Finite Difference (FD)
   Vector<int> ptr(eNoN);
+  Vector<int> ptr_row(eNoN);
+  Vector<int> ptr_col(1);
   Array<double> lR(dof, eNoN);
-  Array3<double> lK(dof * dof, eNoN, eNoN);
+  Array3<double> lK(dof * dof, eNoN, 1);
 
   // Loop over all elements of mesh
   for (int e : elements) {
     // Reset
     ptr = 0;
+    ptr_row = 0;
+    ptr_col = 0;
     lR = 0.0;
     lK = 0.0;
 
@@ -470,22 +474,24 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       continue;
     }
 
-    // Assemble only the FD node index
+    // Assemble only the FD node and dof indices
     int db = std::distance(ptr.begin(), it);
+    ptr_col = dAc;
+    ptr_row = ptr;
 
     for (int a = 0; a < eNoN; ++a) {
       for (int i = 0; i < dof; ++i) {
         if (central) {
           for (int j = 0; j < dof; ++j) {
-            lK(i * dof + j, a, db) = - lR(i, a) * eps;
+            lK(i * dof + j, a, 0) = - lR(i, a) * eps;
           }
         } else {
-          lK(i * dof + dj, a, db) = lR(i, a) * eps;
+          lK(i * dof + dj, a, 0) = lR(i, a) * eps;
         }
       }
     }
     // Assemble into global tangent
-    lhsa_ns::do_assem_tangent(com_mod, lM.eNoN, lM.eNoN, ptr, ptr, lK);
+    lhsa_ns::do_assem_tangent(com_mod, lM.eNoN, 1, ptr_row, ptr_col, lK);
   }
 }
 
