@@ -634,6 +634,9 @@ void initialize(Simulation* simulation, Vector<double>& timeP)
     com_mod.grInt_0.resize(com_mod.nGrInt,com_mod.tnNo);
     com_mod.grInt_n.resize(com_mod.nGrInt,com_mod.tnNo);
     com_mod.grInt_a.resize(com_mod.tnNo);
+    // Dimension: (#elements, #gauss points, #internal variables)
+    com_mod.grInt.resize(com_mod.msh[0].gnEl,com_mod.msh[0].nG,com_mod.nGrInt);
+    com_mod.grInt_orig.resize(com_mod.msh[0].gnEl,com_mod.msh[0].nG,com_mod.nGrInt);
   }
 
   // Setup data for remeshing.

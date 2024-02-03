@@ -200,6 +200,47 @@ void do_assem_tangent(ComMod &com_mod, const int d, const Vector<int> &eqN,
 }
 
 
+void do_assem_tangent(ComMod &com_mod, const int d_row, const int d_col, 
+                      const Vector<int> &eqN_row, const Vector<int> &eqN_col,
+                      const Array3<double> &lK)
+{
+  auto& R = com_mod.R;
+  auto& Val = com_mod.Val;
+  const auto& rowPtr = com_mod.rowPtr;
+  const auto& colPtr = com_mod.colPtr;
+
+  for (int a = 0; a < d_row; a++) {
+    int rowN = eqN_row(a);
+    if (rowN == -1) {
+      continue;
+    }
+    for (int b = 0; b < d_col; b++) {
+      int colN = eqN_col(b);
+      if (colN == -1) {
+        continue;
+      }
+
+      int left = rowPtr(rowN);
+      int right = rowPtr(rowN+1);
+      int ptr = (right + left) / 2;
+
+      while (colN != colPtr(ptr)) {
+        if (colN > colPtr(ptr)) { 
+          left  = ptr;
+        } else { 
+          right = ptr;
+        }
+        ptr = (right + left) / 2;
+      }
+
+      for (int i = 0; i < Val.nrows(); i++) {
+        Val(i,ptr) = Val(i,ptr) + lK(i,a,b);
+      }
+    }
+  }
+}
+
+
 //------
 // lhsa
 //------
@@ -243,12 +284,70 @@ void lhsa(Simulation* simulation, int& nnz)
     if (com_mod.shlEq && msh.eType == ElementType::TRI3) {
       continue;
     }
+
+    // Create map: node -> element
+    for (int Ac = 0; Ac < tnNo; ++Ac) {
+      for (int e = 0; e < msh.nEl; e++) {
+        for (int b = 0; b < msh.eNoN; ++b) {
+          if (msh.IEN(b, e) == Ac) {
+            msh.map_node_ele_gen1[Ac].insert(e);
+            break;
+          }
+        }
+      }
+    }
+
+    // Create map: (node -> element)^2
+    msh.map_node_ele_gen2 = msh.map_node_ele_gen1;
+    for (int Ac = 0; Ac < tnNo; ++Ac) {
+      // Loop attached elements
+      for (int ele1 : msh.map_node_ele_gen1[Ac]) {
+        // Loop attached nodes
+        for (int b = 0; b < msh.eNoN; ++b) {
+          int Ac = msh.IEN(b, ele1);
+          // Loop attached elements
+          for (int ele2 : msh.map_node_ele_gen1[Ac]) {
+            msh.map_node_ele_gen2[Ac].insert(ele2);
+          }
+        }
+      }
+    }
+
+    // Create map: (node -> element)^3
+    msh.map_node_ele_gen3 = msh.map_node_ele_gen2;
+    for (int Ac = 0; Ac < tnNo; ++Ac) {
+      // Loop attached elements
+      for (int ele1 : msh.map_node_ele_gen2[Ac]) {
+        // Loop attached nodes
+        for (int b = 0; b < msh.eNoN; ++b) {
+          int Ac = msh.IEN(b, ele1);
+          // Loop attached elements
+          for (int ele2 : msh.map_node_ele_gen2[Ac]) {
+            msh.map_node_ele_gen3[Ac].insert(ele2);
+          }
+        }
+      }
+    }
+
+    // Reserve memory
     for (int e = 0; e < msh.nEl; e++) {
       for (int a = 0; a < msh.eNoN; a++) { 
         int rowN = msh.IEN(a,e);
         for (int b = 0; b < msh.eNoN; b++) {
           int colN = msh.IEN(b,e);
           add_col(tnNo, rowN, colN, mnnzeic, uInd);
+        }
+      }
+    }
+
+    // Reserve off-diagonal memory
+    if (com_mod.grEq) {
+      for (int rowN = 0; rowN < tnNo; ++rowN) {
+        for (int e : msh.map_node_ele_gen2[rowN]) {
+          for (int b = 0; b < msh.eNoN; b++) {
+            int colN = msh.IEN(b,e);
+            add_col(tnNo, rowN, colN, mnnzeic, uInd);
+          }
         }
       }
     }
