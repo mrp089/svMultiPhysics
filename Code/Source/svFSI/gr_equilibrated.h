@@ -42,6 +42,7 @@
 #include <tens3d.h>
 #include <tens4d.h>
 #include <stdafx.h>
+#include <cassert>
 
 #include "Array.h"
 #include "Tensor4.h"

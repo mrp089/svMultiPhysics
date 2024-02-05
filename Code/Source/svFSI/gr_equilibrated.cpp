@@ -362,6 +362,7 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 	// double  svh;
 	double phic = phico;
 	double phich;
+	double phim;
 	double tauo;
 	double tauh;
 	double po;
@@ -490,34 +491,12 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 	}
 	case gr:
 	{
-		// compute stress
-		phic = phico;																// initial guess
-		double dRdc = J/Jo*(1.0+phimo/phico*eta*pow(J/Jo*phic/phico,eta-1.0));		// initial tangent d(R)/d(phic)
-		double Rphi = phieo+phimo*pow(J/Jo*phic/phico,eta)+J/Jo*phic-J/Jo;			// initial residue
-		do {																		// local iterations to obtain phic
-			phic = phic-Rphi/dRdc;													// phic
-			dRdc = J/Jo*(1.0+phimo/phico*eta*pow(J/Jo*phic/phico,eta-1.0));			// tangent
-			Rphi = phieo+phimo*pow(J/Jo*phic/phico,eta)+J/Jo*phic-J/Jo;				// update residue
-		} while (abs(Rphi) > sqrt(eps));											// && abs(Rphi/Rphi0) > sqrt(eps) && j<10
-		phic = phic-Rphi/dRdc;														// converge phase -> phic (updated in material point memory)
-
-		const double phim = phimo/(J/Jo)*pow(J/Jo*phic/phico,eta);	// phim from <J*phim/phimo=(J*phic/phico)^eta>
-
-		// assume eta = 1
-		const double phic0 = (1.0 - Jo/J * phieo) / (1.0 + phimo / phico);
-		const double phim0 = (1.0 - Jo/J * phieo) / (1.0 + phico / phimo);
-
-		// Jacobian from mass fractions
-		J_star = Jo * phieo / (1.0 - phic - phim);
-
-		// unneccessary linearizations of J
-		// const double Ja =  Jo * phieo;
-		// const double Jb =  1.0 / (1.0 + phimo / phico) + 1.0 / (1.0 + phico / phimo);
-		// const double J_star0 = Ja / (1.0 - (1.0 - Ja/J) * Jb);
-		// const double dJ_star_dJ = pow(J_star0, 2) * Jb / pow(J, 2);
+		// Simplified version, assuming eta == 1.0
+		assert(std::abs(eta - 1.0) < eps);
+		phic = (1.0 - Jo/J * phieo) / (1.0 + phimo / phico);
+		phim = (1.0 - Jo/J * phieo) / (1.0 + phico / phimo);
 
 		// recompute remodeled original stresses for smc and collagen (from remodeled natural configurations)
-
 		const double lto = (Fio.inverse()*N[1]).norm();
 		const double lzo = (Fio.inverse()*N[2]).norm();
 		const double lpo = (Fio.inverse()*Np).norm();					// original referential stretch for deposition stretch calculation
