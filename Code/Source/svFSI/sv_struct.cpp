@@ -296,7 +296,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
   // Select element set to evaluate
   std::set<int> ele_fd;
-  std::set<int> ele_smooth;
+  std::set<int> ele_eval;
   std::set<int> ele_all;
   for (int i = 0; i < lM.nEl; ++i) {
     ele_all.insert(i);
@@ -305,7 +305,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   // Residual evaluation: evaluate all elements
   if (residual) {
     ele_fd = ele_all;
-    ele_smooth = ele_all;
+    ele_eval = ele_all;
   }
 
   // Pick elements according to smoothing algorithm
@@ -314,36 +314,25 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       case none: 
       case element: {
         ele_fd = lM.map_node_ele[0].at(dAc);
-        ele_smooth = ele_fd;
+        ele_eval = ele_fd;
         break;
       }
       case elementnode: {
         ele_fd = lM.map_node_ele[1].at(dAc);
-        ele_smooth = lM.map_node_ele[1].at(dAc);
+        ele_eval = lM.map_node_ele[0].at(dAc);
         break;
       }
     }
   }
 
   // Update internal G&R variables without assembly
-  for (int e : ele_smooth) {
+  for (int e : ele_eval) {
     eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr_dummy, lR_dummy, lK_dummy, false);
   }
 
   // Index of Lagrange multiplier
   const int igr = 30;
 
-  const bool output = false;
-  if(output) {
-    std::cout<<"Before"<<std::endl;
-    for (int e : ele_smooth) {
-      std::cout<<"e "<<e<<std::endl;
-      for (int g = 0; g < lM.nG; g++) {
-        std::cout<<"  "<<com_mod.grInt(e, g, igr)<<std::endl;
-      }
-    }
-  }
-  
   switch(smooth) {
     // No smoothing
     case none: {
@@ -352,7 +341,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
     // Average over Gauss points in element
     case element: {
-      for (int e : ele_smooth) {
+      for (int e : ele_fd) {
         double avg = 0.0;
         for (int g = 0; g < lM.nG; g++) {
           avg += com_mod.grInt(e, g, igr);
@@ -382,7 +371,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       for (int g = 0; g < lM.nG; g++) {
         w = lM.w(g);
         N = lM.N.col(g);
-        for (int e : ele_smooth) {
+        for (int e : ele_fd) {
           val = com_mod.grInt(e, g, igr);
           for (int a = 0; a < lM.eNoN; a++) {
             Ac = lM.IEN(a, e);
@@ -394,7 +383,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       }
 
       // Project: nodes -> integration points
-      for (int e : ele_smooth) {
+      for (int e : ele_fd) {
         for (int g = 0; g < lM.nG; g++) {
           N = lM.N.col(g);
           val = 0.0;
@@ -413,17 +402,6 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   if (residual) {
     com_mod.grInt_orig = com_mod.grInt;
   }
-
-  if(output) {
-    std::cout<<"After"<<std::endl;
-    for (int e : ele_smooth) {
-      std::cout<<"e "<<e<<std::endl;
-      for (int g = 0; g < lM.nG; g++) {
-        std::cout<<"  "<<com_mod.grInt(e, g, igr)<<std::endl;
-      }
-    }
-  }
-  // std::terminate();
 
   // Initialzie arrays for Finite Difference (FD)
   Vector<int> ptr_row(eNoN);
