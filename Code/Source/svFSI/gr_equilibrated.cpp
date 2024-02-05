@@ -195,7 +195,7 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 
 	// Lagrange multiplier
 	double p;
-	double p0;
+	double p_gp;
 
 	// WSS ratio
 	double tau_ratio;
@@ -362,6 +362,7 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 	double  svo;
 	// double  svh;
 	double phic = phico;
+	double phic_gp;
 	double phich;
 	double tauo;
 	double tauh;
@@ -460,11 +461,10 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 		const mat3ds Sx = Se + phimo * Sm + phico * Sc + phimo * Sa;
 
 		// Lagrange multiplier during prestress
-		p = -lm*log(Jdep*J);
-
-		// S = Sx + Ci*lm*log(Jdep*J);
-		const double p_smooth = grInt(30);
-		S = Sx - p_smooth * Ci;
+		p_gp = -lm*log(Jdep*J);
+		// const double p = grInt(30);
+		const double p = p_gp;
+		S = Sx - p * Ci;
 
 		// compute tangent
 		const mat3ds tent = dyad(F*N[1]);
@@ -502,7 +502,8 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 			dRdc = J/Jo*(1.0+phimo/phico*eta*pow(J/Jo*phic/phico,eta-1.0));			// tangent
 			Rphi = phieo+phimo*pow(J/Jo*phic/phico,eta)+J/Jo*phic-J/Jo;				// update residue
 		} while (abs(Rphi) > sqrt(eps));											// && abs(Rphi/Rphi0) > sqrt(eps) && j<10
-		phic = phic-Rphi/dRdc;														// converge phase -> phic (updated in material point memory)
+		phic_gp = phic-Rphi/dRdc;														// converge phase -> phic (updated in material point memory)
+		phic = grInt(37);
 
 		const double phim = phimo/(J/Jo)*pow(J/Jo*phic/phico,eta);	// phim from <J*phim/phimo=(J*phic/phico)^eta>
 
@@ -510,17 +511,7 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 		const double phic0 = (1.0 - Jo/J * phieo) / (1.0 + phimo / phico);
 		const double phim0 = (1.0 - Jo/J * phieo) / (1.0 + phico / phimo);
 
-		// Jacobian from mass fractions
-		J_star = Jo * phieo / (1.0 - phic - phim);
-
-		// unneccessary linearizations of J
-		// const double Ja =  Jo * phieo;
-		// const double Jb =  1.0 / (1.0 + phimo / phico) + 1.0 / (1.0 + phico / phimo);
-		// const double J_star0 = Ja / (1.0 - (1.0 - Ja/J) * Jb);
-		// const double dJ_star_dJ = pow(J_star0, 2) * Jb / pow(J, 2);
-
 		// recompute remodeled original stresses for smc and collagen (from remodeled natural configurations)
-
 		const double lto = (Fio.inverse()*N[1]).norm();
 		const double lzo = (Fio.inverse()*N[2]).norm();
 		const double lpo = (Fio.inverse()*Np).norm();					// original referential stretch for deposition stretch calculation
@@ -572,7 +563,6 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 
 		const mat3ds sNf = sNm + sNc;
 
-//		const double Cratio = CB-CS*(EPS*pow(rIrIo,-3)-1.0);
 		const double Cratio = CB-CS*(EPS*tau_ratio-1.0);
 		mat3ds sNa; sNa.zero();
 		if (Cratio>0) sNa = phim*(1.0-exp(-Cratio*Cratio))/(1.0-exp(-CB*CB))*sao;
@@ -682,38 +672,15 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 
 		const tens4dmm cess = tens4dmm(ce);							// ce in tens4dmm form
 
-//		const double p = 1.0/3.0/J*Sx.dotdot(C) - svo/(1.0-delta)*(1.0+KsKi*(EPS*pow(rIrIo,-3)-1.0)-KfKi*inflam);		// Ups = 1 -> p
 		css = cess + cfss + cpnss;
 		tens4dmm css_ref = J*css.pp(F.inverse());
 
 		svh = 1.0/3.0/J*Sx.dotdot(C);
 
-		const double delta_sig = svh / svo - 1.0;
-		const double delta_tau = tau_ratio - 1.0;
-		ups = delta_sig - KsKi * delta_tau;
-		p0 = kappa*ups;
-
-		const mat3ds d_svh = 1.0/3.0/J/svo * (Sx + css_ref.dot(C) - Sx.dotdot(C)/2.0 * Ci);
-		// const mat3ds d_svh = (1.0/3.0*(2.0*sx.tr()*IoIss-2.0*Ixsx-ddot(IxIss,css))).dot(C)/svo;
-		const mat3ds d_tau = -3.0/2.0*pow(rIrIo,-4) * (ro/rIo/lt*tent - (ro-rIo)/rIo/lr*tenr);
-		const mat3ds Sp = 2.0*kappa*ups * (d_svh - KsKi * d_tau);
-
-//		const double p = 1.0/3.0/J*Sx.dotdot(C) - svo/(1.0-delta)*(1.0+KsKi*(EPS*pow(rIrIo,-3)-1.0)-KfKi*inflam);		// Ups = 1 -> p
-		p = svh - svo/(1.0-delta)*(1.0+KsKi*(EPS*tau_ratio-1.0)-KfKi*inflam);		// Ups = 1 -> p
-		// p = po;
-		// p = po - kappa * (J - J_star) * (1 - dJ_star_dJ); // second part is always 0
-		// p = po + svh;
-
-		const double p_smooth = grInt(30);
-		S = Sx - J * p_smooth * Ci;
-		// S = Sx + Sp;
-		// S = Sx * svo/svh;
-		// S = Sx - kappa*ups * J*Ci;
-		// S = Sx + Ci*lm*log(Jdep*(ups + 1.0));
-
-		// const double a = 1.0e-2;
-		// const double a = 0.0;
-		// S = Sx * (1+a) - (svh * (1+a) - svo * (1.0+KsKi*(tau_ratio-1.0))) * J*Ci;
+		p_gp = svh - svo/(1.0-delta)*(1.0+KsKi*(EPS*tau_ratio-1.0)-KfKi*inflam);
+		// const double p = grInt(30);
+		const double p = p_gp;
+		S = Sx - J * p * Ci;
 
 		css += 1.0/3.0*(2.0*sx.tr()*IoIss-2.0*Ixsx-ddot(IxIss,css));
 		css += svo/(1.0-delta)*(1.0+KsKi*(EPS*tau_ratio-1.0)-KfKi*inflam)*(IxIss-2.0*IoIss);
@@ -858,13 +825,11 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 		grInt(k + 1)  = 1.0/3.0/J*S.dotdot(C);
 		grInt(k + 2)  = phico;
 		grInt(k + 3)  = 1.0;
-		grInt(k + 4)  = p;
+		grInt(k + 4)  = p_gp;
 		grInt(k + 5)  = grInt(k + 3) - 1.0; // delta tau
 		grInt(k + 6)  = grInt(k + 1) / grInt(1) - 1.0; // delta sigma
 		grInt(k + 7)  = KsKi; // kski = delta sigma / deltau tau
 		grInt(k + 8)  = grInt(k + 6) - KsKi * grInt(k + 5); // ups -> 0
-		grInt(k + 9)  = p0;
-		grInt(k + 10) = p0 / p;
 		grInt(k + 11) = phic;
 	}
 	// store g&r state
@@ -875,14 +840,12 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 		grInt(k + 1)  = 1.0/3.0/J*S.dotdot(C);
 		grInt(k + 2)  = phico;
 		grInt(k + 3)  = tau_ratio;
-		grInt(k + 4)  = p;
+		grInt(k + 4)  = p_gp;
 		grInt(k + 5)  = grInt(k + 3) - 1.0; // delta tau
 		grInt(k + 6)  = grInt(k + 1) / grInt(1) - 1.0; // delta sigma
 		grInt(k + 7)  = grInt(k + 6) / grInt(k + 5); // kski = delta sigma / deltau tau
 		grInt(k + 8)  = grInt(k + 6) - KsKi * grInt(k + 5); // ups -> 0
-		grInt(k + 9)  = p0;
-		grInt(k + 10) = p0 / p;
-		grInt(k + 11) = phic;
+		grInt(k + 11) = phic_gp;
 		// Fih = F.inverse();
 		// grInt(25] = J;
 		// grInt(26] = svo;

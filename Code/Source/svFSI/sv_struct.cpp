@@ -325,7 +325,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   }
 
   // Index of Lagrange multiplier
-  const int igr = 30;
+  std::vector<int> gr_variables = {37};
 
   switch(smooth) {
     // No smoothing
@@ -335,14 +335,16 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
     // Average over Gauss points in element
     case element: {
-      for (int e : elements) {
-        double avg = 0.0;
-        for (int g = 0; g < lM.nG; g++) {
-          avg += com_mod.grInt(e, g, igr);
-        }
-        avg /= lM.nG;
-        for (int g = 0; g < lM.nG; g++) {
-          com_mod.grInt(e, g, igr) = avg;
+      for (int igr : gr_variables) {
+        for (int e : elements) {
+          double avg = 0.0;
+          for (int g = 0; g < lM.nG; g++) {
+            avg += com_mod.grInt(e, g, igr);
+          }
+          avg /= lM.nG;
+          for (int g = 0; g < lM.nG; g++) {
+            com_mod.grInt(e, g, igr) = avg;
+          }
         }
       }
       break;
@@ -351,8 +353,8 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
     case elementnode: {
       // Initialize arrays
       // todo: this could be of size elements.size() * lM.eNoN
-      Vector<double> grInt_a(lM.gnNo);
-      Vector<double> grInt_n(lM.gnNo);
+      Array<double> grInt_a(lM.gnNo, com_mod.nGrInt);
+      Array<double> grInt_n(lM.gnNo, com_mod.nGrInt);
       grInt_a = 0.0;
       grInt_n = 0.0;
 
@@ -366,26 +368,30 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
         w = lM.w(g);
         N = lM.N.col(g);
         for (int e : elements) {
-          val = com_mod.grInt(e, g, igr);
-          for (int a = 0; a < lM.eNoN; a++) {
-            Ac = lM.IEN(a, e);
-            // todo: add jacobian
-            grInt_n(Ac) += w * N(a) * val;
-            grInt_a(Ac) += w * N(a);
+          for (int igr : gr_variables) {
+            val = com_mod.grInt(e, g, igr);
+            for (int a = 0; a < lM.eNoN; a++) {
+              Ac = lM.IEN(a, e);
+              // todo: add jacobian
+              grInt_n(Ac, igr) += w * N(a) * val;
+              grInt_a(Ac, igr) += w * N(a);
+            }
           }
-        }
+      }
       }
 
       // Project: nodes -> integration points
-      for (int e : elements) {
-        for (int g = 0; g < lM.nG; g++) {
-          N = lM.N.col(g);
-          val = 0.0;
-          for (int a = 0; a < lM.eNoN; a++) {
-            Ac = lM.IEN(a, e);
-            val += N(a) * grInt_n(Ac) / grInt_a(Ac);
+      for (int igr : gr_variables) {
+        for (int e : elements) {
+          for (int g = 0; g < lM.nG; g++) {
+            N = lM.N.col(g);
+            val = 0.0;
+            for (int a = 0; a < lM.eNoN; a++) {
+              Ac = lM.IEN(a, e);
+              val += N(a) * grInt_n(Ac, igr) / grInt_a(Ac, igr);
+            }
+            com_mod.grInt(e, g, igr) = val;
           }
-          com_mod.grInt(e, g, igr) = val;
         }
       }
       break;
