@@ -295,17 +295,13 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   Smoothing smooth = elementnode;
 
   // Select element set to evaluate
-  std::set<int> ele_fd;
-  std::set<int> ele_eval;
-  std::set<int> ele_all;
-  for (int i = 0; i < lM.nEl; ++i) {
-    ele_all.insert(i);
-  }
+  std::set<int> elements;
 
   // Residual evaluation: evaluate all elements
   if (residual) {
-    ele_fd = ele_all;
-    ele_eval = ele_all;
+    for (int i = 0; i < lM.nEl; ++i) {
+      elements.insert(i);
+    }
   }
 
   // Pick elements according to smoothing algorithm
@@ -313,20 +309,18 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
     switch(smooth) {
       case none: 
       case element: {
-        ele_fd = lM.map_node_ele[0].at(dAc);
-        ele_eval = ele_fd;
+        elements = lM.map_node_ele[0].at(dAc);
         break;
       }
       case elementnode: {
-        ele_fd = lM.map_node_ele[1].at(dAc);
-        ele_eval = lM.map_node_ele[0].at(dAc);
+        elements = lM.map_node_ele[1].at(dAc);
         break;
       }
     }
   }
 
   // Update internal G&R variables without assembly
-  for (int e : ele_eval) {
+  for (int e : elements) {
     eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr_dummy, lR_dummy, lK_dummy, false);
   }
 
@@ -341,7 +335,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
     // Average over Gauss points in element
     case element: {
-      for (int e : ele_fd) {
+      for (int e : elements) {
         double avg = 0.0;
         for (int g = 0; g < lM.nG; g++) {
           avg += com_mod.grInt(e, g, igr);
@@ -371,7 +365,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       for (int g = 0; g < lM.nG; g++) {
         w = lM.w(g);
         N = lM.N.col(g);
-        for (int e : ele_fd) {
+        for (int e : elements) {
           val = com_mod.grInt(e, g, igr);
           for (int a = 0; a < lM.eNoN; a++) {
             Ac = lM.IEN(a, e);
@@ -383,7 +377,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       }
 
       // Project: nodes -> integration points
-      for (int e : ele_fd) {
+      for (int e : elements) {
         for (int g = 0; g < lM.nG; g++) {
           N = lM.N.col(g);
           val = 0.0;
@@ -413,7 +407,7 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
   ptr_col = dAc;
 
   // Loop over all elements of mesh
-  for (int e : ele_fd) {
+  for (int e : elements) {
     // Reset
     ptr_row = 0;
     lR = 0.0;
