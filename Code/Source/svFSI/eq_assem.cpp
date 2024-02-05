@@ -142,6 +142,7 @@ void b_assem_neu_bc(ComMod& com_mod, const faceType& lFa, const Vector<double>& 
         break;
 
         case EquationType::phys_struct:
+        case EquationType::phys_gr:
           l_elas::b_l_elas(com_mod, eNoN, w, N, h, nV, lR);
         break;
 
@@ -292,7 +293,7 @@ void b_neu_folw_p(ComMod& com_mod, const faceType& lFa, const Vector<double>& hg
           ustruct::b_ustruct_2d(com_mod, eNoN, w, N, Nx, dl, hl, nV, lR, lK, lKd);
         }
 
-      } else if (cPhys == EquationType::phys_struct) {
+      } else if (cPhys == EquationType::phys_struct || cPhys == EquationType::phys_gr) {
         if (nsd == 3) {
           struct_ns::b_struct_3d(com_mod, eNoN, w, N, Nx, dl, hl, nV, lR, lK);
         } else {
@@ -310,7 +311,7 @@ void b_neu_folw_p(ComMod& com_mod, const faceType& lFa, const Vector<double>& hg
 #endif
       if (cPhys == EquationType::phys_ustruct) {
         ustruct::ustruct_do_assem(com_mod, eNoN, ptr, lKd, lK, lR);
-      } else if (cPhys == EquationType::phys_struct) {
+      } else if (cPhys == EquationType::phys_struct || cPhys == EquationType::phys_gr) {
         lhsa_ns::do_assem(com_mod, eNoN, ptr, lK, lR);
       }
 #ifdef WITH_TRILINOS
@@ -363,6 +364,7 @@ void global_eq_assem(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const 
     break;
 
     case EquationType::phys_struct:
+    case EquationType::phys_gr:
       struct_ns::construct_dsolid(com_mod, cep_mod, lM, Ag, Yg, Dg);
     break;
 

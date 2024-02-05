@@ -193,7 +193,8 @@ void baf_ini(Simulation* simulation)
       auto& eq = com_mod.eq[0];
       if (all_fun::is_domain(com_mod, eq, a, EquationType::phys_struct) || 
           all_fun::is_domain(com_mod, eq, a, EquationType::phys_ustruct) || 
-          all_fun::is_domain(com_mod, eq, a, EquationType::phys_lElas)) {
+          all_fun::is_domain(com_mod, eq, a, EquationType::phys_lElas) || 
+          all_fun::is_domain(com_mod, eq, a, EquationType::phys_gr)) {
         i = i + 1;
       }
     }
@@ -205,7 +206,8 @@ void baf_ini(Simulation* simulation)
       auto& eq = com_mod.eq[0];
       if (all_fun::is_domain(com_mod, eq, a, EquationType::phys_struct) || 
           all_fun::is_domain(com_mod, eq, a, EquationType::phys_ustruct) || 
-          all_fun::is_domain(com_mod, eq, a, EquationType::phys_lElas)) {
+          all_fun::is_domain(com_mod, eq, a, EquationType::phys_lElas) || 
+          all_fun::is_domain(com_mod, eq, a, EquationType::phys_gr)) {
         gNodes(i) = a;
         i = i + 1;
       }

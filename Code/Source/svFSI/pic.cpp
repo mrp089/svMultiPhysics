@@ -172,7 +172,8 @@ void picc(Simulation* simulation)
     for (int Ac = 0; Ac < tnNo; Ac++) {
       if (all_fun::is_domain(com_mod, eq, Ac, Equation_struct) || 
           all_fun::is_domain(com_mod, eq, Ac, Equation_ustruct) || 
-          all_fun::is_domain(com_mod, eq, Ac, Equation_lElas)) {
+          all_fun::is_domain(com_mod, eq, Ac, Equation_lElas) || 
+          all_fun::is_domain(com_mod, eq, Ac, Equation_gr)) {
         for (int i = 0; i < e-s+1; i++) {
           An(i+s,Ac) = An(i,Ac);
           Yn(i+s,Ac) = Yn(i,Ac);

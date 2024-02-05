@@ -1049,7 +1049,8 @@ void dist_eq(ComMod& com_mod, const CmMod& cm_mod, const cmType& cm, const std::
       cm.bcast(cm_mod, cep_mod.bo.tau_fi);
     } 
 
-    if ((dmn.phys == EquationType::phys_struct) || (dmn.phys == EquationType::phys_ustruct)) {
+    if ((dmn.phys == EquationType::phys_struct) || (dmn.phys == EquationType::phys_ustruct) || 
+        (dmn.phys == EquationType::phys_gr)) {
       dist_mat_consts(com_mod, cm_mod, cm, dmn.stM);
     } 
 

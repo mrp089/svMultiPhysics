@@ -387,7 +387,7 @@ void read_bc(Simulation* simulation, EquationParameters* eq_params, eqType& lEq,
 
   // Impose BC on the state variable or its integral
   //
-  if (std::set<EquationType>{Equation_lElas,Equation_mesh,Equation_struct,Equation_shell}.count(lEq.phys) != 0) {
+  if (std::set<EquationType>{Equation_lElas,Equation_mesh,Equation_struct,Equation_shell,Equation_gr}.count(lEq.phys) != 0) {
     ltmp = true;
   } else {
     ltmp = false;
@@ -474,7 +474,7 @@ void read_bc(Simulation* simulation, EquationParameters* eq_params, eqType& lEq,
   //
   lBc.flwP = false;
   if (utils::btest(lBc.bType, enum_int(BoundaryConditionType::bType_Neu))) {
-    if (lEq.phys == Equation_struct || lEq.phys == Equation_ustruct) {
+    if (lEq.phys == Equation_struct || lEq.phys == Equation_ustruct || lEq.phys == Equation_gr) {
       lBc.flwP = bc_params->follower_pressure_load.value();
     }
   }
@@ -1202,7 +1202,8 @@ void read_domain(Simulation* simulation, EquationParameters* eq_params, eqType& 
      //
      if ( (lEq.dmn[iDmn].phys == EquationType::phys_shell) || 
           (lEq.dmn[iDmn].phys == EquationType::phys_struct) || 
-          (lEq.dmn[iDmn].phys == EquationType::phys_ustruct)) { 
+          (lEq.dmn[iDmn].phys == EquationType::phys_ustruct) || 
+          (lEq.dmn[iDmn].phys == EquationType::phys_gr)) { 
         read_mat_model(simulation, eq_params, domain_params, lEq.dmn[iDmn]);
         if (utils::is_zero(lEq.dmn[iDmn].stM.Kpen) && lEq.dmn[iDmn].phys == EquationType::phys_struct) { 
           //err = "Incompressible struct is not allowed. Use "//  "penalty method or ustruct"
@@ -1651,7 +1652,7 @@ void read_files(Simulation* simulation, const std::string& file_name)
     for (int iEq = 0; iEq < nEq; iEq++) {
       auto& eq = com_mod.eq[iEq];
       if ((eq.phys == EquationType::phys_CEP) || (eq.phys == EquationType::phys_struct) || 
-          (eq.phys == EquationType::phys_ustruct)) {
+          (eq.phys == EquationType::phys_ustruct) || (eq.phys == EquationType::phys_gr)) {
         i = i + 1;
       }
     }
@@ -1673,7 +1674,7 @@ void read_files(Simulation* simulation, const std::string& file_name)
         auto& eq = com_mod.eq[iEq];
         for (int i = 0; i < eq.nDmn; i++) {
           auto& dmn = eq.dmn[i];
-          if ((dmn.phys != EquationType::phys_ustruct) && (dmn.phys != EquationType::phys_struct)) { 
+          if ((dmn.phys != EquationType::phys_ustruct) && (dmn.phys != EquationType::phys_struct) && (dmn.phys != EquationType::phys_gr)) { 
             continue; 
           }
           if (dmn.stM.isoType != ConstitutiveModelType::stIso_HO) {

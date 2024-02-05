@@ -199,6 +199,8 @@ const std::map<std::string,EquationType> equation_name_to_type = {
     {"structural_velocity_pressure", EquationType::phys_ustruct},
     {"ustruct", EquationType::phys_ustruct},
 
+    {"gr", EquationType::phys_gr},
+
   };
 
 const std::map<std::string,MeshGeneratorType> mesh_generator_name_to_type = {

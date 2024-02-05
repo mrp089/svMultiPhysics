@@ -254,7 +254,7 @@ void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const
     // Update domain and proceed if domain phys and eqn phys match
     cDmn = all_fun::domain(com_mod, lM, cEq, e);
     auto cPhys = eq.dmn[cDmn].phys;
-    if (cPhys != EquationType::phys_struct) {
+    if (cPhys != EquationType::phys_struct && cPhys != EquationType::phys_gr) {
       continue; 
     }
 

@@ -427,7 +427,7 @@ void initialize(Simulation* simulation, Vector<double>& timeP)
     }
 
     // For second order eqs. 
-    if (std::set<EquationType>{Equation_lElas, Equation_struct, Equation_shell, Equation_mesh}.count(eq.phys) != 0) {
+    if (std::set<EquationType>{Equation_lElas, Equation_struct, Equation_shell, Equation_mesh, Equation_gr}.count(eq.phys) != 0) {
       eq.am = (2.0 - eq.roInf) / (1.0 + eq.roInf);
 
     // first order equations.

@@ -559,7 +559,7 @@ void fib_algn_post(Simulation* simulation, const mshType& lM, Array<double>& res
   for (int e = 0; e < lM.nEl; e++) {
     int cDmn = all_fun::domain(com_mod, lM, iEq, e);
     auto cPhys = eq.dmn[cDmn].phys;
-    if (cPhys != EquationType::phys_struct && cPhys != EquationType::phys_ustruct) {
+    if (cPhys != EquationType::phys_struct && cPhys != EquationType::phys_ustruct && cPhys != EquationType::phys_gr) {
       continue; 
     } 
     if (lM.eType == ElementType::NRB) {
@@ -1747,7 +1747,8 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
   for (int e = 0; e < lM.nEl; e++) {
     int cDmn = all_fun::domain(com_mod, lM, iEq, e);
     auto cPhys = eq.dmn[cDmn].phys;
-    if (cPhys != EquationType::phys_struct && cPhys != EquationType::phys_ustruct && cPhys != EquationType::phys_lElas) {
+    if (cPhys != EquationType::phys_struct && cPhys != EquationType::phys_ustruct && 
+        cPhys != EquationType::phys_lElas && cPhys != EquationType::phys_gr) {
       continue; 
     } 
 
@@ -1968,7 +1969,7 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
               sigma = sigma / detF;
             }
 
-          } else if (cPhys == EquationType::phys_struct) {
+          } else if (cPhys == EquationType::phys_struct || cPhys == EquationType::phys_gr) {
             Array<double> Dm(nsymd,nsymd);
             mat_models::get_pk2cc(com_mod, cep_mod, eq.dmn[cDmn], F, nFn, fN, ya, gr_int_l, gr_props_g, S, Dm);
 
@@ -2076,7 +2077,7 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
       int cDmn = all_fun::domain(com_mod, lM, iEq, e);
       auto cPhys = eq.dmn[cDmn].phys;
       if ((cPhys != EquationType::phys_struct) && (cPhys != EquationType::phys_ustruct) && 
-          (cPhys != EquationType::phys_lElas)) {
+          (cPhys != EquationType::phys_lElas) && (cPhys != EquationType::phys_gr)) {
         continue;
       }
 

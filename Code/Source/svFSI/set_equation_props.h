@@ -310,7 +310,8 @@ SetEquationPropertiesMapType set_equation_props = {
   com_mod.mvMsh = true;
 
   // Set the possible equations for fsi: fluid (required), struct/ustruct/lElas
-  EquationPhys phys { EquationType::phys_fluid, EquationType::phys_struct, EquationType::phys_ustruct, EquationType::phys_lElas };
+  EquationPhys phys { EquationType::phys_fluid, EquationType::phys_struct, EquationType::phys_ustruct, 
+                      EquationType::phys_lElas, EquationType::phys_gr };
   
   // Set fluid properties.
   int n = 0;
@@ -656,5 +657,55 @@ SetEquationPropertiesMapType set_equation_props = {
   read_ls(simulation, eq_params, SolverType::lSolver_GMRES, lEq);
 
 } },
+
+// growth and remodeling (G&R)
+{consts::EquationType::phys_gr, [](Simulation* simulation, EquationParameters* eq_params, eqType& lEq, EquationProps& propL,
+      EquationOutputs& outPuts, EquationNdop& nDOP) -> void
+{
+  using namespace consts;
+  auto& com_mod = simulation->get_com_mod();
+  lEq.phys = consts::EquationType::phys_gr;
+
+  propL[0][0] = PhysicalProperyType::solid_density;
+  propL[1][0] = PhysicalProperyType::damping;
+  propL[2][0] = PhysicalProperyType::elasticity_modulus;
+  propL[3][0] = PhysicalProperyType::poisson_ratio;
+  propL[4][0] = PhysicalProperyType::solid_viscosity;
+  propL[5][0] = PhysicalProperyType::f_x;
+  propL[6][0] = PhysicalProperyType::f_y;
+  if (simulation->com_mod.nsd == 3) {
+    propL[7][0] = PhysicalProperyType::f_z;
+  }
+
+  read_domain(simulation, eq_params, lEq, propL);
+
+  if (eq_params->prestress.defined() && eq_params->prestress.value()) { 
+    nDOP = {4,2,0,0};
+    outPuts = {OutputType::out_displacement, OutputType::out_stress, OutputType::out_cauchy, OutputType::out_strain};
+    //simulation->com_mod.pstEq = true;
+  } else {
+    nDOP = {12,2,0,0};
+    outPuts = { 
+      OutputType::out_displacement, OutputType::out_mises, OutputType::out_stress,
+      OutputType::out_cauchy, OutputType::out_strain, OutputType::out_jacobian,
+      OutputType::out_defGrad, OutputType::out_integ, OutputType::out_fibDir,
+      OutputType::out_fibAlign, OutputType::out_velocity, OutputType::out_acceleration
+    };
+  }
+
+  // Set solver parameters.
+  read_ls(simulation, eq_params, SolverType::lSolver_CG, lEq);
+
+  // Set properties for growth and remodeling
+  int cEq = com_mod.cEq;
+  auto& eq = com_mod.eq[cEq];
+  int cDmn = com_mod.cDmn;
+  auto& dmn = eq.dmn[cDmn];
+
+  if (dmn.stM.isoType == ConstitutiveModelType::GR_equi) {
+    com_mod.grEq = true;
+    com_mod.nGrInt = 50;
+  }
+} }
 };
 
