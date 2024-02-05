@@ -262,6 +262,7 @@ void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
       e_Dg(i, Ac) = Dg(i, Ac);
     }
   }
+// com_mod.Val.print("Val");
 }
 
 void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, 
@@ -291,18 +292,20 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
 
   // Smooth internal G&R variables
   enum Smoothing { none, element, elementnode };
-  Smoothing smooth = none;
+  Smoothing smooth = elementnode;
 
   // Select element set to evaluate
   std::set<int> ele_fd;
   std::set<int> ele_smooth;
+  std::set<int> ele_all;
+  for (int i = 0; i < lM.nEl; ++i) {
+    ele_all.insert(i);
+  }
 
   // Residual evaluation: evaluate all elements
   if (residual) {
-    for (int i = 0; i < lM.nEl; ++i) {
-      ele_fd.insert(i);
-    }
-    ele_smooth = ele_fd;
+    ele_fd = ele_all;
+    ele_smooth = ele_all;
   }
 
   // Pick elements according to smoothing algorithm
@@ -310,13 +313,13 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
     switch(smooth) {
       case none: 
       case element: {
-        ele_fd = lM.map_node_ele_gen1.at(dAc);
+        ele_fd = lM.map_node_ele[0].at(dAc);
         ele_smooth = ele_fd;
         break;
       }
       case elementnode: {
-        ele_fd = lM.map_node_ele_gen2.at(dAc);
-        ele_smooth = lM.map_node_ele_gen3.at(dAc);
+        ele_fd = lM.map_node_ele[1].at(dAc);
+        ele_smooth = lM.map_node_ele[1].at(dAc);
         break;
       }
     }
@@ -406,6 +409,11 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
     }
   }
 
+  // Store internal G&R variables
+  if (residual) {
+    com_mod.grInt_orig = com_mod.grInt;
+  }
+
   if(output) {
     std::cout<<"After"<<std::endl;
     for (int e : ele_smooth) {
@@ -458,6 +466,9 @@ void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
     // Assemble into global tangent
     lhsa_ns::do_assem_tangent(com_mod, lM.eNoN, 1, ptr_row, ptr_col, lK);
   }
+
+  // Restore internal G&R variables
+  com_mod.grInt = com_mod.grInt_orig;
 }
 
 /// @brief Loop solid elements and assemble into global matrices

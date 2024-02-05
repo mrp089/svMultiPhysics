@@ -891,9 +891,7 @@ class mshType
     Array<int> IEN;
 
     /// @brief map: node -> element
-    std::map<int, std::set<int>> map_node_ele_gen1;
-    std::map<int, std::set<int>> map_node_ele_gen2;
-    std::map<int, std::set<int>> map_node_ele_gen3;
+    std::vector<std::map<int, std::set<int>>> map_node_ele;
 
     /// @brief gIEN mapper from old to new
     Vector<int> otnIEN;
@@ -1564,6 +1562,7 @@ class ComMod {
     /// @brief Internal growth and remodeling variables
     Array3<double> grInt;
     Array3<double> grInt_orig;
+    Array<double>  grInt_n;
 
     //-----------------------------------------------------
     // Additional arrays for velocity-based formulation of 

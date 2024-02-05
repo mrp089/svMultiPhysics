@@ -285,48 +285,41 @@ void lhsa(Simulation* simulation, int& nnz)
       continue;
     }
 
-    // Create map: node -> element
-    for (int Ac = 0; Ac < tnNo; ++Ac) {
-      for (int e = 0; e < msh.nEl; e++) {
-        for (int b = 0; b < msh.eNoN; ++b) {
-          if (msh.IEN(b, e) == Ac) {
-            msh.map_node_ele_gen1[Ac].insert(e);
-            break;
-          }
-        }
-      }
-    }
+    // Number of map generations to reserve
+    const int map_gen = 2;
 
-    // Create map: (node -> element)^2
-    msh.map_node_ele_gen2 = msh.map_node_ele_gen1;
-    for (int Ac = 0; Ac < tnNo; ++Ac) {
-      // Loop attached elements
-      for (int ele1 : msh.map_node_ele_gen1[Ac]) {
-        // Loop attached nodes
-        for (int b = 0; b < msh.eNoN; ++b) {
-          int Ac = msh.IEN(b, ele1);
-          // Loop attached elements
-          for (int ele2 : msh.map_node_ele_gen1[Ac]) {
-            msh.map_node_ele_gen2[Ac].insert(ele2);
-          }
-        }
-      }
-    }
+    // Create maps: (node -> element) ^ map_gen
+    for (int gen = 0; gen < map_gen; gen++) {
+      std::map<int, std::set<int>> map;
 
-    // Create map: (node -> element)^3
-    msh.map_node_ele_gen3 = msh.map_node_ele_gen2;
-    for (int Ac = 0; Ac < tnNo; ++Ac) {
-      // Loop attached elements
-      for (int ele1 : msh.map_node_ele_gen2[Ac]) {
-        // Loop attached nodes
-        for (int b = 0; b < msh.eNoN; ++b) {
-          int Ac = msh.IEN(b, ele1);
-          // Loop attached elements
-          for (int ele2 : msh.map_node_ele_gen2[Ac]) {
-            msh.map_node_ele_gen3[Ac].insert(ele2);
+      // Create new map from node-element map IEN
+      if (gen == 0) {
+        for (int Ac = 0; Ac < tnNo; ++Ac) {
+          for (int e = 0; e < msh.nEl; e++) {
+            for (int b = 0; b < msh.eNoN; ++b) {
+              if (msh.IEN(b, e) == Ac) {
+                map[Ac].insert(e);
+                break;
+              }
+            }
           }
         }
       }
+      // Extend previous map by one layer of elements
+      else {
+        map = msh.map_node_ele[gen - 1];
+        for (int Ac = 0; Ac < tnNo; ++Ac) {
+          for (int ele1 : msh.map_node_ele[gen - 1][Ac]) {
+            for (int b = 0; b < msh.eNoN; ++b) {
+              int Bc = msh.IEN(b, ele1);
+              for (int ele2 : msh.map_node_ele[gen - 1][Bc]) {
+                map[Ac].insert(ele2);
+              }
+            }
+          }
+        }
+      }
+      msh.map_node_ele.push_back(map);
     }
 
     // Reserve memory
@@ -342,11 +335,13 @@ void lhsa(Simulation* simulation, int& nnz)
 
     // Reserve off-diagonal memory
     if (com_mod.grEq) {
-      for (int rowN = 0; rowN < tnNo; ++rowN) {
-        for (int e : msh.map_node_ele_gen2[rowN]) {
-          for (int b = 0; b < msh.eNoN; b++) {
-            int colN = msh.IEN(b,e);
-            add_col(tnNo, rowN, colN, mnnzeic, uInd);
+      for (int gen = 0; gen < map_gen; gen++) {
+        for (int rowN = 0; rowN < tnNo; ++rowN) {
+          for (int e : msh.map_node_ele[gen][rowN]) {
+            for (int b = 0; b < msh.eNoN; b++) {
+              int colN = msh.IEN(b,e);
+              add_col(tnNo, rowN, colN, mnnzeic, uInd);
+            }
           }
         }
       }
