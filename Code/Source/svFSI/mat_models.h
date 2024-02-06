@@ -1,5 +1,4 @@
-/**
- * Copyright (c) Stanford University, The Regents of the University of California, and others.
+/* Copyright (c) Stanford University, The Regents of the University of California, and others.
  *
  * All Rights Reserved.
  *
@@ -69,8 +68,6 @@ void g_vol_pen(const ComMod& com_mod, const dmnType& lDmn, const double p,
     double& ro, double& bt, double& dro, double& dbt, const double Ja);
 
 };
-
-//#include "mat_models_fixed.h"
 
 #endif
 
