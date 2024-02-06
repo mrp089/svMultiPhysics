@@ -44,6 +44,7 @@
 #include "mat_models_carray.h"
 #include "nn.h"
 #include "utils.h"
+#include "vtk_xml.h"
 
 #ifdef WITH_TRILINOS
 #include "trilinos_linear_solver.h"
@@ -200,9 +201,317 @@ void b_struct_3d(const ComMod& com_mod, const int eNoN, const double w, const Ve
   }
 }
 
+
+void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, 
+             const mshType& lM, const Array<double>& Ag, 
+             const Array<double>& Yg, const Array<double>& Dg)
+{
+  // Get dimensions
+  const int eNoN = lM.eNoN;
+  const int dof = com_mod.dof;
+  const int tDof = com_mod.tDof;
+  const int tnNo = com_mod.tnNo;
+
+  // Set step size for finite difference
+  const double eps = 1.0e-8;
+
+  // Time integration parameters
+  int cEq = com_mod.cEq;
+  auto& eq = com_mod.eq[cEq];
+  const double dt = com_mod.dt;
+  const double fd_eps = eq.af * eq.beta * dt * dt / eps;
+  const double fy_eps = eq.af * eq.gam * dt / eps;
+  const double fa_eps = eq.am / eps;
+
+  // Make editable copy
+  Array<double> e_Ag(tDof,tnNo); 
+  Array<double> e_Yg(tDof,tnNo); 
+  Array<double> e_Dg(tDof,tnNo);
+  e_Ag = Ag;
+  e_Yg = Yg;
+  e_Dg = Dg;
+
+  // Initialize residual and tangent
+  Vector<int> ptr(eNoN);
+  Array<double> lR(dof, eNoN);
+  Array3<double> lK(dof * dof, eNoN, eNoN);
+
+  // Central evaluation
+  eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, fa_eps + fy_eps + fd_eps);
+
+  // Loop global nodes
+  for (int Ac = 0; Ac < tnNo; ++Ac) {
+    // Central evaluation
+    eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg, fa_eps + fy_eps + fd_eps, Ac);
+
+    // Loop DOFs
+    for (int i = 0; i < dof; ++i) {
+      // Perturb solution vectors
+      e_Ag(i, Ac) += eps;
+      e_Yg(i, Ac) += eps;
+      e_Dg(i, Ac) += eps;
+
+      // Perturbed evaluations
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, e_Ag, Yg, Dg, fa_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, e_Yg, Dg, fy_eps, Ac, i);
+      eval_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, e_Dg, fd_eps, Ac, i);
+
+      // Restore solution vectors
+      e_Ag(i, Ac) = Ag(i, Ac);
+      e_Yg(i, Ac) = Yg(i, Ac);
+      e_Dg(i, Ac) = Dg(i, Ac);
+    }
+  }
+// com_mod.Val.print("Val");
+}
+
+void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, 
+             const mshType& lM, const Array<double>& Ag, 
+             const Array<double>& Yg, const Array<double>& Dg,
+             const double eps, const int dAc, const int dj)
+{
+  using namespace consts;
+
+  // Check if the residual should be assembled
+  const bool residual = (dAc == -1) && (dj == -1);
+
+  // Check if this is the central evaluation
+  const bool central = (dAc != -1) && (dj == -1);
+
+  // Get dimensions
+  const int eNoN = lM.eNoN;
+  const int dof = com_mod.dof;
+
+  // Initialize residual and tangent
+  Vector<int> ptr_dummy(eNoN);
+  Array<double> lR_dummy(dof, eNoN);
+  Array3<double> lK_dummy(dof * dof, eNoN, eNoN);
+  ptr_dummy = 0;
+  lR_dummy = 0.0;
+  lK_dummy = 0.0;
+
+  // Smooth internal G&R variables
+  enum Smoothing { none, element, elementnode };
+  Smoothing smooth = elementnode;
+
+  // Select element set to evaluate
+  std::set<int> elements;
+
+  // Residual evaluation: evaluate all elements
+  if (residual) {
+    for (int i = 0; i < lM.nEl; ++i) {
+      elements.insert(i);
+    }
+  }
+
+  // Pick elements according to smoothing algorithm
+  else {
+    switch(smooth) {
+      case none: 
+      case element: {
+        elements = lM.map_node_ele[0].at(dAc);
+        break;
+      }
+      case elementnode: {
+        elements = lM.map_node_ele[1].at(dAc);
+        break;
+      }
+    }
+  }
+
+  // Update internal G&R variables without assembly
+  for (int e : elements) {
+    eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr_dummy, lR_dummy, lK_dummy, false);
+  }
+
+  // Index of Lagrange multiplier
+  std::vector<int> gr_variables = {37};
+
+  switch(smooth) {
+    // No smoothing
+    case none: {
+      break;
+    }
+
+    // Average over Gauss points in element
+    case element: {
+      for (int igr : gr_variables) {
+        for (int e : elements) {
+          double avg = 0.0;
+          for (int g = 0; g < lM.nG; g++) {
+            avg += com_mod.grInt(e, g, igr);
+          }
+          avg /= lM.nG;
+          for (int g = 0; g < lM.nG; g++) {
+            com_mod.grInt(e, g, igr) = avg;
+          }
+        }
+      }
+      break;
+    }
+
+    case elementnode: {
+      // Initialize arrays
+      // todo: this could be of size elements.size() * lM.eNoN
+      Array<double> grInt_a(lM.gnNo, com_mod.nGrInt);
+      Array<double> grInt_n(lM.gnNo, com_mod.nGrInt);
+      grInt_a = 0.0;
+      grInt_n = 0.0;
+
+      int Ac;
+      double w;
+      double val;
+      Vector<double> N(lM.eNoN);
+
+      // Project: integration point -> nodes
+      for (int g = 0; g < lM.nG; g++) {
+        w = lM.w(g);
+        N = lM.N.col(g);
+        for (int e : elements) {
+          for (int igr : gr_variables) {
+            val = com_mod.grInt(e, g, igr);
+            for (int a = 0; a < lM.eNoN; a++) {
+              Ac = lM.IEN(a, e);
+              // todo: add jacobian
+              grInt_n(Ac, igr) += w * N(a) * val;
+              grInt_a(Ac, igr) += w * N(a);
+            }
+          }
+      }
+      }
+
+      // Project: nodes -> integration points
+      for (int igr : gr_variables) {
+        for (int e : elements) {
+          for (int g = 0; g < lM.nG; g++) {
+            N = lM.N.col(g);
+            val = 0.0;
+            for (int a = 0; a < lM.eNoN; a++) {
+              Ac = lM.IEN(a, e);
+              val += N(a) * grInt_n(Ac, igr) / grInt_a(Ac, igr);
+            }
+            com_mod.grInt(e, g, igr) = val;
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  // Store internal G&R variables
+  if (residual) {
+    com_mod.grInt_orig = com_mod.grInt;
+  }
+
+  // Initialzie arrays for Finite Difference (FD)
+  Vector<int> ptr_row(eNoN);
+  Vector<int> ptr_col(1);
+  Array<double> lR(dof, eNoN);
+  Array3<double> lK(dof * dof, eNoN, 1);
+
+  // Assemble only the FD node
+  ptr_col = dAc;
+
+  // Loop over all elements of mesh
+  for (int e : elements) {
+    // Reset
+    ptr_row = 0;
+    lR = 0.0;
+    lK = 0.0;
+
+    // Evaluate solid equations (with smoothed internal G&R variables)
+    eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr_row, lR, lK_dummy);
+
+    // Assemble into global residual
+    if (residual) {
+      lhsa_ns::do_assem_residual(com_mod, lM.eNoN, ptr_row, lR);
+      continue;
+    }
+
+    // Components of FD: central and difference
+    for (int a = 0; a < eNoN; ++a) {
+      for (int i = 0; i < dof; ++i) {
+        if (central) {
+          for (int j = 0; j < dof; ++j) {
+            lK(i * dof + j, a, 0) = - lR(i, a) * eps;
+          }
+        } else {
+          lK(i * dof + dj, a, 0) = lR(i, a) * eps;
+        }
+      }
+    }
+
+    // Assemble into global tangent
+    lhsa_ns::do_assem_tangent(com_mod, lM.eNoN, 1, ptr_row, ptr_col, lK);
+  }
+
+  // Restore internal G&R variables
+  com_mod.grInt = com_mod.grInt_orig;
+}
+
+/// @brief Loop solid elements and assemble into global matrices
+void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, 
+                      const mshType& lM, const Array<double>& Ag, 
+                      const Array<double>& Yg, const Array<double>& Dg)
+{
+  using namespace consts;
+
+  // Get dimensions
+  const int eNoN = lM.eNoN;
+  const int dof = com_mod.dof;
+
+  // Get properties
+  auto cDmn = com_mod.cDmn;
+  const int cEq = com_mod.cEq;
+  const auto& eq = com_mod.eq[cEq];
+
+  // Initialize residual and tangent
+  Vector<int> ptr(eNoN);
+  Array<double> lR(dof, eNoN);
+  Array3<double> lK(dof * dof, eNoN, eNoN);
+
+  // Loop over all elements of mesh
+  for (int e = 0; e < lM.nEl; e++) {
+    // Reset
+    ptr = 0;
+    lR = 0.0;
+    lK = 0.0;
+    
+    // Update domain and proceed if domain phys and eqn phys match
+    cDmn = all_fun::domain(com_mod, lM, cEq, e);
+    auto cPhys = eq.dmn[cDmn].phys;
+    if (cPhys != EquationType::phys_struct) {
+      continue; 
+    }
+
+    // Update shape functions for NURBS
+    if (lM.eType == ElementType::NRB) {
+      //CALL NRBNNX(lM, e)
+    }
+
+    // Evaluate solid equations
+    eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr, lR, lK);
+
+    // Assemble into global residual and tangent
+#ifdef WITH_TRILINOS
+    if (eq.assmTLS) {
+      trilinos_doassem_(const_cast<int&>(eNoN), ptr.data(), lK.data(), lR.data());
+    } else {
+#endif
+      lhsa_ns::do_assem(com_mod, eNoN, ptr, lK, lR);
+#ifdef WITH_TRILINOS
+    }
+#endif
+  }
+}
+
 /// @brief Replicates the Fortan 'CONSTRUCT_dSOLID' subroutine.
 //
-void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag, const Array<double>& Yg, const Array<double>& Dg)
+void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
+                 const mshType &lM, const Array<double> &Ag,
+                 const Array<double> &Yg, const Array<double> &Dg,
+                 Vector<int> &ptr, Array<double> &lR, Array3<double> &lK,
+                 const bool eval)
 {
   using namespace consts;
 
@@ -216,9 +525,6 @@ void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const
   const int nsd  = com_mod.nsd;
   const int tDof = com_mod.tDof;
   const int dof = com_mod.dof;
-  const int cEq = com_mod.cEq;
-  const auto& eq = com_mod.eq[cEq];
-  auto cDmn = com_mod.cDmn;
   const int nsymd = com_mod.nsymd;
   auto& pS0 = com_mod.pS0;
   auto& pSn = com_mod.pSn;
@@ -240,106 +546,84 @@ void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const
   #endif
 
   // STRUCT: dof = nsd
-
-  Vector<int> ptr(eNoN);
   Vector<double> pSl(nsymd), ya_l(eNoN), N(eNoN), gr_int_g(com_mod.nGrInt), gr_props_g(lM.n_gr_props);
   Array<double> xl(nsd,eNoN), al(tDof,eNoN), yl(tDof,eNoN), dl(tDof,eNoN), 
-                bfl(nsd,eNoN), fN(nsd,nFn), pS0l(nsymd,eNoN), Nx(nsd,eNoN), lR(dof,eNoN),
+                bfl(nsd,eNoN), fN(nsd,nFn), pS0l(nsymd,eNoN), Nx(nsd,eNoN),
                 gr_props_l(lM.n_gr_props,eNoN);
-  Array3<double> lK(dof*dof,eNoN,eNoN);
+  
+  // Create local copies
+  fN  = 0.0;
+  pS0l = 0.0;
+  ya_l = 0.0;
+  gr_int_g = 0.0;
+  gr_props_l = 0.0;
+  gr_props_g = 0.0;
 
-  // Loop over all elements of mesh
+  for (int a = 0; a < eNoN; a++) {
+    int Ac = lM.IEN(a,e);
+    ptr(a) = Ac;
 
-  for (int e = 0; e < lM.nEl; e++) {
-    // Update domain and proceed if domain phys and eqn phys match
-    cDmn = all_fun::domain(com_mod, lM, cEq, e);
-    auto cPhys = eq.dmn[cDmn].phys;
-    if (cPhys != EquationType::phys_struct && cPhys != EquationType::phys_gr) {
-      continue; 
+    for (int i = 0; i < nsd; i++) {
+      xl(i,a) = com_mod.x(i,Ac);
+      bfl(i,a) = com_mod.Bf(i,Ac);
     }
 
-    // Update shape functions for NURBS
-    if (lM.eType == ElementType::NRB) {
-      //CALL NRBNNX(lM, e)
+    for (int i = 0; i < tDof; i++) {
+      al(i,a) = Ag(i,Ac);
+      dl(i,a) = Dg(i,Ac);
+      yl(i,a) = Yg(i,Ac);
     }
 
-    // Create local copies
-    fN  = 0.0;
-    pS0l = 0.0;
-    ya_l = 0.0;
-    gr_int_g = 0.0;
-    gr_props_l = 0.0;
-    gr_props_g = 0.0;
-
-    for (int a = 0; a < eNoN; a++) {
-      int Ac = lM.IEN(a,e);
-      ptr(a) = Ac;
-
-      for (int i = 0; i < nsd; i++) {
-        xl(i,a) = com_mod.x(i,Ac);
-        bfl(i,a) = com_mod.Bf(i,Ac);
-      }
-
-      for (int i = 0; i < tDof; i++) {
-        al(i,a) = Ag(i,Ac);
-        dl(i,a) = Dg(i,Ac);
-        yl(i,a) = Yg(i,Ac);
-      }
-
-      if (lM.fN.size() != 0) {
-        for (int iFn = 0; iFn < nFn; iFn++) {
-          for (int i = 0; i < nsd; i++) {
-            fN(i,iFn) = lM.fN(i+nsd*iFn,e);
-          }
-        }
-      }
-
-      if (pS0.size() != 0) { 
-        pS0l.set_col(a, pS0.col(Ac));
-      }
-
-      if (cem.cpld) {
-        ya_l(a) = cem.Ya(Ac);
-      }
-
-      if (lM.gr_props.size() != 0) {
-        for (int igr = 0; igr < lM.n_gr_props; igr++) {
-          gr_props_l(igr,a) = lM.gr_props(igr,Ac);
+    if (lM.fN.size() != 0) {
+      for (int iFn = 0; iFn < nFn; iFn++) {
+        for (int i = 0; i < nsd; i++) {
+          fN(i,iFn) = lM.fN(i+nsd*iFn,e);
         }
       }
     }
 
-    // Gauss integration
-    //
-    lR = 0.0;
-    lK = 0.0;
+    if (pS0.size() != 0) { 
+      pS0l.set_col(a, pS0.col(Ac));
+    }
 
-    double Jac{0.0};
-    Array<double> ksix(nsd,nsd);
+    if (cem.cpld) {
+      ya_l(a) = cem.Ya(Ac);
+    }
 
-    for (int g = 0; g < lM.nG; g++) {
-      if (g == 0 || !lM.lShpF) {
-        auto Nx_g = lM.Nx.slice(g);
-        nn::gnn(eNoN, nsd, nsd, Nx_g, xl, Nx, Jac, ksix);
-        if (utils::is_zero(Jac)) {
-          throw std::runtime_error("[construct_dsolid] Jacobian for element " + std::to_string(e) + " is < 0.");
-        }
+    if (lM.gr_props.size() != 0) {
+      for (int igr = 0; igr < lM.n_gr_props; igr++) {
+        gr_props_l(igr,a) = lM.gr_props(igr,Ac);
       }
-      double w = lM.w(g) * Jac;
-      N = lM.N.col(g);
-      pSl = 0.0;
+    }
+  }
 
-      // Get internal growth and remodeling variables
-      if (com_mod.grEq) {
-        // todo mrp089: add a function like rslice for vectors to Array3
-        for (int i = 0; i < com_mod.nGrInt; i++) {
-            gr_int_g(i) = com_mod.grInt(e,g,i);
-        }
+  // Gauss integration
+  double Jac{0.0};
+  Array<double> ksix(nsd,nsd);
+
+  for (int g = 0; g < lM.nG; g++) {
+    if (g == 0 || !lM.lShpF) {
+      auto Nx_g = lM.Nx.slice(g);
+      nn::gnn(eNoN, nsd, nsd, Nx_g, xl, Nx, Jac, ksix);
+      if (utils::is_zero(Jac)) {
+        throw std::runtime_error("[construct_dsolid] Jacobian for element " + std::to_string(e) + " is < 0.");
       }
+    }
+    double w = lM.w(g) * Jac;
+    N = lM.N.col(g);
+    pSl = 0.0;
 
-      if (nsd == 3) {
-        struct_3d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK);
-        // struct_3d_carray(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, lR, lK);
+    // Get internal growth and remodeling variables
+    if (com_mod.grEq) {
+      // todo mrp089: add a function like rslice for vectors to Array3
+      for (int i = 0; i < com_mod.nGrInt; i++) {
+          gr_int_g(i) = com_mod.grInt(e,g,i);
+      }
+    }
+
+    if (nsd == 3) {
+      struct_3d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK, eval);
+      // struct_3d_carray(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK);
 
 #if 0
         if (e == 0 && g == 0) {
@@ -350,53 +634,28 @@ void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const
           exit(0);
         }
 #endif
+    } else if (nsd == 2) {
+      struct_2d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK);
+    }
 
-      } else if (nsd == 2) {
-        struct_2d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK);
+    // Set internal growth and remodeling variables
+    if (com_mod.grEq) {
+      // todo mrp089: add a function like rslice for vectors to Array3
+      for (int i = 0; i < com_mod.nGrInt; i++) {
+          com_mod.grInt(e,g,i) = gr_int_g(i);
       }
+    }
 
-      // Set internal growth and remodeling variables
-      if (com_mod.grEq) {
-        // todo mrp089: add a function like rslice for vectors to Array3
-        for (int i = 0; i < com_mod.nGrInt; i++) {
-            com_mod.grInt(e,g,i) = gr_int_g(i);
+    // Prestress
+    if (pstEq) {
+      for (int a = 0; a < eNoN; a++) {
+        int Ac = ptr(a);
+        pSa(Ac) = pSa(Ac) + w*N(a);
+        for (int i = 0; i < pSn.nrows(); i++) {
+          pSn(i,Ac) = pSn(i,Ac) + w*N(a)*pSl(i);
         }
       }
-
-      // Prestress
-      if (pstEq) {
-        for (int a = 0; a < eNoN; a++) {
-          int Ac = ptr(a);
-          pSa(Ac) = pSa(Ac) + w*N(a);
-          for (int i = 0; i < pSn.nrows(); i++) {
-            pSn(i,Ac) = pSn(i,Ac) + w*N(a)*pSl(i);
-          }
-        }
-      }
-    } 
-
-#if 0
-    if (e+1 == 100) {
-      Array3<double>::write_enabled = true;
-      Array<double>::write_enabled = true;
-      lR.write("lR");
-      lK.write("lK");
-      exit(0);
     }
-#endif
-
-    // Assembly
-    //
-#ifdef WITH_TRILINOS
-    if (eq.assmTLS) {
-      trilinos_doassem_(const_cast<int&>(eNoN), ptr.data(), lK.data(), lR.data());
-    } else {
-#endif
-      lhsa_ns::do_assem(com_mod, eNoN, ptr, lK, lR);
-#ifdef WITH_TRILINOS
-    }
-#endif
-
   } 
 }
 
@@ -638,7 +897,8 @@ void struct_2d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
 void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
     const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
     const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
-    Vector<double>& pSl, const Vector<double>& ya_l, Array<double>& lR, Array3<double>& lK) 
+    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_g, Array<double>& gr_props_l, 
+    Array<double>& lR, Array3<double>& lK, const bool eval) 
 {
   using namespace consts;
   using namespace mat_fun;
@@ -690,6 +950,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
   double S0[3][3]={}; 
   double vx[3][3]={};
   double ud[3] = {-rho*fb[0], -rho*fb[1], -rho*fb[2]}; 
+  Vector<double> gr_props_g(gr_props_l.nrows());
 
   F[0][0] = 1.0;
   F[1][1] = 1.0;
@@ -729,6 +990,10 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
     S0[2][0] += N(a)*pS0l(5,a);
 
     ya_g = ya_g + N(a)*ya_l(a);
+
+    for (int igr = 0; igr < gr_props_l.nrows(); igr++) {
+      gr_props_g(igr) += gr_props_l(igr,a) * N(a);
+    }
   }
 
 
@@ -778,7 +1043,10 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
   double S[3][3]; 
   double Dm[6][6]; 
 
-  mat_models_carray::get_pk2cc<3>(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, S, Dm);
+  mat_models_carray::get_pk2cc<3>(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, gr_int_g, gr_props_g, S, Dm);
+  if(!eval) {
+    return;
+  }
 
   // Elastic + Viscous stresses
   for (int i = 0; i < 3; i++) {
@@ -1031,7 +1299,7 @@ void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
     const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
     const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
     Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_g, Array<double>& gr_props_l,
-    Array<double>& lR, Array3<double>& lK) 
+    Array<double>& lR, Array3<double>& lK, const bool eval) 
 {
   using namespace consts;
   using namespace mat_fun;
@@ -1177,6 +1445,9 @@ void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
   //
   Array<double> S(3,3), Dm(6,6); 
   mat_models::get_pk2cc(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, gr_int_g, gr_props_g, S, Dm);
+  if(!eval) {
+    return;
+  }
 
   // Elastic + Viscous stresses
   S = S + Svis;

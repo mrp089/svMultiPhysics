@@ -327,13 +327,10 @@ void iterate_solution(Simulation* simulation)
       #endif
 
       for (int iM = 0; iM < com_mod.nMsh; iM++) {
-        eq_assem::global_eq_assem(com_mod, cep_mod, com_mod.msh[iM], Ag, Yg, Dg);
+        eq_assem::global_eq_assem(com_mod, cep_mod, cm_mod, com_mod.msh[iM], Ag, Yg, Dg);
       }
       com_mod.R.write("R_as"+ istr);
       com_mod.Val.write("Val_as"+ istr);
-
-      com_mod.Val.write("Val_as"+ istr);
-      com_mod.R.write("R_as"+ istr);
 
       com_mod.Val.write("Val_as"+ istr);
       com_mod.R.write("R_as"+ istr);

@@ -33,10 +33,11 @@
 
 namespace gr_equilibrated_ns {
 
-void stress_tangent_(const Array<double>& Fe, const double time, const Vector<double>& eVWP, Vector<double>& grInt, Array<double>& S_out, Tensor4<double>& CC_out)
+// Call with fixed-size arrays (more efficient)
+void stress_tangent_(const double Fe[3][3], const double time, const Vector<double>& eVWP, Vector<double>& grInt, double S_out[3][3], double CC_out[3][3][3][3])
 {
 	// convert deformation gradient to FEBio format
-	mat3d F(Fe(0,0), Fe(0,1), Fe(0,2), Fe(1,0), Fe(1,1), Fe(1,2), Fe(2,0), Fe(2,1), Fe(2,2));
+	mat3d F(Fe[0][0], Fe[0][1], Fe[0][2], Fe[1][0], Fe[1][1], Fe[1][2], Fe[2][0], Fe[2][1], Fe[2][2]);
 
 	// right Cauchy-Green tensor and its inverse
 	const mat3ds C = (F.transpose() * F).sym();
@@ -194,7 +195,7 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 
 	// Lagrange multiplier
 	double p;
-	double p0;
+	double p_gp;
 
 	// WSS ratio
 	double tau_ratio;
@@ -361,6 +362,7 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 	double  svo;
 	// double  svh;
 	double phic = phico;
+	double phic_gp;
 	double phich;
 	double phim;
 	double tauo;
@@ -460,9 +462,10 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 		const mat3ds Sx = Se + phimo * Sm + phico * Sc + phimo * Sa;
 
 		// Lagrange multiplier during prestress
-		p = -lm*log(Jdep*J);
-
-		S = Sx + Ci*lm*log(Jdep*J);
+		p_gp = -lm*log(Jdep*J);
+		// const double p = grInt(30);
+		const double p = p_gp;
+		S = Sx - p * Ci;
 
 		// compute tangent
 		const mat3ds tent = dyad(F*N[1]);
@@ -548,7 +551,6 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 
 		const mat3ds sNf = sNm + sNc;
 
-//		const double Cratio = CB-CS*(EPS*pow(rIrIo,-3)-1.0);
 		const double Cratio = CB-CS*(EPS*tau_ratio-1.0);
 		mat3ds sNa; sNa.zero();
 		if (Cratio>0) sNa = phim*(1.0-exp(-Cratio*Cratio))/(1.0-exp(-CB*CB))*sao;
@@ -658,37 +660,15 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 
 		const tens4dmm cess = tens4dmm(ce);							// ce in tens4dmm form
 
-//		const double p = 1.0/3.0/J*Sx.dotdot(C) - svo/(1.0-delta)*(1.0+KsKi*(EPS*pow(rIrIo,-3)-1.0)-KfKi*inflam);		// Ups = 1 -> p
 		css = cess + cfss + cpnss;
 		tens4dmm css_ref = J*css.pp(F.inverse());
 
 		svh = 1.0/3.0/J*Sx.dotdot(C);
 
-		const double delta_sig = svh / svo - 1.0;
-		const double delta_tau = tau_ratio - 1.0;
-		ups = delta_sig - KsKi * delta_tau;
-		p0 = kappa*ups;
-
-		const mat3ds d_svh = 1.0/3.0/J/svo * (Sx + css_ref.dot(C) - Sx.dotdot(C)/2.0 * Ci);
-		// const mat3ds d_svh = (1.0/3.0*(2.0*sx.tr()*IoIss-2.0*Ixsx-ddot(IxIss,css))).dot(C)/svo;
-		const mat3ds d_tau = -3.0/2.0*pow(rIrIo,-4) * (ro/rIo/lt*tent - (ro-rIo)/rIo/lr*tenr);
-		const mat3ds Sp = 2.0*kappa*ups * (d_svh - KsKi * d_tau);
-
-//		const double p = 1.0/3.0/J*Sx.dotdot(C) - svo/(1.0-delta)*(1.0+KsKi*(EPS*pow(rIrIo,-3)-1.0)-KfKi*inflam);		// Ups = 1 -> p
-		p = svh - svo/(1.0-delta)*(1.0+KsKi*(EPS*tau_ratio-1.0)-KfKi*inflam);		// Ups = 1 -> p
-		// p = po;
-		// p = po - kappa * (J - J_star) * (1 - dJ_star_dJ); // second part is always 0
-		// p = po + svh;
-
-		S = Sx - J*p*Ci;
-		// S = Sx + Sp;
-		// S = Sx * svo/svh;
-		// S = Sx - kappa*ups * J*Ci;
-		// S = Sx + Ci*lm*log(Jdep*(ups + 1.0));
-
-		// const double a = 1.0e-2;
-		// const double a = 0.0;
-		// S = Sx * (1+a) - (svh * (1+a) - svo * (1.0+KsKi*(tau_ratio-1.0))) * J*Ci;
+		p_gp = svh - svo/(1.0-delta)*(1.0+KsKi*(EPS*tau_ratio-1.0)-KfKi*inflam);
+		// const double p = grInt(30);
+		const double p = p_gp;
+		S = Sx - J * p * Ci;
 
 		css += 1.0/3.0*(2.0*sx.tr()*IoIss-2.0*Ixsx-ddot(IxIss,css));
 		css += svo/(1.0-delta)*(1.0+KsKi*(EPS*tau_ratio-1.0)-KfKi*inflam)*(IxIss-2.0*IoIss);
@@ -777,7 +757,7 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 	for (int i=0; i < 3; i++)
 		for (int j=0; j < 3; j++)
 		{
-			S_out(i,j) = S(i, j);
+			S_out[i][j] = S(i, j);
 			if (std::isnan(S(i, j)))
 				std::terminate();
 		}
@@ -787,7 +767,7 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 			for (int k=0; k < 3; k++)
 				for (int l=0; l < 3; l++)
 				{
-					CC_out(i, j, k, l) = css_ref(i, j, k, l);
+					CC_out[i][j][k][l] = css_ref(i, j, k, l);
 					if (std::isnan(css_ref(i, j, k, l)))
 						std::terminate();
 				}
@@ -833,13 +813,11 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 		grInt(k + 1)  = 1.0/3.0/J*S.dotdot(C);
 		grInt(k + 2)  = phico;
 		grInt(k + 3)  = 1.0;
-		grInt(k + 4)  = p;
+		grInt(k + 4)  = p_gp;
 		grInt(k + 5)  = grInt(k + 3) - 1.0; // delta tau
 		grInt(k + 6)  = grInt(k + 1) / grInt(1) - 1.0; // delta sigma
 		grInt(k + 7)  = KsKi; // kski = delta sigma / deltau tau
 		grInt(k + 8)  = grInt(k + 6) - KsKi * grInt(k + 5); // ups -> 0
-		grInt(k + 9)  = p0;
-		grInt(k + 10) = p0 / p;
 		grInt(k + 11) = phic;
 	}
 	// store g&r state
@@ -850,14 +828,12 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 		grInt(k + 1)  = 1.0/3.0/J*S.dotdot(C);
 		grInt(k + 2)  = phico;
 		grInt(k + 3)  = tau_ratio;
-		grInt(k + 4)  = p;
+		grInt(k + 4)  = p_gp;
 		grInt(k + 5)  = grInt(k + 3) - 1.0; // delta tau
 		grInt(k + 6)  = grInt(k + 1) / grInt(1) - 1.0; // delta sigma
 		grInt(k + 7)  = grInt(k + 6) / grInt(k + 5); // kski = delta sigma / deltau tau
 		grInt(k + 8)  = grInt(k + 6) - KsKi * grInt(k + 5); // ups -> 0
-		grInt(k + 9)  = p0;
-		grInt(k + 10) = p0 / p;
-		grInt(k + 11) = phic;
+		grInt(k + 11) = phic_gp;
 		// Fih = F.inverse();
 		// grInt(25] = J;
 		// grInt(26] = svo;
@@ -881,6 +857,33 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 		// 		grInt(k] = Fih(i,j);
 		// 		k++;
 		// 	}
+	}
+}
+
+// Call with variable size arrays
+void stress_tangent_(const Array<double>& Fe, const double time, const Vector<double>& eVWP, Vector<double>& grInt, Array<double>& S_out, Tensor4<double>& CC_out)
+{
+	double F3[3][3];
+	double S3[3][3];
+	double CC3[3][3][3][3];
+
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			F3[i][j] = Fe(i,j);
+		}
+	}
+
+	stress_tangent_(F3, time, eVWP, grInt, S3, CC3);
+
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			S_out(i,j) = S3[i][j];
+			for (int k = 0; k < 3; k++) {
+				for (int l = 0; l < 3; l++) {
+					CC_out(i,j,k,l) = CC3[i][j][k][l];
+				}
+			}
+		}
 	}
 }
 

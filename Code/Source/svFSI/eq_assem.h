@@ -40,7 +40,7 @@ void b_assem_neu_bc(ComMod& com_mod, const faceType& lFa, const Vector<double>& 
 
 void b_neu_folw_p(ComMod& com_mod, const faceType& lFa, const Vector<double>& hg, const Array<double>& Dg);
 
-void global_eq_assem(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag, const Array<double>& Yg, const Array<double>& Dg);
+void global_eq_assem(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshType& lM, const Array<double>& Ag, const Array<double>& Yg, const Array<double>& Dg);
 
 };
 

@@ -55,14 +55,20 @@ class VtkData {
     virtual void set_point_data(const std::string& data_name, const Array<int>& data) = 0;
     virtual void set_point_data(const std::string& data_name, const Vector<int>& data) = 0;
 
+    virtual void set_cell_data(const std::string& data_name, const Array<double>& data) = 0;
+
     virtual void set_points(const Array<double>& points) = 0;
     virtual void set_connectivity(const int nsd, const Array<int>& conn, const int pid = 0) = 0;
 
     virtual bool has_point_data(const std::string& data_name) = 0;
+    virtual void cell_to_point_data(const std::string& data_name) = 0;
+    virtual void smooth_point_data(const std::string& data_name) = 0;
 
     virtual void copy_point_data(const std::string& data_name, Array<double>& mesh_data) = 0;
     virtual void copy_point_data(const std::string& data_name, Vector<double>& mesh_data) = 0;
     virtual void write() = 0;
+
+    virtual Array<double> get_point_data(const std::string& data_name) = 0;
 
     static VtkData* create_reader(const std::string& file_name);
     static VtkData* create_writer(const std::string& file_name);
@@ -90,6 +96,8 @@ class VtkVtpData : public VtkData {
     Array<double> get_point_data(const std::string& data_name);
     std::vector<std::string> get_point_data_names();
     bool has_point_data(const std::string& data_name);
+    virtual void cell_to_point_data(const std::string& data_name);
+    virtual void smooth_point_data(const std::string& data_name);
     virtual void set_connectivity(const int nsd, const Array<int>& conn, const int pid = 0);
 
     virtual void set_element_data(const std::string& data_name, const Array<double>& data);
@@ -98,6 +106,8 @@ class VtkVtpData : public VtkData {
     virtual void set_point_data(const std::string& data_name, const Array<double>& data);
     virtual void set_point_data(const std::string& data_name, const Array<int>& data);
     virtual void set_point_data(const std::string& data_name, const Vector<int>& data);
+
+    virtual void set_cell_data(const std::string& data_name, const Array<double>& data);
 
     virtual void set_points(const Array<double>& points);
     virtual void write();
@@ -127,6 +137,8 @@ class VtkVtuData : public VtkData {
     std::vector<std::string> get_point_data_names();
     virtual Array<double> get_points();
     bool has_point_data(const std::string& data_name);
+    virtual void cell_to_point_data(const std::string& data_name);
+    virtual void smooth_point_data(const std::string& data_name);
     virtual void set_connectivity(const int nsd, const Array<int>& conn, const int pid = 0);
 
     virtual void set_element_data(const std::string& data_name, const Array<double>& data);
@@ -135,6 +147,8 @@ class VtkVtuData : public VtkData {
     virtual void set_point_data(const std::string& data_name, const Array<double>& data);
     virtual void set_point_data(const std::string& data_name, const Array<int>& data);
     virtual void set_point_data(const std::string& data_name, const Vector<int>& data);
+
+    virtual void set_cell_data(const std::string& data_name, const Array<double>& data);
 
     virtual void set_points(const Array<double>& points);
     virtual void write();

@@ -95,6 +95,9 @@ void add_col(const int tnNo, const int row, const int col, int& mnnzeic, Array<i
 //
 void do_assem(ComMod& com_mod, const int d, const Vector<int>& eqN, const Array3<double>& lK, const Array<double>& lR)
 {
+  // do_assem_residual(com_mod, d, eqN, lR);
+  // do_assem_tangent(com_mod, d, eqN, lK);
+
   auto& R = com_mod.R;
   auto& Val = com_mod.Val;
   const auto& rowPtr = com_mod.rowPtr;
@@ -135,6 +138,108 @@ void do_assem(ComMod& com_mod, const int d, const Vector<int>& eqN, const Array3
     }
   }
 }
+
+
+void do_assem_residual(ComMod &com_mod, const int d, const Vector<int> &eqN,
+                       const Array<double> &lR)
+{
+  auto& R = com_mod.R;
+  auto& Val = com_mod.Val;
+  const auto& rowPtr = com_mod.rowPtr;
+  const auto& colPtr = com_mod.colPtr;
+
+  for (int a = 0; a < d; a++) {
+    int rowN = eqN(a);
+    if (rowN == -1) {
+      continue;
+    }
+    for (int i = 0; i < R.nrows(); i++) {
+      R(i,rowN) = R(i,rowN) + lR(i,a);
+    }
+  }
+}
+
+
+void do_assem_tangent(ComMod &com_mod, const int d, const Vector<int> &eqN,
+                      const Array3<double> &lK)
+{
+  auto& R = com_mod.R;
+  auto& Val = com_mod.Val;
+  const auto& rowPtr = com_mod.rowPtr;
+  const auto& colPtr = com_mod.colPtr;
+
+  for (int a = 0; a < d; a++) {
+    int rowN = eqN(a);
+    if (rowN == -1) {
+      continue;
+    }
+    for (int b = 0; b < d; b++) {
+      int colN = eqN(b);
+      if (colN == -1) {
+        continue;
+      }
+
+      int left = rowPtr(rowN);
+      int right = rowPtr(rowN+1);
+      int ptr = (right + left) / 2;
+
+      while (colN != colPtr(ptr)) {
+        if (colN > colPtr(ptr)) { 
+          left  = ptr;
+        } else { 
+          right = ptr;
+        }
+        ptr = (right + left) / 2;
+      }
+
+      for (int i = 0; i < Val.nrows(); i++) {
+        Val(i,ptr) = Val(i,ptr) + lK(i,a,b);
+      }
+    }
+  }
+}
+
+
+void do_assem_tangent(ComMod &com_mod, const int d_row, const int d_col, 
+                      const Vector<int> &eqN_row, const Vector<int> &eqN_col,
+                      const Array3<double> &lK)
+{
+  auto& R = com_mod.R;
+  auto& Val = com_mod.Val;
+  const auto& rowPtr = com_mod.rowPtr;
+  const auto& colPtr = com_mod.colPtr;
+
+  for (int a = 0; a < d_row; a++) {
+    int rowN = eqN_row(a);
+    if (rowN == -1) {
+      continue;
+    }
+    for (int b = 0; b < d_col; b++) {
+      int colN = eqN_col(b);
+      if (colN == -1) {
+        continue;
+      }
+
+      int left = rowPtr(rowN);
+      int right = rowPtr(rowN+1);
+      int ptr = (right + left) / 2;
+
+      while (colN != colPtr(ptr)) {
+        if (colN > colPtr(ptr)) { 
+          left  = ptr;
+        } else { 
+          right = ptr;
+        }
+        ptr = (right + left) / 2;
+      }
+
+      for (int i = 0; i < Val.nrows(); i++) {
+        Val(i,ptr) = Val(i,ptr) + lK(i,a,b);
+      }
+    }
+  }
+}
+
 
 //------
 // lhsa
@@ -179,12 +284,65 @@ void lhsa(Simulation* simulation, int& nnz)
     if (com_mod.shlEq && msh.eType == ElementType::TRI3) {
       continue;
     }
+
+    // Number of map generations to reserve
+    const int map_gen = 2;
+
+    // Create maps: (node -> element) ^ map_gen
+    for (int gen = 0; gen < map_gen; gen++) {
+      std::map<int, std::set<int>> map;
+
+      // Create new map from node-element map IEN
+      if (gen == 0) {
+        for (int Ac = 0; Ac < tnNo; ++Ac) {
+          for (int e = 0; e < msh.nEl; e++) {
+            for (int b = 0; b < msh.eNoN; ++b) {
+              if (msh.IEN(b, e) == Ac) {
+                map[Ac].insert(e);
+                break;
+              }
+            }
+          }
+        }
+      }
+      // Extend previous map by one layer of elements
+      else {
+        map = msh.map_node_ele[gen - 1];
+        for (int Ac = 0; Ac < tnNo; ++Ac) {
+          for (int ele1 : msh.map_node_ele[gen - 1][Ac]) {
+            for (int b = 0; b < msh.eNoN; ++b) {
+              int Bc = msh.IEN(b, ele1);
+              for (int ele2 : msh.map_node_ele[gen - 1][Bc]) {
+                map[Ac].insert(ele2);
+              }
+            }
+          }
+        }
+      }
+      msh.map_node_ele.push_back(map);
+    }
+
+    // Reserve memory
     for (int e = 0; e < msh.nEl; e++) {
       for (int a = 0; a < msh.eNoN; a++) { 
         int rowN = msh.IEN(a,e);
         for (int b = 0; b < msh.eNoN; b++) {
           int colN = msh.IEN(b,e);
           add_col(tnNo, rowN, colN, mnnzeic, uInd);
+        }
+      }
+    }
+
+    // Reserve off-diagonal memory
+    if (com_mod.grEq) {
+      for (int gen = 0; gen < map_gen; gen++) {
+        for (int rowN = 0; rowN < tnNo; ++rowN) {
+          for (int e : msh.map_node_ele[gen][rowN]) {
+            for (int b = 0; b < msh.eNoN; b++) {
+              int colN = msh.IEN(b,e);
+              add_col(tnNo, rowN, colN, mnnzeic, uInd);
+            }
+          }
         }
       }
     }

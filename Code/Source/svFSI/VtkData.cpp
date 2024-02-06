@@ -31,6 +31,7 @@
 #include "VtkData.h"
 #include "Array.h"
 
+#include <vtkLogger.h>
 #include <vtkDoubleArray.h>
 #include "vtkCellData.h"
 #include <vtkGenericCell.h>
@@ -44,6 +45,8 @@
 #include <vtkXMLPolyDataWriter.h>
 #include <vtkXMLUnstructuredGridReader.h>
 #include <vtkXMLUnstructuredGridWriter.h>
+#include <vtkCellDataToPointData.h>
+#include <vtkAttributeSmoothingFilter.h>
 #include <string>
 #include <map>
 
@@ -61,6 +64,7 @@ class VtkVtpData::VtkVtpDataImpl {
     void read_file(const std::string& file_name);
     void set_connectivity(const int nsd, const Array<int>& conn, const int pid);
     void set_point_data(const std::string& data_name, const Vector<int>& data);
+    void set_cell_data(const std::string& data_name, const Array<double>& data);
     void set_points(const Array<double>& points);
     void write(const std::string& file_name);
 
@@ -194,6 +198,11 @@ void VtkVtpData::VtkVtpDataImpl::set_point_data(const std::string& data_name, co
   vtk_polydata->GetPointData()->AddArray(data_array);
 }
 
+void VtkVtpData::VtkVtpDataImpl::set_cell_data(const std::string& data_name, const Array<double>& data)
+{
+  throw std::runtime_error("[VtkVtpData] set_cell_data for Array<double> not implemented.");
+}
+
 /// @brief Set the 3D point (coordinate) data for the polydata.
 //
 void VtkVtpData::VtkVtpDataImpl::set_points(const Array<double>& points)
@@ -241,6 +250,9 @@ class VtkVtuData::VtkVtuDataImpl {
   public:
     void create_grid();
     void read_file(const std::string& file_name);
+    vtkSmartPointer<vtkUnstructuredGrid> get_ugrid(){
+      return vtk_ugrid;
+    };
     void set_connectivity(const int nsd, const Array<int>& conn, const int pid);
 
     void set_element_data(const std::string& data_name, const Array<double>& data);
@@ -250,8 +262,12 @@ class VtkVtuData::VtkVtuDataImpl {
     void set_point_data(const std::string& data_name, const Array<int>& data);
     void set_point_data(const std::string& data_name, const Vector<int>& data);
 
+    void set_cell_data(const std::string& data_name, const Array<double>& data);
+
     void set_points(const Array<double>& points);
     void write(const std::string& file_name);
+    void cell_to_point_data(const std::string& data_name);
+    void smooth_point_data(const std::string& data_name);
 
     template<typename T1, typename T2>
     void set_element_data(const std::string& data_name, const T1& data, T2& data_array)
@@ -494,6 +510,26 @@ void VtkVtuData::VtkVtuDataImpl::set_points(const Array<double>& points)
   }
 
   vtk_ugrid->SetPoints(node_coords);
+}
+
+void VtkVtuData::VtkVtuDataImpl::set_cell_data(const std::string& data_name, const Array<double>& data)
+{
+  int num_vals = data.nrows();
+  int num_comp = data.ncols();
+  auto data_array = vtkSmartPointer<vtkDoubleArray>::New();
+  data_array->SetNumberOfComponents(num_comp);
+  data_array->Allocate(num_vals);
+  data_array->SetName(data_name.c_str());
+
+  for (int i = 0; i < num_vals; i++) {
+    std::vector<double> tmp(num_comp);
+    for (int j = 0; j < num_comp; j++) {
+      tmp[j] = data(i, j);
+    }
+    data_array->InsertNextTuple(&tmp[0]);
+  }
+
+  vtk_ugrid->GetCellData()->AddArray(data_array);
 }
 
 void VtkVtuData::VtkVtuDataImpl::write(const std::string& file_name)
@@ -741,6 +777,16 @@ bool VtkVtpData::has_point_data(const std::string& data_name)
   return false;
 }
 
+void VtkVtpData::cell_to_point_data(const std::string& data_name)
+{
+  throw std::runtime_error("[VtkVtpData] cell_to_point_data not implemented.");
+}
+
+void VtkVtpData::smooth_point_data(const std::string& data_name)
+{
+  throw std::runtime_error("[VtkVtpData] smooth_point_data not implemented.");
+}
+
 int VtkVtpData::num_elems() 
 { 
   return impl->num_elems; 
@@ -790,6 +836,12 @@ void VtkVtpData::set_point_data(const std::string& data_name, const Vector<int>&
 {
   impl->set_point_data(data_name, data);
 }
+
+void VtkVtpData::set_cell_data(const std::string& data_name, const Array<double>& data)
+{
+  impl->set_cell_data(data_name, data);
+}
+
 
 void VtkVtpData::set_points(const Array<double>& points)
 {
@@ -940,6 +992,32 @@ bool VtkVtuData::has_point_data(const std::string& data_name)
   return false;
 }
 
+void VtkVtuData::cell_to_point_data(const std::string& data_name)
+{
+  auto filter = vtkSmartPointer<vtkCellDataToPointData>::New();
+  filter->SetInputData(impl->vtk_ugrid);
+  filter->Update();
+
+  auto array = vtkDoubleArray::SafeDownCast(filter->GetOutput()->GetPointData()->GetArray(data_name.c_str()));
+  impl->vtk_ugrid->GetPointData()->AddArray(array);
+}
+
+void VtkVtuData::smooth_point_data(const std::string& data_name)
+{
+  vtkLogger::SetStderrVerbosity(vtkLogger::VERBOSITY_OFF);
+
+  auto filter = vtkSmartPointer<vtkAttributeSmoothingFilter>::New();
+  filter->SetInputData(impl->vtk_ugrid);
+  filter->SetSmoothingStrategyToAllPoints();
+  filter->SetNumberOfIterations(100);
+  filter->SetRelaxationFactor(0.1);
+  filter->SetWeightsTypeToDistance();
+  filter->Update();
+
+  auto array = vtkDoubleArray::SafeDownCast(filter->GetOutput()->GetPointData()->GetArray(data_name.c_str()));
+  impl->vtk_ugrid->GetPointData()->AddArray(array);
+}
+
 /// @brief Get an array of point data from an unstructured grid.
 //
 Array<double> VtkVtuData::get_point_data(const std::string& data_name)
@@ -1038,6 +1116,11 @@ void VtkVtuData::set_point_data(const std::string& data_name, const Array<int>& 
 void VtkVtuData::set_point_data(const std::string& data_name, const Vector<int>& data)
 {
   impl->set_point_data(data_name, data);
+}
+
+void VtkVtuData::set_cell_data(const std::string& data_name, const Array<double>& data)
+{
+  impl->set_cell_data(data_name, data);
 }
 
 void VtkVtuData::set_points(const Array<double>& points)
