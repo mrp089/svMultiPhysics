@@ -109,6 +109,7 @@ PetscLogStage  stages[6];  /* performance tuning. */
 #define EQ_CEP     210
 #define EQ_ustruct 211 
 #define EQ_stokes  212
+#define EQ_gr  213
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  

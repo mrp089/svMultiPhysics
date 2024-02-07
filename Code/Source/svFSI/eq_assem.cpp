@@ -47,6 +47,7 @@
 #include "shells.h"
 #include "stokes.h"
 #include "sv_struct.h"
+#include "gr_struct.h"
 #include "ustruct.h"
 #include "vtk_xml.h"
 
@@ -368,7 +369,7 @@ void global_eq_assem(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshT
     break;
 
     case EquationType::phys_gr:
-      struct_ns::construct_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg);
+      gr::construct_gr_fd(com_mod, cep_mod, cm_mod, lM, Ag, Yg, Dg);
     break;
 
     case EquationType::phys_ustruct:

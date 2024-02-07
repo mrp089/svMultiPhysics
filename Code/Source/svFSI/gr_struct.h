@@ -28,14 +28,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef STRUCT_H 
-#define STRUCT_H 
+#ifndef GR_H 
+#define GR_H 
 
 #include <set>
 
 #include "ComMod.h"
 
-namespace struct_ns {
+namespace gr {
 
 void b_struct_2d(const ComMod& com_mod, const int eNoN, const double w, const Vector<double>& N, 
     const Array<double>& Nx, const Array<double>& dl, const Vector<double>& hl, const Vector<double>& nV, 
