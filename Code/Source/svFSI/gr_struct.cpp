@@ -379,8 +379,8 @@ void eval_gr(const int &e, ComMod &com_mod, const mshType &lM,
 
   const int nsd = com_mod.nsd;
   const int tDof = com_mod.tDof;
-  const int dof = com_mod.dof;
   int eNoN = lM.eNoN;
+  assert(nsd == 3);
 
   // STRUCT: dof = nsd
   Vector<double> N(eNoN), gr_int_g(com_mod.nGrInt), gr_props_g(lM.n_gr_props);
@@ -434,12 +434,8 @@ void eval_gr(const int &e, ComMod &com_mod, const mshType &lM,
       }
     }
 
-    if (nsd == 3) {
-      struct_3d_carray(com_mod, eNoN, w, N, Nx, dl, gr_int_g, gr_props_l, lR,
-                       lK, eval);
-    } else {
-      std::terminate();
-    }
+    struct_3d_carray(com_mod, eNoN, w, N, Nx, dl, gr_int_g, gr_props_l, lR, lK,
+                     eval);
 
     // Set internal growth and remodeling variables
     if (com_mod.grEq) {
@@ -569,7 +565,7 @@ void struct_3d_carray(ComMod &com_mod, const int eNoN, const double w,
           for (int k = 0; k < 6; k++) {
             BmDBm += Bm(k, i, a) * DBm(k, j);
           }
-          int index = i * 3 + j;
+          int index = i * dof + j;
           lK(index, a, b) += w * BmDBm;
           if (index == 0 || index == 4 || index == 8) {
             lK(index, a, b) += w * NxSNx;
