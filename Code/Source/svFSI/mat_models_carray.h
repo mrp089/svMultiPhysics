@@ -1052,9 +1052,6 @@ void get_pk2cc(const ComMod& com_mod, const CepMod& cep_mod, const dmnType& lDmn
       }
 
     } break;
-    case ConstitutiveModelType::GR_equi: {
-      gr_equilibrated_ns::stress_tangent_(F, com_mod.time, gr_props, gr_int, S, CC);
-    } break;
 
     default:
       throw std::runtime_error("Undefined material constitutive model.");

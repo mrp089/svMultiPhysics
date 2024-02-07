@@ -34,7 +34,7 @@
 namespace gr_equilibrated_ns {
 
 // Call with fixed-size arrays (more efficient)
-void stress_tangent_(const double Fe[3][3], const double time, const Vector<double>& eVWP, Vector<double>& grInt, double S_out[3][3], double CC_out[3][3][3][3])
+void stress_tangent_(const double Fe[3][3], const double time, const Vector<double>& eVWP, Vector<double>& grInt, double S_out[3][3], double CC_out[3][3][3][3], double& phic)
 {
 	// convert deformation gradient to FEBio format
 	mat3d F(Fe[0][0], Fe[0][1], Fe[0][2], Fe[1][0], Fe[1][1], Fe[1][2], Fe[2][0], Fe[2][1], Fe[2][2]);
@@ -361,7 +361,7 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 	double   Jh;
 	double  svo;
 	// double  svh;
-	double phic = phico;
+	phic = phico;
 	double phic_gp;
 	double phich;
 	double phim;
@@ -861,7 +861,7 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 }
 
 // Call with variable size arrays
-void stress_tangent_(const Array<double>& Fe, const double time, const Vector<double>& eVWP, Vector<double>& grInt, Array<double>& S_out, Tensor4<double>& CC_out)
+void stress_tangent_(const Array<double>& Fe, const double time, const Vector<double>& eVWP, Vector<double>& grInt, Array<double>& S_out, Tensor4<double>& CC_out, double& phic)
 {
 	double F3[3][3];
 	double S3[3][3];
@@ -873,7 +873,7 @@ void stress_tangent_(const Array<double>& Fe, const double time, const Vector<do
 		}
 	}
 
-	stress_tangent_(F3, time, eVWP, grInt, S3, CC3);
+	stress_tangent_(F3, time, eVWP, grInt, S3, CC3, phic);
 
 	for (int i = 0; i < 3; i++) {
 		for (int j = 0; j < 3; j++) {

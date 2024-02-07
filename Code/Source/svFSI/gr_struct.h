@@ -34,6 +34,7 @@
 #include <set>
 
 #include "ComMod.h"
+#include "Simulation.h"
 
 namespace gr {
 
@@ -56,10 +57,20 @@ void eval_gr_fd_global(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const ms
 void eval_gr_fd_ele(const int& e, ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag,
     const Array<double>& Yg, const Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK,
     const bool eval=true);
-    
+
 void eval_dsolid(const int& e, ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag,
     const Array<double>& Yg, const Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK,
     const bool eval=true);
+
+void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
+    const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
+    const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
+    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_l, Array<double>& gr_props_l, 
+    Array<double>& lR, Array3<double>& lK, const bool eval=true);
+
+void get_pk2cc(const ComMod& com_mod, const CepMod& cep_mod, const dmnType& lDmn, const Array<double>& F, const int nfd,
+    const Array<double>& fl, const double ya, Vector<double>& gr_int, const Vector<double>& gr_props,
+    Array<double>& S, Array<double>& Dm, double& phic);
 };
 
 #endif

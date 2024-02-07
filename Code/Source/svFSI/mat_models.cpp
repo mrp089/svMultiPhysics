@@ -35,7 +35,6 @@
 #include "fft.h"
 #include "mat_fun.h"
 #include "utils.h"
-#include "gr_equilibrated.h"
 
 #include <math.h>
 
@@ -486,9 +485,6 @@ void get_pk2cc(const ComMod& com_mod, const CepMod& cep_mod, const dmnType& lDmn
         CC = ten_ddot_3424(CC, CCb, nsd);
         CC = ten_ddot_2412(CCb, CC, nsd);
       }
-    } break;
-    case ConstitutiveModelType::GR_equi: {
-      gr_equilibrated_ns::stress_tangent_(F, com_mod.time, gr_props, gr_int, S, CC);
     } break;
 
     default:
