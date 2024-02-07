@@ -54,7 +54,7 @@
 namespace gr {
 
 /// @brief Loop solid elements and assemble into global matrices
-void construct_gr_fd_ele(ComMod& com_mod, const mshType& lM, const Array<double>& Dg)
+void construct_gr(ComMod& com_mod, const mshType& lM, const Array<double>& Dg, bool eval_fd)
 {
   using namespace consts;
 
@@ -78,8 +78,12 @@ void construct_gr_fd_ele(ComMod& com_mod, const mshType& lM, const Array<double>
     lK = 0.0;
 
     // Evaluate solid equations
-    eval_gr_fd_ele(e, com_mod, lM, e_Dg, ptr, lR, lK);
-    // eval_dsolid(e, com_mod, lM, Dg, ptr, lR, lK);
+    if (eval_fd) {
+      eval_gr_fd_ele(e, com_mod, lM, e_Dg, ptr, lR, lK);
+    }
+    else {
+      eval_gr(e, com_mod, lM, Dg, ptr, lR, lK);
+    }
 
     // Assemble into global residual and tangent
     lhsa_ns::do_assem(com_mod, eNoN, ptr, lK, lR);
@@ -89,8 +93,7 @@ void construct_gr_fd_ele(ComMod& com_mod, const mshType& lM, const Array<double>
 /// @brief Finite difference on each element
 void eval_gr_fd_ele(const int &e, ComMod &com_mod,
                        const mshType &lM, Array<double> &Dg,
-                       Vector<int> &ptr, Array<double> &lR, Array3<double> &lK,
-                       const bool eval)
+                       Vector<int> &ptr, Array<double> &lR, Array3<double> &lK)
 {
   // Get dimensions
   const int eNoN = lM.eNoN;
@@ -114,7 +117,7 @@ void eval_gr_fd_ele(const int &e, ComMod &com_mod,
   lK_dummy = 0.0;
 
   // Central evaluation
-  eval_dsolid(e, com_mod, lM, Dg, ptr, lR, lK_dummy, false);
+  eval_gr(e, com_mod, lM, Dg, ptr, lR, lK_dummy, false);
 
   // Finite differences
   for (int i = 0; i < dof; ++i) {
@@ -129,7 +132,7 @@ void eval_gr_fd_ele(const int &e, ComMod &com_mod,
 
       // Displacement
       lRp = 0.0;
-      eval_dsolid(e, com_mod, lM, Dg, ptr, lRp, lK_dummy, false);
+      eval_gr(e, com_mod, lM, Dg, ptr, lRp, lK_dummy, false);
       dlR += (lRp - lR) / eps;
 
       // Restore
@@ -145,9 +148,7 @@ void eval_gr_fd_ele(const int &e, ComMod &com_mod,
   }
 }
 
-void construct_gr_fd_global(ComMod& com_mod, 
-             const mshType& lM, const Array<double>& Ag, 
-             const Array<double>& Yg, const Array<double>& Dg)
+void construct_gr_fd_global(ComMod& com_mod, const mshType& lM, const Array<double>& Dg)
 {
   // Get dimensions
   const int eNoN = lM.eNoN;
@@ -158,20 +159,8 @@ void construct_gr_fd_global(ComMod& com_mod,
   // Set step size for finite difference
   const double eps = 1.0e-8;
 
-  // Time integration parameters
-  int cEq = com_mod.cEq;
-  auto& eq = com_mod.eq[cEq];
-  const double dt = com_mod.dt;
-  const double fd_eps = eq.af * eq.beta * dt * dt / eps;
-  const double fy_eps = eq.af * eq.gam * dt / eps;
-  const double fa_eps = eq.am / eps;
-
   // Make editable copy
-  Array<double> e_Ag(tDof,tnNo); 
-  Array<double> e_Yg(tDof,tnNo); 
   Array<double> e_Dg(tDof,tnNo);
-  e_Ag = Ag;
-  e_Yg = Yg;
   e_Dg = Dg;
 
   // Initialize residual and tangent
@@ -180,37 +169,28 @@ void construct_gr_fd_global(ComMod& com_mod,
   Array3<double> lK(dof * dof, eNoN, eNoN);
 
   // Central evaluation
-  eval_gr_fd_global(com_mod, lM, Ag, Yg, Dg, fa_eps + fy_eps + fd_eps);
+  eval_gr_fd_global(com_mod, lM, Dg, 1.0 / eps);
 
   // Loop global nodes
   for (int Ac = 0; Ac < tnNo; ++Ac) {
     // Central evaluation
-    eval_gr_fd_global(com_mod, lM, Ag, Yg, Dg, fa_eps + fy_eps + fd_eps, Ac);
+    eval_gr_fd_global(com_mod, lM, Dg, 1.0 / eps, Ac);
 
     // Loop DOFs
     for (int i = 0; i < dof; ++i) {
       // Perturb solution vectors
-      e_Ag(i, Ac) += eps;
-      e_Yg(i, Ac) += eps;
       e_Dg(i, Ac) += eps;
 
       // Perturbed evaluations
-      eval_gr_fd_global(com_mod, lM, e_Ag, Yg, Dg, fa_eps, Ac, i);
-      eval_gr_fd_global(com_mod, lM, Ag, e_Yg, Dg, fy_eps, Ac, i);
-      eval_gr_fd_global(com_mod, lM, Ag, Yg, e_Dg, fd_eps, Ac, i);
+      eval_gr_fd_global(com_mod, lM, e_Dg, 1.0 / eps, Ac, i);
 
       // Restore solution vectors
-      e_Ag(i, Ac) = Ag(i, Ac);
-      e_Yg(i, Ac) = Yg(i, Ac);
       e_Dg(i, Ac) = Dg(i, Ac);
     }
   }
-// com_mod.Val.print("Val");
 }
 
-void eval_gr_fd_global(ComMod& com_mod, 
-             const mshType& lM, const Array<double>& Ag, 
-             const Array<double>& Yg, const Array<double>& Dg,
+void eval_gr_fd_global(ComMod& com_mod, const mshType& lM, const Array<double>& Dg,
              const double eps, const int dAc, const int dj)
 {
   using namespace consts;
@@ -264,7 +244,7 @@ void eval_gr_fd_global(ComMod& com_mod,
 
   // Update internal G&R variables without assembly
   for (int e : elements) {
-    eval_dsolid(e, com_mod, lM, Dg, ptr_dummy, lR_dummy, lK_dummy, false);
+    eval_gr(e, com_mod, lM, Dg, ptr_dummy, lR_dummy, lK_dummy, false);
   }
 
   // Index of Lagrange multiplier
@@ -363,7 +343,7 @@ void eval_gr_fd_global(ComMod& com_mod,
     lK = 0.0;
 
     // Evaluate solid equations (with smoothed internal G&R variables)
-    eval_dsolid(e, com_mod, lM, Dg, ptr_row, lR, lK_dummy);
+    eval_gr(e, com_mod, lM, Dg, ptr_row, lR, lK_dummy);
 
     // Assemble into global residual
     if (residual) {
@@ -394,7 +374,7 @@ void eval_gr_fd_global(ComMod& com_mod,
 
 
 /// @brief 
-void eval_dsolid(const int &e, ComMod &com_mod, 
+void eval_gr(const int &e, ComMod &com_mod, 
                  const mshType &lM, const Array<double> &Dg,
                  Vector<int> &ptr, Array<double> &lR, Array3<double> &lK,
                  const bool eval)
@@ -452,7 +432,6 @@ void eval_dsolid(const int &e, ComMod &com_mod,
 
     // Get internal growth and remodeling variables
     if (com_mod.grEq) {
-      // todo mrp089: add a function like rslice for vectors to Array3
       for (int i = 0; i < com_mod.nGrInt; i++) {
           gr_int_g(i) = com_mod.grInt(e,g,i);
       }
