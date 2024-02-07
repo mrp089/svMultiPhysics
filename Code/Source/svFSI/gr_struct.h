@@ -1,4 +1,5 @@
-/* Copyright (c) Stanford University, The Regents of the University of California, and others.
+/* Copyright (c) Stanford University, The Regents of the University of
+ * California, and others.
  *
  * All Rights Reserved.
  *
@@ -28,39 +29,45 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef GR_H 
-#define GR_H 
+#ifndef GR_H
+#define GR_H
 
 #include <set>
 
 #include "ComMod.h"
 #include "Simulation.h"
-#include "mat_fun.h"
 #include "gr_equilibrated.h"
+#include "mat_fun.h"
 // #include "mat_models_carray.h"
 
 namespace gr {
 
-void construct_gr(ComMod& com_mod, const mshType& lM, const Array<double>& Dg, bool eval_fd=true);
+void construct_gr(ComMod &com_mod, const mshType &lM, const Array<double> &Dg,
+                  bool eval_fd = true);
 
-void construct_gr_fd_global(ComMod& com_mod, const mshType& lM, const Array<double>& Dg);
+void construct_gr_fd_global(ComMod &com_mod, const mshType &lM,
+                            const Array<double> &Dg);
 
-void eval_gr_fd_global(ComMod& com_mod, const mshType& lM, const Array<double>& Dg,
-    const double eps=0.0, const int dAc=-1, const int di=-1);
+void eval_gr_fd_global(ComMod &com_mod, const mshType &lM,
+                       const Array<double> &Dg, const double eps = 0.0,
+                       const int dAc = -1, const int di = -1);
 
-void eval_gr_fd_ele(const int& e, ComMod& com_mod, const mshType& lM, Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK);
+void eval_gr_fd_ele(const int &e, ComMod &com_mod, const mshType &lM,
+                    Array<double> &Dg, Vector<int> &ptr, Array<double> &lR,
+                    Array3<double> &lK);
 
-void eval_gr(const int& e, ComMod& com_mod, const mshType& lM, const Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK,
-    const bool eval=true);
+void eval_gr(const int &e, ComMod &com_mod, const mshType &lM,
+             const Array<double> &Dg, Vector<int> &ptr, Array<double> &lR,
+             Array3<double> &lK, const bool eval = true);
 
-void struct_3d_carray(ComMod& com_mod, const int eNoN, const double w, 
-    const Vector<double>& N, const Array<double>& Nx, const Array<double>& dl,
-   Vector<double>& gr_int_g, Array<double>& gr_props_l, 
-    Array<double>& lR, Array3<double>& lK, const bool eval);
+void struct_3d_carray(ComMod &com_mod, const int eNoN, const double w,
+                      const Vector<double> &N, const Array<double> &Nx,
+                      const Array<double> &dl, Vector<double> &gr_int_g,
+                      Array<double> &gr_props_l, Array<double> &lR,
+                      Array3<double> &lK, const bool eval);
 
 template <size_t N>
-void cc_to_voigt_carray(const double CC[N][N][N][N], double Dm[2*N][2*N])
-{
+void cc_to_voigt_carray(const double CC[N][N][N][N], double Dm[2 * N][2 * N]) {
   if (N == 3) {
     Dm[0][0] = CC[0][0][0][0];
     Dm[0][1] = CC[0][0][1][1];
@@ -94,7 +101,7 @@ void cc_to_voigt_carray(const double CC[N][N][N][N], double Dm[2*N][2*N])
 
     Dm[2][0] = CC[2][2][0][0];
     Dm[2][1] = CC[2][2][1][1];
-    
+
     Dm[3][0] = CC[0][1][0][0];
     Dm[3][1] = CC[0][1][1][1];
     Dm[3][2] = CC[0][1][2][2];
@@ -109,37 +116,36 @@ void cc_to_voigt_carray(const double CC[N][N][N][N], double Dm[2*N][2*N])
     Dm[5][2] = CC[2][0][2][2];
     Dm[5][3] = CC[2][0][0][1];
     Dm[5][4] = CC[2][0][1][2];
-  } 
+  }
 }
 
 template <size_t N>
-void get_pk2cc(const ComMod& com_mod, const dmnType& lDmn, const double F[N][N],
-    Vector<double>& gr_int, const Vector<double>& gr_props, 
-    double S[N][N], double Dm[2*N][2*N], double& phic)
-{
+void get_pk2cc(const ComMod &com_mod, const dmnType &lDmn, const double F[N][N],
+               Vector<double> &gr_int, const Vector<double> &gr_props,
+               double S[N][N], double Dm[2 * N][2 * N], double &phic) {
   using namespace consts;
   using namespace mat_fun;
   using namespace utils;
 
-  const auto& stM = lDmn.stM;
+  const auto &stM = lDmn.stM;
   const int nsd = com_mod.nsd;
 
   double CC[N][N][N][N];
 
   switch (stM.isoType) {
-    case ConstitutiveModelType::GR_equi: {
-      gr_equilibrated_ns::stress_tangent_(F, com_mod.time, gr_props, gr_int, S, CC, phic);
-    } break;
+  case ConstitutiveModelType::GR_equi: {
+    gr_equilibrated_ns::stress_tangent_(F, com_mod.time, gr_props, gr_int, S,
+                                        CC, phic);
+  } break;
 
-    default:
-      throw std::runtime_error("Undefined material constitutive model.");
+  default:
+    throw std::runtime_error("Undefined material constitutive model.");
   }
 
   // Convert to Voigt Notation
   cc_to_voigt_carray<N>(CC, Dm);
 }
 
-};
+}; // namespace gr
 
 #endif
-
