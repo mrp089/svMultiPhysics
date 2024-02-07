@@ -39,7 +39,6 @@
 #include "Tensor4.h"
 
 #include "mat_fun.h"
-#include "gr_equilibrated.h"
 
 namespace mat_models_carray {
 

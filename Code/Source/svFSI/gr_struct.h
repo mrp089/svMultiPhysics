@@ -35,6 +35,9 @@
 
 #include "ComMod.h"
 #include "Simulation.h"
+#include "mat_fun.h"
+#include "gr_equilibrated.h"
+// #include "mat_models_carray.h"
 
 namespace gr {
 
@@ -62,15 +65,93 @@ void eval_dsolid(const int& e, ComMod& com_mod, CepMod& cep_mod, const mshType& 
     const Array<double>& Yg, const Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK,
     const bool eval=true);
 
-void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
+void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
     const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
     const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
-    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_l, Array<double>& gr_props_l, 
-    Array<double>& lR, Array3<double>& lK, const bool eval=true);
+    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_g, Array<double>& gr_props_l, 
+    Array<double>& lR, Array3<double>& lK, const bool eval);
 
-void get_pk2cc(const ComMod& com_mod, const CepMod& cep_mod, const dmnType& lDmn, const Array<double>& F, const int nfd,
-    const Array<double>& fl, const double ya, Vector<double>& gr_int, const Vector<double>& gr_props,
-    Array<double>& S, Array<double>& Dm, double& phic);
+template <size_t N>
+void cc_to_voigt_carray(const double CC[N][N][N][N], double Dm[2*N][2*N])
+{
+  if (N == 3) {
+    Dm[0][0] = CC[0][0][0][0];
+    Dm[0][1] = CC[0][0][1][1];
+    Dm[0][2] = CC[0][0][2][2];
+    Dm[0][3] = CC[0][0][0][1];
+    Dm[0][4] = CC[0][0][1][2];
+    Dm[0][5] = CC[0][0][2][0];
+
+    Dm[1][1] = CC[1][1][1][1];
+    Dm[1][2] = CC[1][1][2][2];
+    Dm[1][3] = CC[1][1][0][1];
+    Dm[1][4] = CC[1][1][1][2];
+    Dm[1][5] = CC[1][1][2][0];
+
+    Dm[2][2] = CC[2][2][2][2];
+    Dm[2][3] = CC[2][2][0][1];
+    Dm[2][4] = CC[2][2][1][2];
+    Dm[2][5] = CC[2][2][2][0];
+
+    Dm[3][3] = CC[0][1][0][1];
+    Dm[3][4] = CC[0][1][1][2];
+    Dm[3][5] = CC[0][1][2][0];
+
+    Dm[4][4] = CC[1][2][1][2];
+    Dm[4][5] = CC[1][2][2][0];
+
+    Dm[5][5] = CC[2][0][2][0];
+
+    // Upper triangle
+    Dm[1][0] = CC[1][1][0][0];
+
+    Dm[2][0] = CC[2][2][0][0];
+    Dm[2][1] = CC[2][2][1][1];
+    
+    Dm[3][0] = CC[0][1][0][0];
+    Dm[3][1] = CC[0][1][1][1];
+    Dm[3][2] = CC[0][1][2][2];
+
+    Dm[4][0] = CC[1][2][0][0];
+    Dm[4][1] = CC[1][2][1][1];
+    Dm[4][2] = CC[1][2][2][2];
+    Dm[4][3] = CC[1][2][0][1];
+
+    Dm[5][0] = CC[2][0][0][0];
+    Dm[5][1] = CC[2][0][1][1];
+    Dm[5][2] = CC[2][0][2][2];
+    Dm[5][3] = CC[2][0][0][1];
+    Dm[5][4] = CC[2][0][1][2];
+  } 
+}
+
+template <size_t N>
+void get_pk2cc(const ComMod& com_mod, const CepMod& cep_mod, const dmnType& lDmn, const double F[N][N], const int nfd,
+    const Array<double>& fl, const double ya, Vector<double>& gr_int, const Vector<double>& gr_props, 
+    double S[N][N], double Dm[2*N][2*N], double& phic)
+{
+  using namespace consts;
+  using namespace mat_fun;
+  using namespace utils;
+
+  const auto& stM = lDmn.stM;
+  const int nsd = com_mod.nsd;
+
+  double CC[N][N][N][N];
+
+  switch (stM.isoType) {
+    case ConstitutiveModelType::GR_equi: {
+      gr_equilibrated_ns::stress_tangent_(F, com_mod.time, gr_props, gr_int, S, CC, phic);
+    } break;
+
+    default:
+      throw std::runtime_error("Undefined material constitutive model.");
+  }
+
+  // Convert to Voigt Notation
+  cc_to_voigt_carray<N>(CC, Dm);
+}
+
 };
 
 #endif
