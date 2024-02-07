@@ -1990,7 +1990,7 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
                 }
               }
 
-              gr::get_pk2cc<3>(com_mod, cep_mod, eq.dmn[cDmn], F3, nFn, fN, ya, gr_int_l, gr_props_g, S3, Dm3, phic);
+              gr::get_pk2cc<3>(com_mod, eq.dmn[cDmn], F3, gr_int_l, gr_props_g, S3, Dm3, phic);
             }
             else {
               mat_models::get_pk2cc(com_mod, cep_mod, eq.dmn[cDmn], F, nFn, fN, ya, gr_int_l, gr_props_g, S, Dm);
