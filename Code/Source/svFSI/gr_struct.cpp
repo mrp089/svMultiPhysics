@@ -513,12 +513,12 @@ void struct_3d_carray(ComMod& com_mod, const int eNoN, const double w,
   auto& eq = com_mod.eq[cEq];
   int cDmn = com_mod.cDmn;
   auto& dmn = eq.dmn[cDmn];
-  const double dt = com_mod.dt;
 
   // Set parameters
   int i = eq.s;
   int j = i + 1;
   int k = j + 1;
+  int indices[] = {i, j, k};
 
   // Inertia, body force and deformation tensor (F)
   double F[3][3]={}; 
@@ -529,16 +529,14 @@ void struct_3d_carray(ComMod& com_mod, const int eNoN, const double w,
   F[2][2] = 1.0;
 
   for (int a = 0; a < eNoN; a++) {
-    F[0][0] += Nx(0,a)*dl(i,a);
-    F[0][1] += Nx(1,a)*dl(i,a);
-    F[0][2] += Nx(2,a)*dl(i,a);
-    F[1][0] += Nx(0,a)*dl(j,a);
-    F[1][1] += Nx(1,a)*dl(j,a);
-    F[1][2] += Nx(2,a)*dl(j,a);
-    F[2][0] += Nx(0,a)*dl(k,a);
-    F[2][1] += Nx(1,a)*dl(k,a);
-    F[2][2] += Nx(2,a)*dl(k,a);
+    // Deformation gradient
+    for (int row = 0; row < 3; row++) {
+      for (int col = 0; col < 3; col++) {
+        F[row][col] += Nx(col, a) * dl(indices[row], a);
+      }
+    }
 
+    // G&R material properties
     for (int igr = 0; igr < gr_props_l.nrows(); igr++) {
       gr_props_g(igr) += gr_props_l(igr,a) * N(a);
     }
@@ -565,27 +563,21 @@ void struct_3d_carray(ComMod& com_mod, const int eNoN, const double w,
 
   // Local residual
   for (int a = 0; a < eNoN; a++) {
-    lR(0,a) = lR(0,a) + w*(Nx(0,a)*P[0][0] + Nx(1,a)*P[0][1] + Nx(2,a)*P[0][2]);
-    lR(1,a) = lR(1,a) + w*(Nx(0,a)*P[1][0] + Nx(1,a)*P[1][1] + Nx(2,a)*P[1][2]);
-    lR(2,a) = lR(2,a) + w*(Nx(0,a)*P[2][0] + Nx(1,a)*P[2][1] + Nx(2,a)*P[2][2]);
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        lR(i, a) += w * Nx(j, a) * P[i][j];
+      }
+    }
   }
 
   // Auxilary quantities for computing stiffness tensor
-  //
   Array3<double> Bm(6,3,eNoN);
-
   for (int a = 0; a < eNoN; a++) {
-    Bm(0,0,a) = Nx(0,a)*F[0][0];
-    Bm(0,1,a) = Nx(0,a)*F[1][0];
-    Bm(0,2,a) = Nx(0,a)*F[2][0];
-
-    Bm(1,0,a) = Nx(1,a)*F[0][1];
-    Bm(1,1,a) = Nx(1,a)*F[1][1];
-    Bm(1,2,a) = Nx(1,a)*F[2][1];
-
-    Bm(2,0,a) = Nx(2,a)*F[0][2];
-    Bm(2,1,a) = Nx(2,a)*F[1][2];
-    Bm(2,2,a) = Nx(2,a)*F[2][2];
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        Bm(i, j, a) = Nx(i, a) * F[j][i];
+      }
+    }
 
     Bm(3,0,a) = (Nx(0,a)*F[0][1] + F[0][0]*Nx(1,a));
     Bm(3,1,a) = (Nx(0,a)*F[1][1] + F[1][0]*Nx(1,a));
@@ -607,91 +599,30 @@ void struct_3d_carray(ComMod& com_mod, const int eNoN, const double w,
   for (int b = 0; b < eNoN; b++) {
     for (int a = 0; a < eNoN; a++) {
       // Geometric stiffness
-      NxSNx = Nx(0,a)*S[0][0]*Nx(0,b) + Nx(1,a)*S[1][0]*Nx(0,b) +
-              Nx(2,a)*S[2][0]*Nx(0,b) + Nx(0,a)*S[0][1]*Nx(1,b) +
-              Nx(1,a)*S[1][1]*Nx(1,b) + Nx(2,a)*S[2][1]*Nx(1,b) +
-              Nx(0,a)*S[0][2]*Nx(2,b) + Nx(1,a)*S[1][2]*Nx(2,b) +
-              Nx(2,a)*S[2][2]*Nx(2,b);
-
-      NxSNx = NxSNx;
+      NxSNx = 0.0;
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          NxSNx += Nx(i, a) * S[i][j] * Nx(j, b);
+        }
+      }
 
       // Material Stiffness (Bt*D*B)
       mat_fun_carray::mat_mul6x3<3>(Dm, Bm.rslice(b), DBm);
-
-      // dM1/du1
-      // Material stiffness: Bt*D*B
-      BmDBm = Bm(0,0,a)*DBm(0,0) + Bm(1,0,a)*DBm(1,0) +
-              Bm(2,0,a)*DBm(2,0) + Bm(3,0,a)*DBm(3,0) +
-              Bm(4,0,a)*DBm(4,0) + Bm(5,0,a)*DBm(5,0);
-
-      lK(0,a,b) = lK(0,a,b) + w*(NxSNx + BmDBm);
-
-      // dM1/du2
-      // Material stiffness: Bt*D*B
-      BmDBm = Bm(0,0,a)*DBm(0,1) + Bm(1,0,a)*DBm(1,1) +
-              Bm(2,0,a)*DBm(2,1) + Bm(3,0,a)*DBm(3,1) +
-              Bm(4,0,a)*DBm(4,1) + Bm(5,0,a)*DBm(5,1);
-
-      lK(1,a,b) = lK(1,a,b) + w*BmDBm;
-
-      // dM1/du3
-      // Material stiffness: Bt*D*B
-      BmDBm = Bm(0,0,a)*DBm(0,2) + Bm(1,0,a)*DBm(1,2) +
-              Bm(2,0,a)*DBm(2,2) + Bm(3,0,a)*DBm(3,2) +
-              Bm(4,0,a)*DBm(4,2) + Bm(5,0,a)*DBm(5,2);
-
-      lK(2,a,b) = lK(2,a,b) + w*BmDBm;
-
-      // dM2/du1
-      // Material stiffness: Bt*D*B
-      BmDBm = Bm(0,1,a)*DBm(0,0) + Bm(1,1,a)*DBm(1,0) +
-              Bm(2,1,a)*DBm(2,0) + Bm(3,1,a)*DBm(3,0) +
-              Bm(4,1,a)*DBm(4,0) + Bm(5,1,a)*DBm(5,0);
-
-      lK(dof+0,a,b) = lK(dof+0,a,b) + w*BmDBm;
-
-      // dM2/du2
-      // Material stiffness: Bt*D*B
-      BmDBm = Bm(0,1,a)*DBm(0,1) + Bm(1,1,a)*DBm(1,1) +
-              Bm(2,1,a)*DBm(2,1) + Bm(3,1,a)*DBm(3,1) +
-              Bm(4,1,a)*DBm(4,1) + Bm(5,1,a)*DBm(5,1);
-
-      lK(dof+1,a,b) = lK(dof+1,a,b) + w*(NxSNx + BmDBm);
-
-      // dM2/du3
-      // Material stiffness: Bt*D*B
-      BmDBm = Bm(0,1,a)*DBm(0,2) + Bm(1,1,a)*DBm(1,2) +
-              Bm(2,1,a)*DBm(2,2) + Bm(3,1,a)*DBm(3,2) +
-              Bm(4,1,a)*DBm(4,2) + Bm(5,1,a)*DBm(5,2);
-
-      lK(dof+2,a,b) = lK(dof+2,a,b) + w*BmDBm;
-
-      // dM3/du1
-      // Material stiffness: Bt*D*B
-      BmDBm = Bm(0,2,a)*DBm(0,0) + Bm(1,2,a)*DBm(1,0) +
-              Bm(2,2,a)*DBm(2,0) + Bm(3,2,a)*DBm(3,0) +
-              Bm(4,2,a)*DBm(4,0) + Bm(5,2,a)*DBm(5,0);
-
-      lK(2*dof+0,a,b) = lK(2*dof+0,a,b) + w*BmDBm;
- 
-      // dM3/du2
-      // Material stiffness: Bt*D*B
-      BmDBm = Bm(0,2,a)*DBm(0,1) + Bm(1,2,a)*DBm(1,1) +
-              Bm(2,2,a)*DBm(2,1) + Bm(3,2,a)*DBm(3,1) +
-              Bm(4,2,a)*DBm(4,1) + Bm(5,2,a)*DBm(5,1);
-
-     lK(2*dof+1,a,b) = lK(2*dof+1,a,b) + w*BmDBm;
-
-      // dM3/du3
-      // Material stiffness: Bt*D*B
-      BmDBm = Bm(0,2,a)*DBm(0,2) + Bm(1,2,a)*DBm(1,2) +
-              Bm(2,2,a)*DBm(2,2) + Bm(3,2,a)*DBm(3,2) +
-              Bm(4,2,a)*DBm(4,2) + Bm(5,2,a)*DBm(5,2);
-
-      lK(2*dof+2,a,b) = lK(2*dof+2,a,b) + w*(NxSNx + BmDBm);
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          BmDBm = 0.0;
+          for (int k = 0; k < 6; k++) {
+            BmDBm += Bm(k, i, a) * DBm(k, j);
+          }
+          int index = i * 3 + j;
+          lK(index, a, b) += w * BmDBm;
+          if (index == 0 || index == 4 || index == 8) {
+            lK(index, a, b) += w * NxSNx;
+          }
+        }
+      }
     }
   }
-
 }
 
 };
