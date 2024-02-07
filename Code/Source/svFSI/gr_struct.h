@@ -37,49 +37,25 @@
 
 namespace gr {
 
-void b_struct_2d(const ComMod& com_mod, const int eNoN, const double w, const Vector<double>& N, 
-    const Array<double>& Nx, const Array<double>& dl, const Vector<double>& hl, const Vector<double>& nV, 
-    Array<double>& lR, Array3<double>& lK);
-
-void b_struct_3d(const ComMod& com_mod, const int eNoN, const double w, const Vector<double>& N, 
-    const Array<double>& Nx, const Array<double>& dl, const Vector<double>& hl, const Vector<double>& nV, 
-    Array<double>& lR, Array3<double>& lK);
-
 void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag, 
     const Array<double>& Yg, const Array<double>& Dg);
 
 void construct_gr(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshType& lM, const Array<double>& Ag, 
     const Array<double>& Yg, const Array<double>& Dg);
 
-void construct_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshType& lM, const Array<double>& Ag, 
+void construct_gr_fd_ele(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshType& lM, const Array<double>& Ag, 
     const Array<double>& Yg, const Array<double>& Dg);
 
-void eval_gr_fd(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshType& lM, const Array<double>& Ag, 
+void construct_gr_fd_global(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshType& lM, const Array<double>& Ag, 
+    const Array<double>& Yg, const Array<double>& Dg);
+
+void eval_gr_fd_global(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshType& lM, const Array<double>& Ag, 
     const Array<double>& Yg, const Array<double>& Dg,
     const double eps=0.0, const int dAc=-1, const int di=-1);
 
-void eval_dsolid(const int& e, ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag,
+void eval_gr_fd_ele(const int& e, ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag,
     const Array<double>& Yg, const Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK,
     const bool eval=true);
-
-void struct_2d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
-    const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
-    const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
-    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_l, Array<double>& gr_props_l, 
-    Array<double>& lR, Array3<double>& lK);
-
-void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
-    const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
-    const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
-    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_l, Array<double>& gr_props_l, 
-    Array<double>& lR, Array3<double>& lK, const bool eval=true);
-
-void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
-    const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
-    const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
-    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_l, Array<double>& gr_props_l, 
-    Array<double>& lR, Array3<double>& lK, const bool eval=true);
-
 };
 
 #endif
