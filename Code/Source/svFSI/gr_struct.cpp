@@ -627,24 +627,12 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
     F[2][1] += Nx(1,a)*dl(k,a);
     F[2][2] += Nx(2,a)*dl(k,a);
 
-    S0[0][0] += N(a)*pS0l(0,a);
-    S0[1][1] += N(a)*pS0l(1,a);
-    S0[2][2] += N(a)*pS0l(2,a);
-    S0[0][1] += N(a)*pS0l(3,a);
-    S0[1][2] += N(a)*pS0l(4,a);
-    S0[2][0] += N(a)*pS0l(5,a);
-
     ya_g = ya_g + N(a)*ya_l(a);
 
     for (int igr = 0; igr < gr_props_l.nrows(); igr++) {
       gr_props_g(igr) += gr_props_l(igr,a) * N(a);
     }
   }
-
-
-  S0[1][0] = S0[0][1];
-  S0[2][1] = S0[1][2];
-  S0[0][2] = S0[2][0];
 
   double Jac = mat_fun_carray::mat_det<3>(F);
 
@@ -661,21 +649,6 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
   double Dm[6][6]; 
   double phic;
   get_pk2cc<3>(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, gr_int_g, gr_props_g, S, Dm, phic);
-
-  // Prestress
-  pSl(0) = S[0][0];
-  pSl(1) = S[1][1];
-  pSl(2) = S[2][2];
-  pSl(3) = S[0][1];
-  pSl(4) = S[1][2];
-  pSl(5) = S[2][0];
-
-  // Total 2nd Piola-Kirchhoff stress
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      S[i][j] += S0[i][j];
-    }
-  }
 
   // 1st Piola-Kirchhoff tensor (P)
   //
