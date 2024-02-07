@@ -106,15 +106,9 @@ void eval_gr_fd_ele(const int &e, ComMod &com_mod, CepMod &cep_mod,
   auto& eq = com_mod.eq[cEq];
   const double dt = com_mod.dt;
   const double fd_eps = eq.af * eq.beta * dt * dt / eps;
-  const double fy_eps = eq.af * eq.gam * dt / eps;
-  const double fa_eps = eq.am / eps;
 
   // Make editable copy
-  Array<double> e_Ag(tDof,tnNo); 
-  Array<double> e_Yg(tDof,tnNo); 
   Array<double> e_Dg(tDof,tnNo);
-  e_Ag = Ag;
-  e_Yg = Yg;
   e_Dg = Dg;
 
   // Initialize residual and tangent
@@ -130,34 +124,18 @@ void eval_gr_fd_ele(const int &e, ComMod &com_mod, CepMod &cep_mod,
   // Finite differences
   for (int i = 0; i < dof; ++i) {
     for (int a = 0; a < eNoN; ++a) {
-      dlR = 0.0;
-      
       // Global node ID
       Ac = lM.IEN(a, e);
 
       // Perturb
-      e_Ag(i, Ac) += eps;
-      e_Yg(i, Ac) += eps;
       e_Dg(i, Ac) += eps;
-
-      // Aceleration
-      lRp = 0.0;
-      eval_dsolid(e, com_mod, cep_mod, lM, e_Ag, Yg, Dg, ptr, lRp, lK_dummy);
-      dlR += (lRp - lR) * fa_eps;
-
-      // Velocity
-      lRp = 0.0;
-      eval_dsolid(e, com_mod, cep_mod, lM, Ag, e_Yg, Dg, ptr, lRp, lK_dummy);
-      dlR += (lRp - lR) * fy_eps;
 
       // Displacement
       lRp = 0.0;
       eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, e_Dg, ptr, lRp, lK_dummy);
-      dlR += (lRp - lR) * fd_eps;
+      dlR = (lRp - lR) * fd_eps;
 
       // Restore
-      e_Ag(i, Ac) = Ag(i, Ac);
-      e_Yg(i, Ac) = Yg(i, Ac);
       e_Dg(i, Ac) = Dg(i, Ac);
 
       // Assign to tangent matrix
@@ -558,7 +536,6 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
   const double dt = com_mod.dt;
 
   // Set parameters
-  double afu = eq.af * eq.beta*dt*dt;
   int i = eq.s;
   int j = i + 1;
   int k = j + 1;
@@ -574,6 +551,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
   double ya_g = 0.0;
 
   for (int a = 0; a < eNoN; a++) {
+    // Deformation gradient
     for (int row = 0; row < 3; row++) {
       for (int col = 0; col < 3; col++) {
         F[row][col] += Nx(col, a) * dl(indices[row], a);
@@ -582,6 +560,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
 
     ya_g = ya_g + N(a)*ya_l(a);
 
+    // G&R material properties
     for (int igr = 0; igr < gr_props_l.nrows(); igr++) {
       gr_props_g(igr) += gr_props_l(igr,a) * N(a);
     }
@@ -611,11 +590,9 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
   // Local residual
   for (int a = 0; a < eNoN; a++) {
     for (int i = 0; i < 3; i++) {
-      double sum = 0.0;
       for (int j = 0; j < 3; j++) {
-        sum += Nx(j, a) * P[i][j];
+        lR(i, a) += w * P[i][j] * Nx(j, a);
       }
-      lR(i, a) += w * sum;
     }
   }
 
@@ -648,7 +625,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
           NxSNx += Nx(i, a) * S[i][j] * Nx(j, b);
         }
       }
-      T1 = afu * NxSNx;
+      T1 = NxSNx;
 
       // Material Stiffness (Bt*D*B)
       for (int d1 = 0; d1 <= 2; d1++) {
@@ -658,7 +635,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
             BmDBm += Bm(i, d1, a) * DBm(i, d2);
           }
           int dofOffset = d1 * dof;
-          lK(dofOffset + d2, a, b) += w * (d1 == 1 ? T1 : 0) + afu * BmDBm;
+          lK(dofOffset + d2, a, b) += w * (d1 == 1 ? T1 : 0) + BmDBm;
         }
       }
     }
