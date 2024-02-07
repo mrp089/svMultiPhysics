@@ -54,9 +54,7 @@
 namespace gr {
 
 /// @brief Loop solid elements and assemble into global matrices
-void construct_gr_fd_ele(ComMod& com_mod, 
-                      const mshType& lM, const Array<double>& Ag, 
-                      const Array<double>& Yg, const Array<double>& Dg)
+void construct_gr_fd_ele(ComMod& com_mod, const mshType& lM, const Array<double>& Dg)
 {
   using namespace consts;
 
@@ -69,6 +67,9 @@ void construct_gr_fd_ele(ComMod& com_mod,
   Array<double> lR(dof, eNoN);
   Array3<double> lK(dof * dof, eNoN, eNoN);
 
+  // Make editable copy
+  Array<double> e_Dg(Dg);
+
   // Loop over all elements of mesh
   for (int e = 0; e < lM.nEl; e++) {
     // Reset
@@ -77,8 +78,8 @@ void construct_gr_fd_ele(ComMod& com_mod,
     lK = 0.0;
 
     // Evaluate solid equations
-    // eval_gr_fd_ele(e, com_mod, lM, Ag, Yg, Dg, ptr, lR, lK);
-    eval_dsolid(e, com_mod, lM, Dg, ptr, lR, lK);
+    eval_gr_fd_ele(e, com_mod, lM, e_Dg, ptr, lR, lK);
+    // eval_dsolid(e, com_mod, lM, Dg, ptr, lR, lK);
 
     // Assemble into global residual and tangent
     lhsa_ns::do_assem(com_mod, eNoN, ptr, lK, lR);
@@ -87,8 +88,7 @@ void construct_gr_fd_ele(ComMod& com_mod,
 
 /// @brief Finite difference on each element
 void eval_gr_fd_ele(const int &e, ComMod &com_mod,
-                       const mshType &lM, const Array<double> &Ag,
-                       const Array<double> &Yg, const Array<double> &Dg,
+                       const mshType &lM, Array<double> &Dg,
                        Vector<int> &ptr, Array<double> &lR, Array3<double> &lK,
                        const bool eval)
 {
@@ -105,18 +105,6 @@ void eval_gr_fd_ele(const int &e, ComMod &com_mod,
   int Ac;
   int cEq = com_mod.cEq;
   auto& eq = com_mod.eq[cEq];
-  const double dt = com_mod.dt;
-  const double fd_eps = eq.af * eq.beta * dt * dt / eps;
-  const double fy_eps = eq.af * eq.gam * dt / eps;
-  const double fa_eps = eq.am / eps;
-
-  // Make editable copy
-  Array<double> e_Ag(tDof,tnNo); 
-  Array<double> e_Yg(tDof,tnNo); 
-  Array<double> e_Dg(tDof,tnNo);
-  e_Ag = Ag;
-  e_Yg = Yg;
-  e_Dg = Dg;
 
   // Initialize residual and tangent
   Array<double> lRp(dof, eNoN);
@@ -126,7 +114,7 @@ void eval_gr_fd_ele(const int &e, ComMod &com_mod,
   lK_dummy = 0.0;
 
   // Central evaluation
-  eval_dsolid(e, com_mod, lM, Dg, ptr, lR, lK_dummy);
+  eval_dsolid(e, com_mod, lM, Dg, ptr, lR, lK_dummy, false);
 
   // Finite differences
   for (int i = 0; i < dof; ++i) {
@@ -137,29 +125,15 @@ void eval_gr_fd_ele(const int &e, ComMod &com_mod,
       Ac = lM.IEN(a, e);
 
       // Perturb
-      e_Ag(i, Ac) += eps;
-      e_Yg(i, Ac) += eps;
-      e_Dg(i, Ac) += eps;
-
-      // Aceleration
-      // lRp = 0.0;
-      // eval_dsolid(e, com_mod, lM, e_Ag, Yg, Dg, ptr, lRp, lK_dummy);
-      // dlR += (lRp - lR) * fa_eps;
-
-      // Velocity
-      // lRp = 0.0;
-      // eval_dsolid(e, com_mod, lM, Ag, e_Yg, Dg, ptr, lRp, lK_dummy);
-      // dlR += (lRp - lR) * fy_eps;
+      Dg(i, Ac) += eps;
 
       // Displacement
       lRp = 0.0;
-      eval_dsolid(e, com_mod, lM, e_Dg, ptr, lRp, lK_dummy);
-      dlR += (lRp - lR) * fd_eps;
+      eval_dsolid(e, com_mod, lM, Dg, ptr, lRp, lK_dummy, false);
+      dlR += (lRp - lR) / eps;
 
       // Restore
-      e_Ag(i, Ac) = Ag(i, Ac);
-      e_Yg(i, Ac) = Yg(i, Ac);
-      e_Dg(i, Ac) = Dg(i, Ac);
+      Dg(i, Ac) -= eps;
 
       // Assign to tangent matrix
       for (int j = 0; j < dof; ++j) {
@@ -568,6 +542,11 @@ void struct_3d_carray(ComMod& com_mod, const int eNoN, const double w,
         lR(i, a) += w * Nx(j, a) * P[i][j];
       }
     }
+  }
+
+  // Skip evaluation if tangent not required
+  if(!eval) {
+    return;
   }
 
   // Auxilary quantities for computing stiffness tensor

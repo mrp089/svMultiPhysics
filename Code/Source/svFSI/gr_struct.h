@@ -47,8 +47,7 @@ void construct_dsolid(ComMod& com_mod, const mshType& lM, const Array<double>& A
 void construct_gr(ComMod& com_mod, const mshType& lM, const Array<double>& Ag, 
     const Array<double>& Yg, const Array<double>& Dg);
 
-void construct_gr_fd_ele(ComMod& com_mod, const mshType& lM, const Array<double>& Ag, 
-    const Array<double>& Yg, const Array<double>& Dg);
+void construct_gr_fd_ele(ComMod& com_mod, const mshType& lM, const Array<double>& Dg);
 
 void construct_gr_fd_global(ComMod& com_mod, const mshType& lM, const Array<double>& Ag, 
     const Array<double>& Yg, const Array<double>& Dg);
@@ -57,8 +56,7 @@ void eval_gr_fd_global(ComMod& com_mod, const mshType& lM, const Array<double>& 
     const Array<double>& Yg, const Array<double>& Dg,
     const double eps=0.0, const int dAc=-1, const int di=-1);
 
-void eval_gr_fd_ele(const int& e, ComMod& com_mod, const mshType& lM, const Array<double>& Ag,
-    const Array<double>& Yg, const Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK,
+void eval_gr_fd_ele(const int& e, ComMod& com_mod, const mshType& lM, Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK,
     const bool eval=true);
 
 void eval_dsolid(const int& e, ComMod& com_mod, const mshType& lM, const Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK,
