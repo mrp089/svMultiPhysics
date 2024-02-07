@@ -589,26 +589,12 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
   const double dt = com_mod.dt;
 
   // Set parameters
-  //
-  double rho = dmn.prop.at(PhysicalProperyType::solid_density);
-  double mu = dmn.prop.at(PhysicalProperyType::solid_viscosity);
-  double dmp = dmn.prop.at(PhysicalProperyType::damping);
-  double fb[3]{dmn.prop.at(PhysicalProperyType::f_x), 
-               dmn.prop.at(PhysicalProperyType::f_y), 
-               dmn.prop.at(PhysicalProperyType::f_z)};
-
-  double afu = eq.af * eq.beta*dt*dt;
-  double afv = eq.af * eq.gam*dt;
-  double amd = eq.am * rho  +  eq.af * eq.gam * dt * dmp;
-
   int i = eq.s;
   int j = i + 1;
   int k = j + 1;
 
   // Inertia, body force and deformation tensor (F)
   double F[3][3]={}; 
-  double S0[3][3]={}; 
-  double vx[3][3]={};
   Vector<double> gr_props_g(gr_props_l.nrows());
 
   F[0][0] = 1.0;
@@ -644,14 +630,12 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
 
   // 2nd Piola-Kirchhoff tensor (S) and material stiffness tensor in
   // Voigt notationa (Dm)
-  //
   double S[3][3]; 
   double Dm[6][6]; 
   double phic;
   get_pk2cc<3>(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, gr_int_g, gr_props_g, S, Dm, phic);
 
   // 1st Piola-Kirchhoff tensor (P)
-  //
   double P[3][3]; 
   mat_fun_carray::mat_mul<3>(F, S, P);
 
@@ -693,18 +677,11 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
   }
 
   // Local stiffness tensor
-  double r13 = 1.0 / 3.0;
-  double r23 = 2.0 / 3.0;
-  double rmu = afu * mu * Jac;
-  double rmv = afv * mu * Jac;
-  double NxSNx, T1, NxNx, BmDBm, Tv;
-
+  double NxSNx, BmDBm;
   Array<double> DBm(6,3);
 
   for (int b = 0; b < eNoN; b++) {
-
     for (int a = 0; a < eNoN; a++) {
-
       // Geometric stiffness
       NxSNx = Nx(0,a)*S[0][0]*Nx(0,b) + Nx(1,a)*S[1][0]*Nx(0,b) +
               Nx(2,a)*S[2][0]*Nx(0,b) + Nx(0,a)*S[0][1]*Nx(1,b) +
@@ -712,7 +689,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
               Nx(0,a)*S[0][2]*Nx(2,b) + Nx(1,a)*S[1][2]*Nx(2,b) +
               Nx(2,a)*S[2][2]*Nx(2,b);
 
-      T1 = amd*N(a)*N(b) + afu*NxSNx;
+      NxSNx = NxSNx;
 
       // Material Stiffness (Bt*D*B)
       mat_fun_carray::mat_mul6x3<3>(Dm, Bm.rslice(b), DBm);
@@ -723,7 +700,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
               Bm(2,0,a)*DBm(2,0) + Bm(3,0,a)*DBm(3,0) +
               Bm(4,0,a)*DBm(4,0) + Bm(5,0,a)*DBm(5,0);
 
-      lK(0,a,b) = lK(0,a,b) + w*(T1 + afu*BmDBm + Tv);
+      lK(0,a,b) = lK(0,a,b) + w*(NxSNx + BmDBm);
 
       // dM1/du2
       // Material stiffness: Bt*D*B
@@ -731,7 +708,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
               Bm(2,0,a)*DBm(2,1) + Bm(3,0,a)*DBm(3,1) +
               Bm(4,0,a)*DBm(4,1) + Bm(5,0,a)*DBm(5,1);
 
-      lK(1,a,b) = lK(1,a,b) + w*(afu*BmDBm + Tv);
+      lK(1,a,b) = lK(1,a,b) + w*BmDBm;
 
       // dM1/du3
       // Material stiffness: Bt*D*B
@@ -739,7 +716,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
               Bm(2,0,a)*DBm(2,2) + Bm(3,0,a)*DBm(3,2) +
               Bm(4,0,a)*DBm(4,2) + Bm(5,0,a)*DBm(5,2);
 
-      lK(2,a,b) = lK(2,a,b) + w*(afu*BmDBm + Tv);
+      lK(2,a,b) = lK(2,a,b) + w*BmDBm;
 
       // dM2/du1
       // Material stiffness: Bt*D*B
@@ -747,7 +724,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
               Bm(2,1,a)*DBm(2,0) + Bm(3,1,a)*DBm(3,0) +
               Bm(4,1,a)*DBm(4,0) + Bm(5,1,a)*DBm(5,0);
 
-      lK(dof+0,a,b) = lK(dof+0,a,b) + w*(afu*BmDBm + Tv);
+      lK(dof+0,a,b) = lK(dof+0,a,b) + w*BmDBm;
 
       // dM2/du2
       // Material stiffness: Bt*D*B
@@ -755,7 +732,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
               Bm(2,1,a)*DBm(2,1) + Bm(3,1,a)*DBm(3,1) +
               Bm(4,1,a)*DBm(4,1) + Bm(5,1,a)*DBm(5,1);
 
-      lK(dof+1,a,b) = lK(dof+1,a,b) + w*(T1 + afu*BmDBm + Tv);
+      lK(dof+1,a,b) = lK(dof+1,a,b) + w*(NxSNx + BmDBm);
 
       // dM2/du3
       // Material stiffness: Bt*D*B
@@ -763,7 +740,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
               Bm(2,1,a)*DBm(2,2) + Bm(3,1,a)*DBm(3,2) +
               Bm(4,1,a)*DBm(4,2) + Bm(5,1,a)*DBm(5,2);
 
-      lK(dof+2,a,b) = lK(dof+2,a,b) + w*(afu*BmDBm + Tv);
+      lK(dof+2,a,b) = lK(dof+2,a,b) + w*BmDBm;
 
       // dM3/du1
       // Material stiffness: Bt*D*B
@@ -771,7 +748,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
               Bm(2,2,a)*DBm(2,0) + Bm(3,2,a)*DBm(3,0) +
               Bm(4,2,a)*DBm(4,0) + Bm(5,2,a)*DBm(5,0);
 
-      lK(2*dof+0,a,b) = lK(2*dof+0,a,b) + w*(afu*BmDBm + Tv);
+      lK(2*dof+0,a,b) = lK(2*dof+0,a,b) + w*BmDBm;
  
       // dM3/du2
       // Material stiffness: Bt*D*B
@@ -779,7 +756,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
               Bm(2,2,a)*DBm(2,1) + Bm(3,2,a)*DBm(3,1) +
               Bm(4,2,a)*DBm(4,1) + Bm(5,2,a)*DBm(5,1);
 
-     lK(2*dof+1,a,b) = lK(2*dof+1,a,b) + w*(afu*BmDBm + Tv);
+     lK(2*dof+1,a,b) = lK(2*dof+1,a,b) + w*BmDBm;
 
       // dM3/du3
       // Material stiffness: Bt*D*B
@@ -787,7 +764,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
               Bm(2,2,a)*DBm(2,2) + Bm(3,2,a)*DBm(3,2) +
               Bm(4,2,a)*DBm(4,2) + Bm(5,2,a)*DBm(5,2);
 
-      lK(2*dof+2,a,b) = lK(2*dof+2,a,b) + w*(T1 + afu*BmDBm + Tv);
+      lK(2*dof+2,a,b) = lK(2*dof+2,a,b) + w*(NxSNx + BmDBm);
     }
   }
 

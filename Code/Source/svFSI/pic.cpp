@@ -145,11 +145,19 @@ void picc(Simulation* simulation)
     }
 
   } else {
-    for (int a = 0; a < tnNo; a++) {
-      for (int i = 0; i < e-s+1; i++) {
-        An(i+s,a) = An(i+s,a) - R(i,a);
-        Yn(i+s,a) = Yn(i+s,a) - R(i,a)*coef[0];
-        Dn(i+s,a) = Dn(i+s,a) - R(i,a)*coef[1];
+    if (eq.phys == EquationType::phys_gr) {
+      for (int a = 0; a < tnNo; a++) {
+        for (int i = 0; i < e-s+1; i++) {
+          Dn(i+s,a) = Dn(i+s,a) - R(i,a);
+        }
+      }
+    } else {
+      for (int a = 0; a < tnNo; a++) {
+        for (int i = 0; i < e-s+1; i++) {
+          An(i+s,a) = An(i+s,a) - R(i,a);
+          Yn(i+s,a) = Yn(i+s,a) - R(i,a)*coef[0];
+          Dn(i+s,a) = Dn(i+s,a) - R(i,a)*coef[1];
+        }
       }
     }
   }
@@ -521,11 +529,20 @@ void pici(Simulation* simulation, Array<double>& Ag, Array<double>& Yg, Array<do
     dmsg << "coef: " << coef[0] << " " << coef[1] << " " << coef[2] << " " << coef[3];
     #endif
 
-    for (int a = 0; a < tnNo; a++) {
-      for (int j = s; j <= e; j++) {
-        Ag(j,a) = Ao(j,a)*coef(0) + An(j,a)*coef(1);
-        Yg(j,a) = Yo(j,a)*coef(2) + Yn(j,a)*coef(3);
-        Dg(j,a) = Do(j,a)*coef(2) + Dn(j,a)*coef(3);
+    if (eq.phys == EquationType::phys_gr) {
+      for (int a = 0; a < tnNo; a++) {
+        for (int j = s; j <= e; j++) {
+          Dg(j,a) = Do(j,a) + Dn(j,a);
+        }
+      }
+    }
+    else {
+      for (int a = 0; a < tnNo; a++) {
+        for (int j = s; j <= e; j++) {
+          Ag(j,a) = Ao(j,a)*coef(0) + An(j,a)*coef(1);
+          Yg(j,a) = Yo(j,a)*coef(2) + Yn(j,a)*coef(3);
+          Dg(j,a) = Do(j,a)*coef(2) + Dn(j,a)*coef(3);
+        }
       }
     }
   }
@@ -632,9 +649,18 @@ void picp(Simulation* simulation)
     #endif
 
     // [TODO:DaveP] careful here with s amd e.
-    for (int i = s; i <= e; i++) {
-      for (int j = 0; j < Ao.ncols(); j++) {
-        An(i,j) = Ao(i,j) * coef;
+    if (eq.phys == EquationType::phys_gr) {
+      for (int i = s; i <= e; i++) {
+        for (int j = 0; j < Ao.ncols(); j++) {
+          Dn(i,j) = Do(i,j);
+        }
+      }
+    }
+    else {
+      for (int i = s; i <= e; i++) {
+        for (int j = 0; j < Ao.ncols(); j++) {
+          An(i,j) = Ao(i,j) * coef;
+        }
       }
     }
 
