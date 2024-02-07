@@ -56,6 +56,10 @@ void eval_gr_fd_global(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const ms
 void eval_gr_fd_ele(const int& e, ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag,
     const Array<double>& Yg, const Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK,
     const bool eval=true);
+    
+void eval_dsolid(const int& e, ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag,
+    const Array<double>& Yg, const Array<double>& Dg, Vector<int>& ptr, Array<double>& lR, Array3<double>& lK,
+    const bool eval=true);
 };
 
 #endif
