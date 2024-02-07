@@ -77,7 +77,8 @@ void construct_gr_fd_ele(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod,
     lK = 0.0;
 
     // Evaluate solid equations
-    eval_gr_fd_ele(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr, lR, lK);
+    // eval_gr_fd_ele(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr, lR, lK);
+    eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr, lR, lK);
 
     // Assemble into global residual and tangent
     lhsa_ns::do_assem(com_mod, eNoN, ptr, lK, lR);
