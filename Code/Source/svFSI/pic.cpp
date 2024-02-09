@@ -650,11 +650,15 @@ void picp(Simulation* simulation)
 
     // [TODO:DaveP] careful here with s amd e.
     if (eq.phys == EquationType::phys_gr) {
-      for (int i = s; i <= e; i++) {
-        for (int j = 0; j < Ao.ncols(); j++) {
+      for (int j = 0; j < Ao.ncols(); j++) {
+        for (int i = s; i <= e; i++) {
           Dn(i,j) = Do(i,j);
         }
+        if (eq.dof == 4) {
+          Dn(e,j) = 0.33;
+        }
       }
+      return;
     }
     else {
       for (int i = s; i <= e; i++) {

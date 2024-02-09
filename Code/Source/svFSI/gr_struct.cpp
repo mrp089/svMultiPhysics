@@ -85,6 +85,17 @@ void construct_gr(ComMod &com_mod, const mshType &lM, const Array<double> &Dg,
       eval_gr(e, com_mod, lM, Dg, ptr, lR, lK);
     }
 
+    // // Add small perturbation to diagonal
+    // std::vector diag_indices = {0, 5, 10, 15};
+    // for (int i = 0; i < dof; i++) {
+    //   int index = i * (dof + 1);
+    //   for (int a = 0; a < eNoN; a++) {
+    //     for (int b = 0; b < eNoN; b++) {
+    //       lK(index, a, b) += 1.0e-14;
+    //     }
+    //   }
+    // }
+
     // Assemble into global residual and tangent
     lhsa_ns::do_assem(com_mod, eNoN, ptr, lK, lR);
   }
@@ -465,11 +476,13 @@ void struct_3d_carray(ComMod &com_mod, const int eNoN, const double w,
   int i = eq.s;
   int j = i + 1;
   int k = j + 1;
-  int indices[] = {i, j, k};
+  int l = k + 1;
+  int indices[] = {i, j, k, l};
 
   // Inertia, body force and deformation tensor (F)
   double F[3][3] = {};
   Vector<double> gr_props_g(gr_props_l.nrows());
+  double phic_g = 0.0;
 
   F[0][0] = 1.0;
   F[1][1] = 1.0;
@@ -486,6 +499,11 @@ void struct_3d_carray(ComMod &com_mod, const int eNoN, const double w,
     // G&R material properties
     for (int igr = 0; igr < gr_props_l.nrows(); igr++) {
       gr_props_g(igr) += gr_props_l(igr, a) * N(a);
+    }
+
+    // Collagen mass fraction
+    if(dof == 4) {
+      phic_g += dl(indices[3], a) * N(a);
     }
   }
 
@@ -513,6 +531,9 @@ void struct_3d_carray(ComMod &com_mod, const int eNoN, const double w,
       for (int j = 0; j < 3; j++) {
         lR(i, a) += w * Nx(j, a) * P[i][j];
       }
+    }
+    if(dof == 4) {
+      lR(3, a) += w * (phic_g - phic);
     }
   }
 
