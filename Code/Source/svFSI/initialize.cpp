@@ -198,6 +198,11 @@ void init_from_bin(Simulation* simulation, const std::string& fName, std::array<
     */
   }
 
+  if (com_mod.grEq) {
+    auto& gr = com_mod.grInt;
+    bin_file.read((char*)gr.data(), gr.msize());
+  }
+
   bin_file.close();
 
   // First checking all variables on master processor, since on the
