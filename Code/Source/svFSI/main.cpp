@@ -326,13 +326,9 @@ void iterate_solution(Simulation* simulation)
       dmsg << "Assembling equation:  " << eq.sym;
       #endif
 
-      // Dg.print("Dg");
       for (int iM = 0; iM < com_mod.nMsh; iM++) {
         eq_assem::global_eq_assem(com_mod, cep_mod, cm_mod, com_mod.msh[iM], Ag, Yg, Dg);
       }
-      std::cout<<Dg(3,0)<<std::endl;
-      // com_mod.R.print("R");
-      // com_mod.Val.print("Val");
       com_mod.R.write("R_as"+ istr);
       com_mod.Val.write("Val_as"+ istr);
 

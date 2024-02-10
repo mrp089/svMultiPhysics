@@ -362,7 +362,6 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 	double  svo;
 	// double  svh;
 	phic = phico;
-	double phic_gp;
 	double phich;
 	double phim;
 	double tauo;
@@ -833,7 +832,7 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 		grInt(k + 6)  = grInt(k + 1) / grInt(1) - 1.0; // delta sigma
 		grInt(k + 7)  = grInt(k + 6) / grInt(k + 5); // kski = delta sigma / deltau tau
 		grInt(k + 8)  = grInt(k + 6) - KsKi * grInt(k + 5); // ups -> 0
-		grInt(k + 11) = phic_gp;
+		grInt(k + 11) = phic;
 		// Fih = F.inverse();
 		// grInt(25] = J;
 		// grInt(26] = svo;

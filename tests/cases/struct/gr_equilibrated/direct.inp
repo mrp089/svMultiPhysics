@@ -1,7 +1,15 @@
 -ksp_type preonly
 -pc_type lu
 -pc_factor_mat_solver_type mumps
-#-ksp_monitor
+-mat_mumps_icntl_24 1
+# -mat_mumps_cntl_3 1e-6
+# -pc_factor_nonzeros_along_diagonal
+# -pc_factor_shift_type nonzero
+# -pc_factor_shift_amount 1
+# -ksp_monitor
+# -ksp_monitor_singular_value
+# -mat_view
+# -log_view
 #-malloc_debug
 #-start_in_debugger
 #-on_error_attach_debugger

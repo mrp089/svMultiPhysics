@@ -583,13 +583,12 @@ SetEquationPropertiesMapType set_equation_props = {
     outPuts = {OutputType::out_displacement, OutputType::out_stress, OutputType::out_cauchy, OutputType::out_strain};
     //simulation->com_mod.pstEq = true;
   } else {
-    nDOP = {13,2,0,0};
+    nDOP = {12,2,0,0};
     outPuts = { 
       OutputType::out_displacement, OutputType::out_mises, OutputType::out_stress,
       OutputType::out_cauchy, OutputType::out_strain, OutputType::out_jacobian,
       OutputType::out_defGrad, OutputType::out_integ, OutputType::out_fibDir,
-      OutputType::out_fibAlign, OutputType::out_velocity, OutputType::out_acceleration,
-      OutputType::out_gr
+      OutputType::out_fibAlign, OutputType::out_velocity, OutputType::out_acceleration
     };
   }
 
@@ -685,12 +684,13 @@ SetEquationPropertiesMapType set_equation_props = {
     outPuts = {OutputType::out_displacement, OutputType::out_stress, OutputType::out_cauchy, OutputType::out_strain};
     //simulation->com_mod.pstEq = true;
   } else {
-    nDOP = {12,2,0,0};
+    nDOP = {13,2,0,0};
     outPuts = { 
       OutputType::out_displacement, OutputType::out_mises, OutputType::out_stress,
       OutputType::out_cauchy, OutputType::out_strain, OutputType::out_jacobian,
       OutputType::out_defGrad, OutputType::out_integ, OutputType::out_fibDir,
-      OutputType::out_fibAlign, OutputType::out_velocity, OutputType::out_acceleration
+      OutputType::out_fibAlign, OutputType::out_velocity, OutputType::out_acceleration,
+      OutputType::out_gr
     };
   }
 

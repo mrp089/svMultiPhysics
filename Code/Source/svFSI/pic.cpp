@@ -534,6 +534,9 @@ void pici(Simulation* simulation, Array<double>& Ag, Array<double>& Yg, Array<do
         for (int j = s; j <= e; j++) {
           Dg(j,a) = Do(j,a) + Dn(j,a);
         }
+        // if (eq.dof == 4) {
+        //   Dg(e,a) = Dn(e,a);
+        // }
       }
     }
     else {

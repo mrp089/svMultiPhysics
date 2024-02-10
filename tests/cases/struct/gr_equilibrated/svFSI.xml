@@ -59,15 +59,14 @@
    <Density> 0.0 </Density> 
 
    <Output type="Spatial" >
+     <GR> true </GR>
      <Displacement> true </Displacement>
-     <Velocity> true </Velocity>
      <Jacobian> true </Jacobian>
      <Stress> true </Stress>
      <Strain> true </Strain>
      <Cauchy_stress> true </Cauchy_stress>
      <Def_grad> true </Def_grad>
      <VonMises_stress> true </VonMises_stress>
-     <GR> true </GR>
    </Output>
 
    <LS type="GMRES" >

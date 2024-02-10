@@ -85,17 +85,6 @@ void construct_gr(ComMod &com_mod, const mshType &lM, const Array<double> &Dg,
       eval_gr(e, com_mod, lM, Dg, ptr, lR, lK);
     }
 
-    // // Add small perturbation to diagonal
-    // std::vector diag_indices = {0, 5, 10, 15};
-    // for (int i = 0; i < dof; i++) {
-    //   int index = i * (dof + 1);
-    //   for (int a = 0; a < eNoN; a++) {
-    //     for (int b = 0; b < eNoN; b++) {
-    //       lK(index, a, b) += 1.0e-14;
-    //     }
-    //   }
-    // }
-
     // Assemble into global residual and tangent
     lhsa_ns::do_assem(com_mod, eNoN, ptr, lK, lR);
   }
