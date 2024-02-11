@@ -199,8 +199,16 @@ void init_from_bin(Simulation* simulation, const std::string& fName, std::array<
   }
 
   if (com_mod.grEq) {
-    auto& gr = com_mod.grInt;
-    bin_file.read((char*)gr.data(), gr.msize());
+    for (int e = 0; e < com_mod.msh[0].gnEl; e++) {
+      for (int g = 0; g < com_mod.msh[0].nG; g++) {
+        for (int i = 0; i < com_mod.nGrInt; i++) {
+          double val;
+          bin_file.read((char*)&val, sizeof(val));
+          com_mod.grInt(e, g, i) = val;
+          std::cout<<"e="<<e<<" g="<<g<<" i="<<i<<" val="<<val<<std::endl;
+        }
+      }
+    }
   }
 
   bin_file.close();

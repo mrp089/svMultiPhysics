@@ -1,4 +1,4 @@
-/* Copyright (c) Stanford University, The Regents of the University of California, and others.
+output.cpp/* Copyright (c) Stanford University, The Regents of the University of California, and others.
  *
  * All Rights Reserved.
  *
@@ -334,8 +334,15 @@ void write_restart(Simulation* simulation, std::array<double,3>& timeP)
   }
 
   if (com_mod.grEq) {
-    auto& gr = com_mod.grInt;
-    restart_file.write((char*)gr.data(), gr.msize());
+    for (int e = 0; e < com_mod.msh[0].gnEl; e++) {
+      for (int g = 0; g < com_mod.msh[0].nG; g++) {
+        for (int i = 0; i < com_mod.nGrInt; i++) {
+          double val = com_mod.grInt(e, g, i);
+          restart_file.write((char*)&val, sizeof(val));
+          std::cout<<"e="<<e<<" g="<<g<<" i="<<i<<" val=<<val<<std::endl;
+        }
+      }
+    }
   }
 
   restart_file.close();
