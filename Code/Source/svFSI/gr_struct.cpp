@@ -342,7 +342,7 @@ void eval_gr_fd_global(ComMod &com_mod, const mshType &lM,
     lK = 0.0;
 
     // Evaluate solid equations (with smoothed internal G&R variables)
-    eval_gr(e, com_mod, lM, Dg, ptr_row, lR, lK_dummy);
+    eval_gr(e, com_mod, lM, Dg, ptr_row, lR, lK_dummy, false);
 
     // Assemble into global residual
     if (residual) {
