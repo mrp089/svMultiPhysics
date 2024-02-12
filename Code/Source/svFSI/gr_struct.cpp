@@ -82,7 +82,7 @@ void construct_gr(ComMod &com_mod, const mshType &lM, const Array<double> &Dg,
     if (eval_fd) {
       eval_gr_fd_ele(e, com_mod, lM, e_Dg, ptr, lR, lK);
     } else {
-      eval_gr(e, com_mod, lM, Dg, ptr, lR, lK);
+      eval_gr(e, com_mod, lM, Dg, ptr, lR, lK, true);
     }
 
     // Assemble into global residual and tangent
@@ -501,7 +501,7 @@ void struct_3d_carray(ComMod &com_mod, const int eNoN, const double w,
   double S[3][3];
   double Dm[6][6];
   double phic;
-  get_pk2cc<3>(com_mod, dmn, F, gr_int_g, gr_props_g, S, Dm, phic);
+  get_pk2cc<3>(com_mod, dmn, F, gr_int_g, gr_props_g, S, Dm, phic, eval);
 
   // 1st Piola-Kirchhoff tensor (P)
   double P[3][3];
