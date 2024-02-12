@@ -1980,17 +1980,22 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
 
               for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < 3; j++) {
-                  S3[i][j] = S(i,j);
                   F3[i][j] = F(i,j);
-                }
-              }
-              for (int i = 0; i < 6; i++) {
-                for (int j = 0; j < 6; j++) {
-                  Dm3[i][j] = Dm(i,j);
                 }
               }
 
               gr::get_pk2cc<3>(com_mod, eq.dmn[cDmn], F3, gr_int_l, gr_props_g, S3, Dm3, phic);
+
+              for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                  S(i,j) = S3[i][j];
+                }
+              }
+              for (int i = 0; i < 6; i++) {
+                for (int j = 0; j < 6; j++) {
+                  Dm(i,j) = Dm3[i][j];
+                }
+              }
             }
             else {
               mat_models::get_pk2cc(com_mod, cep_mod, eq.dmn[cDmn], F, nFn, fN, ya, gr_int_l, gr_props_g, S, Dm);
