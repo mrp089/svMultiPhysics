@@ -167,13 +167,13 @@ void construct_gr_fd_global(ComMod &com_mod, const mshType &lM,
   Array<double> lR(dof, eNoN);
   Array3<double> lK(dof * dof, eNoN, eNoN);
 
-  // Central evaluation
-  eval_gr_fd_global_phic(com_mod, lM, Dg, 1.0 / eps);
+  // Residual evaluation
+  eval_gr_fd_global(com_mod, lM, Dg, 1.0 / eps);
 
   // Loop global nodes
   for (int Ac = 0; Ac < tnNo; ++Ac) {
     // Central evaluation
-    eval_gr_fd_global_phic(com_mod, lM, Dg, 1.0 / eps, Ac);
+    eval_gr_fd_global(com_mod, lM, Dg, 1.0 / eps, Ac);
 
     // Loop DOFs
     for (int i = 0; i < dof; ++i) {
@@ -181,7 +181,7 @@ void construct_gr_fd_global(ComMod &com_mod, const mshType &lM,
       e_Dg(i, Ac) += eps;
 
       // Perturbed evaluations
-      eval_gr_fd_global_phic(com_mod, lM, e_Dg, 1.0 / eps, Ac, i);
+      eval_gr_fd_global(com_mod, lM, e_Dg, 1.0 / eps, Ac, i);
 
       // Restore solution vectors
       e_Dg(i, Ac) = Dg(i, Ac);
@@ -414,28 +414,33 @@ void eval_gr_fd_global_phic(ComMod &com_mod, const mshType &lM,
   }
 
   // Index of collagen mass fraction
-  int gr_smooth = {37};
+  const int igr = 37;
 
   // Initialize arrays
   const int n_ele = elements.size();
   Vector<double> N(eNoN);
-  Array<double> jac_n(n_ele, eNoN), jac_a(n_ele, eNoN), Nx(nsd, eNoN);
+  Array<double> avg_n(n_ele, eNoN), avg_a(n_ele, eNoN), Nx(nsd, eNoN);
   int Ac;
   int i_ele;
   double w;
   double val;
-  jac_n = 0.0;
-  jac_a = 0.0;
+  avg_n = 0.0;
+  avg_a = 0.0;
+
+  // G&R parameters
+  const double phieo = 0.34;
+  const double phimo = 0.5 * (1.0 - phieo);
+  const double phico = 0.5 * (1.0 - phieo);
 
   // Project: integration point -> nodes
   i_ele = 0;
-  for (int e : elements) {
-    for (int g = 0; g < lM.nG; g++) {
-      // Shape function
-      w = lM.w(g);
-      N = lM.N.col(g);
-      Nx = lM.Nx.slice(g);
+  for (int g = 0; g < lM.nG; g++) {
+    // Shape function
+    w = lM.w(g);
+    N = lM.N.col(g);
+    Nx = lM.Nx.slice(g);
 
+    for (int e : elements) {
       // Deformation gradient
       double F[3][3] = {};
       for (int i = 0; i < 3; i++) {
@@ -453,15 +458,12 @@ void eval_gr_fd_global_phic(ComMod &com_mod, const mshType &lM,
 
       // Calculate collagen mass fraction
       double Jo = com_mod.grInt(e, g, 0);
-      double phieo = 0.34;
-      double phimo = 0.5 * (1.0 - phieo);
-      double phico = 0.5 * (1.0 - phieo);
       double phic = (1.0 - Jo / J * phieo) / (1.0 + phimo / phico);
 
       // Average at Jacobian at nodes
       for (int a = 0; a < eNoN; a++) {
-        jac_n(i_ele, a) += w * N(a) * phic;
-        jac_a(i_ele, a) += w * N(a);
+        avg_n(i_ele, a) += w * N(a) * phic;
+        avg_a(i_ele, a) += w * N(a);
       }
     }
     i_ele++;
@@ -474,9 +476,9 @@ void eval_gr_fd_global_phic(ComMod &com_mod, const mshType &lM,
       N = lM.N.col(g);
       val = 0.0;
       for (int a = 0; a < eNoN; a++) {
-        val += N(a) * jac_n(i_ele, a) / jac_a(i_ele, a);
+        val += N(a) * avg_n(i_ele, a) / avg_a(i_ele, a);
       }
-      com_mod.grInt(e, g, gr_smooth) = val;
+      com_mod.grInt(e, g, igr) = val;
     }
     i_ele++;
   }
@@ -497,12 +499,9 @@ void eval_gr_fd_global_phic(ComMod &com_mod, const mshType &lM,
 
   // Loop over all elements of mesh
   for (int e : elements) {
-    // Reset
+    // Evaluate solid equations (with smoothed internal G&R variables)
     ptr_row = 0;
     lR = 0.0;
-    lK = 0.0;
-
-    // Evaluate solid equations (with smoothed internal G&R variables)
     eval_gr(e, com_mod, lM, Dg, ptr_row, lR, lK_dummy, false);
 
     // Assemble into global residual
@@ -512,6 +511,7 @@ void eval_gr_fd_global_phic(ComMod &com_mod, const mshType &lM,
     }
 
     // Components of FD: central and difference
+    lK = 0.0;
     for (int a = 0; a < eNoN; ++a) {
       for (int i = 0; i < dof; ++i) {
         if (central) {
