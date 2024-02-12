@@ -52,6 +52,10 @@ void eval_gr_fd_global(ComMod &com_mod, const mshType &lM,
                        const Array<double> &Dg, const double eps = 0.0,
                        const int dAc = -1, const int di = -1);
 
+void eval_gr_fd_global_phic(ComMod &com_mod, const mshType &lM,
+                            const Array<double> &Dg, const double eps = 0.0,
+                            const int dAc = -1, const int di = -1);
+
 void eval_gr_fd_ele(const int &e, ComMod &com_mod, const mshType &lM,
                     Array<double> &Dg, Vector<int> &ptr, Array<double> &lR,
                     Array3<double> &lK);
@@ -122,7 +126,8 @@ void cc_to_voigt_carray(const double CC[N][N][N][N], double Dm[2 * N][2 * N]) {
 template <size_t N>
 void get_pk2cc(const ComMod &com_mod, const dmnType &lDmn, const double F[N][N],
                Vector<double> &gr_int, const Vector<double> &gr_props,
-               double S[N][N], double Dm[2 * N][2 * N], double &phic, const bool eval=true) {
+               double S[N][N], double Dm[2 * N][2 * N], double &phic,
+               const bool eval = true) {
   using namespace consts;
   using namespace mat_fun;
   using namespace utils;

@@ -168,12 +168,12 @@ void construct_gr_fd_global(ComMod &com_mod, const mshType &lM,
   Array3<double> lK(dof * dof, eNoN, eNoN);
 
   // Central evaluation
-  eval_gr_fd_global(com_mod, lM, Dg, 1.0 / eps);
+  eval_gr_fd_global_phic(com_mod, lM, Dg, 1.0 / eps);
 
   // Loop global nodes
   for (int Ac = 0; Ac < tnNo; ++Ac) {
     // Central evaluation
-    eval_gr_fd_global(com_mod, lM, Dg, 1.0 / eps, Ac);
+    eval_gr_fd_global_phic(com_mod, lM, Dg, 1.0 / eps, Ac);
 
     // Loop DOFs
     for (int i = 0; i < dof; ++i) {
@@ -181,7 +181,7 @@ void construct_gr_fd_global(ComMod &com_mod, const mshType &lM,
       e_Dg(i, Ac) += eps;
 
       // Perturbed evaluations
-      eval_gr_fd_global(com_mod, lM, e_Dg, 1.0 / eps, Ac, i);
+      eval_gr_fd_global_phic(com_mod, lM, e_Dg, 1.0 / eps, Ac, i);
 
       // Restore solution vectors
       e_Dg(i, Ac) = Dg(i, Ac);
@@ -318,6 +318,167 @@ void eval_gr_fd_global(ComMod &com_mod, const mshType &lM,
     }
     break;
   }
+  }
+
+  // Store internal G&R variables
+  if (residual) {
+    com_mod.grInt_orig = com_mod.grInt;
+  }
+
+  // Initialzie arrays for Finite Difference (FD)
+  Vector<int> ptr_row(eNoN);
+  Vector<int> ptr_col(1);
+  Array<double> lR(dof, eNoN);
+  Array3<double> lK(dof * dof, eNoN, 1);
+
+  // Assemble only the FD node
+  ptr_col = dAc;
+
+  // Loop over all elements of mesh
+  for (int e : elements) {
+    // Reset
+    ptr_row = 0;
+    lR = 0.0;
+    lK = 0.0;
+
+    // Evaluate solid equations (with smoothed internal G&R variables)
+    eval_gr(e, com_mod, lM, Dg, ptr_row, lR, lK_dummy, false);
+
+    // Assemble into global residual
+    if (residual) {
+      lhsa_ns::do_assem_residual(com_mod, lM.eNoN, ptr_row, lR);
+      continue;
+    }
+
+    // Components of FD: central and difference
+    for (int a = 0; a < eNoN; ++a) {
+      for (int i = 0; i < dof; ++i) {
+        if (central) {
+          for (int j = 0; j < dof; ++j) {
+            lK(i * dof + j, a, 0) = -lR(i, a) * eps;
+          }
+        } else {
+          lK(i * dof + dj, a, 0) = lR(i, a) * eps;
+        }
+      }
+    }
+
+    // Assemble into global tangent
+    lhsa_ns::do_assem_tangent(com_mod, lM.eNoN, 1, ptr_row, ptr_col, lK);
+  }
+
+  // Restore internal G&R variables
+  com_mod.grInt = com_mod.grInt_orig;
+}
+
+void eval_gr_fd_global_phic(ComMod &com_mod, const mshType &lM,
+                            const Array<double> &Dg, const double eps,
+                            const int dAc, const int dj) {
+  using namespace consts;
+
+  // Check if the residual should be assembled
+  const bool residual = (dAc == -1) && (dj == -1);
+
+  // Check if this is the central evaluation
+  const bool central = (dAc != -1) && (dj == -1);
+
+  // Get dimensions
+  const int eNoN = lM.eNoN;
+  const int dof = com_mod.dof;
+  const int nsd = com_mod.nsd;
+
+  // Get equation properties
+  int cEq = com_mod.cEq;
+  auto &eq = com_mod.eq[cEq];
+  int cDmn = com_mod.cDmn;
+  auto &dmn = eq.dmn[cDmn];
+
+  // Initialize residual and tangent
+  Vector<int> ptr_dummy(eNoN);
+  Array<double> lR_dummy(dof, eNoN);
+  Array3<double> lK_dummy(dof * dof, eNoN, eNoN);
+  ptr_dummy = 0;
+  lR_dummy = 0.0;
+  lK_dummy = 0.0;
+
+  // Select element set to evaluate
+  std::set<int> elements;
+  if (residual) {
+    // Residual evaluation: evaluate all elements
+    for (int i = 0; i < lM.nEl; ++i) {
+      elements.insert(i);
+    }
+  } else {
+    // Pick elements according to smoothing algorithm
+    elements = lM.map_node_ele[1].at(dAc);
+  }
+
+  // Index of collagen mass fraction
+  int gr_smooth = {37};
+
+  // Initialize arrays
+  const int n_ele = elements.size();
+  Vector<double> N(eNoN);
+  Array<double> jac_n(n_ele, eNoN), jac_a(n_ele, eNoN), Nx(nsd, eNoN);
+  int Ac;
+  int i_ele;
+  double w;
+  double val;
+  jac_n = 0.0;
+  jac_a = 0.0;
+
+  // Project: integration point -> nodes
+  i_ele = 0;
+  for (int e : elements) {
+    for (int g = 0; g < lM.nG; g++) {
+      // Shape function
+      w = lM.w(g);
+      N = lM.N.col(g);
+      Nx = lM.Nx.slice(g);
+
+      // Deformation gradient
+      double F[3][3] = {};
+      for (int i = 0; i < 3; i++) {
+        F[i][i] = 1.0;
+      }
+      for (int a = 0; a < eNoN; a++) {
+        int Ac = lM.IEN(a, e);
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            F[i][j] += Nx(j, a) * Dg(i, Ac);
+          }
+        }
+      }
+      double J = mat_fun_carray::mat_det<3>(F);
+
+      // Calculate collagen mass fraction
+      double Jo = com_mod.grInt(e, g, 0);
+      double phieo = 0.34;
+      double phimo = 0.5 * (1.0 - phieo);
+      double phico = 0.5 * (1.0 - phieo);
+      double phic = (1.0 - Jo / J * phieo) / (1.0 + phimo / phico);
+
+      // Average at Jacobian at nodes
+      for (int a = 0; a < eNoN; a++) {
+        jac_n(i_ele, a) += w * N(a) * phic;
+        jac_a(i_ele, a) += w * N(a);
+      }
+    }
+    i_ele++;
+  }
+
+  // Project: nodes -> integration points
+  i_ele = 0;
+  for (int e : elements) {
+    for (int g = 0; g < lM.nG; g++) {
+      N = lM.N.col(g);
+      val = 0.0;
+      for (int a = 0; a < eNoN; a++) {
+        val += N(a) * jac_n(i_ele, a) / jac_a(i_ele, a);
+      }
+      com_mod.grInt(e, g, gr_smooth) = val;
+    }
+    i_ele++;
   }
 
   // Store internal G&R variables
