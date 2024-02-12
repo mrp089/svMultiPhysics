@@ -563,6 +563,13 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 
 		const mat3ds Sx = Se + Sf + Sa;
 
+		svh = 1.0/3.0/J*Sx.dotdot(C);
+
+		p_gp = svh - svo/(1.0-delta)*(1.0+KsKi*(EPS*tau_ratio-1.0)-KfKi*inflam);
+		// const double p = grInt(30);
+		const double p = p_gp;
+		S = Sx - J * p * Ci;
+
 		// compute current stresses
 		sNm = smo;										// phim*smhato = phim*smo
 		sNc = sco;										// phic*schato = phic*sco
@@ -662,13 +669,6 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 
 		css = cess + cfss + cpnss;
 		tens4dmm css_ref = J*css.pp(F.inverse());
-
-		svh = 1.0/3.0/J*Sx.dotdot(C);
-
-		p_gp = svh - svo/(1.0-delta)*(1.0+KsKi*(EPS*tau_ratio-1.0)-KfKi*inflam);
-		// const double p = grInt(30);
-		const double p = p_gp;
-		S = Sx - J * p * Ci;
 
 		css += 1.0/3.0*(2.0*sx.tr()*IoIss-2.0*Ixsx-ddot(IxIss,css));
 		css += svo/(1.0-delta)*(1.0+KsKi*(EPS*tau_ratio-1.0)-KfKi*inflam)*(IxIss-2.0*IoIss);
@@ -857,33 +857,6 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 		// 		grInt(k] = Fih(i,j);
 		// 		k++;
 		// 	}
-	}
-}
-
-// Call with variable size arrays
-void stress_tangent_(const Array<double>& Fe, const double time, const Vector<double>& eVWP, Vector<double>& grInt, Array<double>& S_out, Tensor4<double>& CC_out, double& phic)
-{
-	double F3[3][3];
-	double S3[3][3];
-	double CC3[3][3][3][3];
-
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 3; j++) {
-			F3[i][j] = Fe(i,j);
-		}
-	}
-
-	stress_tangent_(F3, time, eVWP, grInt, S3, CC3, phic);
-
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 3; j++) {
-			S_out(i,j) = S3[i][j];
-			for (int k = 0; k < 3; k++) {
-				for (int l = 0; l < 3; l++) {
-					CC_out(i,j,k,l) = CC3[i][j][k][l];
-				}
-			}
-		}
 	}
 }
 }
