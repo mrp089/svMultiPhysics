@@ -369,8 +369,12 @@ void global_eq_assem(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshT
     break;
 
     case EquationType::phys_gr:
-      gr::construct_gr(com_mod, lM, Dg, false);
-      // gr::construct_gr_fd_global(com_mod, lM, Dg);
+      if (com_mod.time <= 1.0) {
+        gr::construct_gr(com_mod, lM, Dg, false);
+      }
+      else {
+        gr::construct_gr_fd_global(com_mod, lM, Dg);
+      }
     break;
 
     case EquationType::phys_ustruct:
