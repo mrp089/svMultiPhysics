@@ -472,6 +472,9 @@ void face_ini(Simulation* simulation, mshType& lM, faceType& lFa)
   lFa.nV.resize(nsd,lFa.nNo); 
   Array<double> sV(nsd,com_mod.tnNo);
 
+  // Compute face normals at elements
+  lFa.eV.resize(nsd,lFa.nEl);
+
   bool flag = false;
 
   if (std::set<ElementType>{ElementType::TRI6,ElementType::QUD8,ElementType::QUD9,
@@ -504,6 +507,10 @@ void face_ini(Simulation* simulation, mshType& lM, faceType& lFa)
             sV(i,Ac) = sV(i,Ac) + nV(i)*lFa.N(a,g)*lFa.w(g);
           }
         }
+      }
+      // Store element normal
+      for (int i = 0; i < sV.nrows(); i++) {
+        lFa.eV(i,e) = nV(i) / sqrt(utils::norm(nV));
       }
     }
 

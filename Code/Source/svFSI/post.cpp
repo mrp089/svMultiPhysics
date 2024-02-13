@@ -202,7 +202,9 @@ void bpost(Simulation* simulation, const mshType& lM, Array<double>& res, const 
 
   Vector<double> pl(fsP.eNoN);
 
-  for (int iFa = 0; iFa < lM.nFa; iFa++) {
+  // for (int iFa = 0; iFa < lM.nFa; iFa++) {
+  const int iFa = 0;
+  {
     auto& fa = lM.fa[iFa];
 
     for (int e = 0; e < fa.nEl; e++) {
@@ -226,7 +228,8 @@ void bpost(Simulation* simulation, const mshType& lM, Array<double>& res, const 
         int Ac = lM.IEN(a,Ec);
 
         for (int i = 0; i < nsd; i++) {
-          lnV(i,a) = gnV(i,Ac);
+          // lnV(i,a) = gnV(i,Ac)
+          lnV(i,a) = fa.eV(i,e);;
           nV(i) = nV(i) + lnV(i,a);
           xl(i,a) = com_mod.x(i,Ac);
 
