@@ -233,13 +233,12 @@ void eval_gr_fd_global(ComMod &com_mod, const mshType &lM,
     eval_gr(e, com_mod, lM, Dg, ptr_dummy, lR_dummy, lK_dummy, false, false);
   }
 
-  // Index of Lagrange multiplier
-  std::vector<int> gr_variables = {37};
+  // Index of collagen mass fraction multiplier
+  const int igr = 37;
 
   // Initialize arrays
-  // todo: this could be of size elements.size() * lM.eNoN
-  Array<double> grInt_a(lM.gnNo, com_mod.nGrInt);
-  Array<double> grInt_n(lM.gnNo, com_mod.nGrInt);
+  Vector<double> grInt_a(lM.gnNo);
+  Vector<double> grInt_n(lM.gnNo);
   grInt_a = 0.0;
   grInt_n = 0.0;
 
@@ -253,30 +252,26 @@ void eval_gr_fd_global(ComMod &com_mod, const mshType &lM,
     w = lM.w(g);
     N = lM.N.col(g);
     for (int e : elements) {
-      for (int igr : gr_variables) {
-        val = com_mod.grInt(e, g, igr);
-        for (int a = 0; a < lM.eNoN; a++) {
-          Ac = lM.IEN(a, e);
-          // todo: add jacobian
-          grInt_n(Ac, igr) += w * N(a) * val;
-          grInt_a(Ac, igr) += w * N(a);
-        }
+      val = com_mod.grInt(e, g, igr);
+      for (int a = 0; a < lM.eNoN; a++) {
+        Ac = lM.IEN(a, e);
+        // todo: add jacobian
+        grInt_n(Ac) += w * N(a) * val;
+        grInt_a(Ac) += w * N(a);
       }
     }
   }
 
   // Project: nodes -> integration points
-  for (int igr : gr_variables) {
-    for (int e : elements) {
-      for (int g = 0; g < lM.nG; g++) {
-        N = lM.N.col(g);
-        val = 0.0;
-        for (int a = 0; a < lM.eNoN; a++) {
-          Ac = lM.IEN(a, e);
-          val += N(a) * grInt_n(Ac, igr) / grInt_a(Ac, igr);
-        }
-        com_mod.grInt(e, g, igr) = val;
+  for (int e : elements) {
+    for (int g = 0; g < lM.nG; g++) {
+      N = lM.N.col(g);
+      val = 0.0;
+      for (int a = 0; a < lM.eNoN; a++) {
+        Ac = lM.IEN(a, e);
+        val += N(a) * grInt_n(Ac) / grInt_a(Ac);
       }
+      com_mod.grInt(e, g, igr) = val;
     }
   }
 
