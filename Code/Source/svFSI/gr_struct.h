@@ -62,13 +62,15 @@ void eval_gr_fd_ele(const int &e, ComMod &com_mod, const mshType &lM,
 
 void eval_gr(const int &e, ComMod &com_mod, const mshType &lM,
              const Array<double> &Dg, Vector<int> &ptr, Array<double> &lR,
-             Array3<double> &lK, const bool eval = true);
+             Array3<double> &lK, const bool eval_s = true,
+             const bool eval_cc = true);
 
 void struct_3d_carray(ComMod &com_mod, const int eNoN, const double w,
                       const Vector<double> &N, const Array<double> &Nx,
                       const Array<double> &dl, Vector<double> &gr_int_g,
                       Array<double> &gr_props_l, Array<double> &lR,
-                      Array3<double> &lK, const bool eval);
+                      Array3<double> &lK, const bool eval_s = true,
+                      const bool eval_cc = true);
 
 template <size_t N>
 void cc_to_voigt_carray(const double CC[N][N][N][N], double Dm[2 * N][2 * N]) {
@@ -127,7 +129,7 @@ template <size_t N>
 void get_pk2cc(const ComMod &com_mod, const dmnType &lDmn, const double F[N][N],
                Vector<double> &gr_int, const Vector<double> &gr_props,
                double S[N][N], double Dm[2 * N][2 * N], double &phic,
-               const bool eval = true) {
+               const bool eval_s = true, const bool eval_cc = true) {
   using namespace consts;
   using namespace mat_fun;
   using namespace utils;
@@ -140,7 +142,7 @@ void get_pk2cc(const ComMod &com_mod, const dmnType &lDmn, const double F[N][N],
   switch (stM.isoType) {
   case ConstitutiveModelType::GR_equi: {
     gr_equilibrated_ns::stress_tangent_(F, com_mod.time, gr_props, gr_int, S,
-                                        CC, phic, eval);
+                                        CC, phic, eval_s, eval_cc);
   } break;
 
   default:

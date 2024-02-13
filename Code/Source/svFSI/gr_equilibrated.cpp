@@ -38,7 +38,7 @@ namespace gr_equilibrated_ns {
 void stress_tangent_(const double Fe[3][3], const double time,
                      const Vector<double> &eVWP, Vector<double> &grInt,
                      double S_out[3][3], double CC_out[3][3][3][3],
-                     double &unused, bool eval) {
+                     double &unused, const bool eval_s, const bool eval_cc) {
   // convert deformation gradient to FEBio format
   mat3d F(Fe[0][0], Fe[0][1], Fe[0][2], Fe[1][0], Fe[1][1], Fe[1][2], Fe[2][0],
           Fe[2][1], Fe[2][2]);
@@ -142,7 +142,7 @@ void stress_tangent_(const double Fe[3][3], const double time,
   // pointwise, consistent with mesh generated with Matlab script
   // <NodesElementsAsy.m>
   //	const vec3d   n2(0.0,
-  //imper/100.0*rIo*hwaves*M_PI/lo*cos(hwaves*M_PI*X.z/lo), 1.0);
+  // imper/100.0*rIo*hwaves*M_PI/lo*cos(hwaves*M_PI*X.z/lo), 1.0);
   const vec3d n2(curve * M_PI / lo * sin(2.0 * M_PI * X.z / lo), 0.0, 1.0);
   const vec3d n1(-NX.y, NX.x, NX.z);
   N[2] = n2;
@@ -486,7 +486,7 @@ void stress_tangent_(const double Fe[3][3], const double time,
     S = Sx - p * Ci;
 
     // compute tangent
-    if (eval) {
+    if (eval_cc) {
       const mat3ds tent = dyad(F * N[1]);
       const mat3ds tenz = dyad(F * N[2]);
       const mat3ds tenp = dyad(F * Np);
@@ -542,15 +542,15 @@ void stress_tangent_(const double Fe[3][3], const double time,
       Rphi = phieo + phimo * pow(J / Jo * phic / phico, eta) + J / Jo * phic -
              J / Jo;                 // update residue
     } while (abs(Rphi) > sqrt(eps)); // && abs(Rphi/Rphi0) > sqrt(eps) && j<10
-    phic_gp =
-        phic -
-        Rphi /
-            dRdc; // converge phase -> phic (updated in material point memory)
+
+    // converge phase -> phic (updated in material point memory)
+    phic_gp = phic - Rphi / dRdc;
     phic = grInt(37);
 
-    const double phim = phimo / (J / Jo) *
-                        pow(J / Jo * phic / phico,
-                            eta); // phim from <J*phim/phimo=(J*phic/phico)^eta>
+	if(!eval_s && !eval_cc) break;
+
+    // phim from <J*phim/phimo=(J*phic/phico)^eta>
+    const double phim = phimo / (J / Jo) * pow(J / Jo * phic / phico, eta);
 
     // assume eta = 1
     const double phic0 = (1.0 - Jo / J * phieo) / (1.0 + phimo / phico);
@@ -560,10 +560,10 @@ void stress_tangent_(const double Fe[3][3], const double time,
     // remodeled natural configurations)
     const double lto = (Fio.inverse() * N[1]).norm();
     const double lzo = (Fio.inverse() * N[2]).norm();
-    const double lpo =
-        (Fio.inverse() * Np).norm(); // original referential stretch for
-                                     // deposition stretch calculation
-    const double lno = (Fio.inverse() * Nn).norm(); // idem for symmetric
+    // original referential stretch for deposition stretch calculation
+    const double lpo = (Fio.inverse() * Np).norm();
+    // idem for symmetric
+    const double lno = (Fio.inverse() * Nn).norm();
 
     const double lmt2 = (Gm * lto) * (Gm * lto);
     const double lct2 = (Gc * lto) * (Gc * lto);
@@ -649,7 +649,7 @@ void stress_tangent_(const double Fe[3][3], const double time,
     S = Sx - J * p * Ci;
 
     // compute current stresses
-    if (eval) {
+    if (eval_cc) {
       sNm = smo; // phim*smhato = phim*smo
       sNc = sco; // phic*schato = phic*sco
 
@@ -856,7 +856,7 @@ void stress_tangent_(const double Fe[3][3], const double time,
     S = Sx + Ci * lm * log(Jdep * J / Jh);
 
     // compute tangent
-    if (eval) {
+    if (eval_cc) {
       mat3ds tent = dyad(F * (Uh.inverse() * (Uo * N[1])));
       mat3ds tenz = dyad(F * (Uh.inverse() * (Uo * N[2])));
       mat3ds tenp = dyad(F * (Uh.inverse() * (Uo * Np)));
@@ -894,21 +894,19 @@ void stress_tangent_(const double Fe[3][3], const double time,
   }
   }
 
-  // pull back to reference configuration
-  tens4dmm css_ref = J * css.pp(F.inverse());
+  if (eval_s) {
+    for (int i = 0; i < 3; i++)
+      for (int j = 0; j < 3; j++) {
+        S_out[i][j] = S(i, j);
+        if (std::isnan(S(i, j)))
+          std::terminate();
+      }
+  }
 
-  // convert to vector for FORTRAN
-  typedef double(*ten_2nd)[3];
-  typedef double(*ten_4th)[3][3][3];
+  if (eval_cc) {
+    // pull back to reference configuration
+    tens4dmm css_ref = J * css.pp(F.inverse());
 
-  for (int i = 0; i < 3; i++)
-    for (int j = 0; j < 3; j++) {
-      S_out[i][j] = S(i, j);
-      if (std::isnan(S(i, j)))
-        std::terminate();
-    }
-
-  if (eval) {
     for (int i = 0; i < 3; i++)
       for (int j = 0; j < 3; j++)
         for (int k = 0; k < 3; k++)

@@ -82,7 +82,11 @@ void construct_gr(ComMod &com_mod, const mshType &lM, const Array<double> &Dg,
     if (eval_fd) {
       eval_gr_fd_ele(e, com_mod, lM, e_Dg, ptr, lR, lK);
     } else {
-      eval_gr(e, com_mod, lM, Dg, ptr, lR, lK, true);
+      // Update G&R internal variables
+      eval_gr(e, com_mod, lM, Dg, ptr, lR, lK, false, false);
+
+      // Compute stress and tangent
+      eval_gr(e, com_mod, lM, Dg, ptr, lR, lK, true, true);
     }
 
     // Assemble into global residual and tangent
@@ -116,7 +120,7 @@ void eval_gr_fd_ele(const int &e, ComMod &com_mod, const mshType &lM,
   lK_dummy = 0.0;
 
   // Central evaluation
-  eval_gr(e, com_mod, lM, Dg, ptr, lR, lK_dummy, false);
+  eval_gr(e, com_mod, lM, Dg, ptr, lR, lK_dummy, true, false);
 
   // Finite differences
   for (int i = 0; i < dof; ++i) {
@@ -131,7 +135,7 @@ void eval_gr_fd_ele(const int &e, ComMod &com_mod, const mshType &lM,
 
       // Displacement
       lRp = 0.0;
-      eval_gr(e, com_mod, lM, Dg, ptr, lRp, lK_dummy, false);
+      eval_gr(e, com_mod, lM, Dg, ptr, lRp, lK_dummy, true, false);
       dlR += (lRp - lR) / eps;
 
       // Restore
@@ -241,9 +245,9 @@ void eval_gr_fd_global(ComMod &com_mod, const mshType &lM,
     }
   }
 
-  // Update internal G&R variables without assembly
+  // Update internal G&R variables without evaluating stress or tangent
   for (int e : elements) {
-    eval_gr(e, com_mod, lM, Dg, ptr_dummy, lR_dummy, lK_dummy, false);
+    eval_gr(e, com_mod, lM, Dg, ptr_dummy, lR_dummy, lK_dummy, false, false);
   }
 
   // Index of Lagrange multiplier
@@ -342,7 +346,7 @@ void eval_gr_fd_global(ComMod &com_mod, const mshType &lM,
     lK = 0.0;
 
     // Evaluate solid equations (with smoothed internal G&R variables)
-    eval_gr(e, com_mod, lM, Dg, ptr_row, lR, lK_dummy, false);
+    eval_gr(e, com_mod, lM, Dg, ptr_row, lR, lK_dummy, true, false);
 
     // Assemble into global residual
     if (residual) {
@@ -535,7 +539,7 @@ void eval_gr_fd_global_phic(ComMod &com_mod, const mshType &lM,
 /// @brief
 void eval_gr(const int &e, ComMod &com_mod, const mshType &lM,
              const Array<double> &Dg, Vector<int> &ptr, Array<double> &lR,
-             Array3<double> &lK, const bool eval) {
+             Array3<double> &lK, const bool eval_s, const bool eval_cc) {
   using namespace consts;
 
   const int nsd = com_mod.nsd;
@@ -596,7 +600,7 @@ void eval_gr(const int &e, ComMod &com_mod, const mshType &lM,
     }
 
     struct_3d_carray(com_mod, eNoN, w, N, Nx, dl, gr_int_g, gr_props_l, lR, lK,
-                     eval);
+                     eval_s, eval_cc);
 
     // Set internal growth and remodeling variables
     if (com_mod.grEq) {
@@ -612,7 +616,8 @@ void struct_3d_carray(ComMod &com_mod, const int eNoN, const double w,
                       const Vector<double> &N, const Array<double> &Nx,
                       const Array<double> &dl, Vector<double> &gr_int_g,
                       Array<double> &gr_props_l, Array<double> &lR,
-                      Array3<double> &lK, const bool eval) {
+                      Array3<double> &lK, const bool eval_s,
+                      const bool eval_cc) {
   using namespace consts;
   using namespace mat_fun;
 
@@ -662,7 +667,12 @@ void struct_3d_carray(ComMod &com_mod, const int eNoN, const double w,
   double S[3][3];
   double Dm[6][6];
   double phic;
-  get_pk2cc<3>(com_mod, dmn, F, gr_int_g, gr_props_g, S, Dm, phic, eval);
+  get_pk2cc<3>(com_mod, dmn, F, gr_int_g, gr_props_g, S, Dm, phic, eval_s,
+               eval_cc);
+
+  if (!eval_s && !eval_cc) {
+    return;
+  }
 
   // 1st Piola-Kirchhoff tensor (P)
   double P[3][3];
@@ -678,7 +688,7 @@ void struct_3d_carray(ComMod &com_mod, const int eNoN, const double w,
   }
 
   // Skip evaluation if tangent not required
-  if (!eval) {
+  if (!eval_cc) {
     return;
   }
 
