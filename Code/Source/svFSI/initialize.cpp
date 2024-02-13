@@ -162,6 +162,7 @@ void init_from_bin(Simulation* simulation, const std::string& fName, std::array<
           bin_file.read((char*)cem.Ya.data(), cem.Ya.msize());
         } else {
           //READ(fid,REC=cm.tF()) tStamp, cTS, time, timeP(1), eq.iNorm, cplBC.xo, Yo, Ao, Do
+          bin_file.read((char*)Do.data(), Do.msize());
         }
       }
 
@@ -196,6 +197,11 @@ void init_from_bin(Simulation* simulation, const std::string& fName, std::array<
       com_mod.ib.Ubn = com_mod.ib.Ubo;
     }
     */
+  }
+
+  if (com_mod.grEq) {
+    auto& grInt = com_mod.grInt;
+    bin_file.read((char*)grInt.data(), grInt.msize());
   }
 
   bin_file.close();

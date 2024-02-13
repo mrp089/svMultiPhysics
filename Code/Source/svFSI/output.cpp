@@ -333,6 +333,11 @@ void write_restart(Simulation* simulation, std::array<double,3>& timeP)
     }
   }
 
+  if (com_mod.grEq) {
+    auto& grInt = com_mod.grInt;
+    restart_file.write((char*)grInt.data(), grInt.msize());
+  }
+
   restart_file.close();
 
   // Create a soft link to the bin file for the last time step.
