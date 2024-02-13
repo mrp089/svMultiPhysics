@@ -34,7 +34,7 @@
 namespace gr_equilibrated_ns {
 
 // Call with fixed-size arrays (more efficient)
-void stress_tangent_(const double Fe[3][3], const double time, const Vector<double>& eVWP, Vector<double>& grInt, double S_out[3][3], double CC_out[3][3][3][3], double& unused, const bool eval)
+void stress_tangent_(const double Fe[3][3], const double time, const Vector<double>& eVWP, Vector<double>& grInt, double S_out[3][3], double CC_out[3][3][3][3], double& unused, bool eval)
 {
 	// convert deformation gradient to FEBio format
 	mat3d F(Fe[0][0], Fe[0][1], Fe[0][2], Fe[1][0], Fe[1][1], Fe[1][2], Fe[2][0], Fe[2][1], Fe[2][2]);
@@ -361,10 +361,9 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 	double   Jh;
 	double  svo;
 	// double  svh;
-	double phic = grInt(37);
-	double phic_gp = phico;
+	double phic = phico;
+	double phic_gp;
 	double phich;
-	double phim;
 	double tauo;
 	double tauh;
 	double po;
@@ -496,10 +495,23 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 	}
 	case gr:
 	{
-		// Simplified version, assuming eta == 1.0
-		assert(std::abs(eta - 1.0) < eps);
-		phic_gp = (1.0 - Jo/J * phieo) / (1.0 + phimo / phico);
-		phim = (1.0 - Jo/J * phieo) / (1.0 + phico / phimo);
+		// compute stress
+		phic = phico;																// initial guess
+		double dRdc = J/Jo*(1.0+phimo/phico*eta*pow(J/Jo*phic/phico,eta-1.0));		// initial tangent d(R)/d(phic)
+		double Rphi = phieo+phimo*pow(J/Jo*phic/phico,eta)+J/Jo*phic-J/Jo;			// initial residue
+		do {																		// local iterations to obtain phic
+			phic = phic-Rphi/dRdc;													// phic
+			dRdc = J/Jo*(1.0+phimo/phico*eta*pow(J/Jo*phic/phico,eta-1.0));			// tangent
+			Rphi = phieo+phimo*pow(J/Jo*phic/phico,eta)+J/Jo*phic-J/Jo;				// update residue
+		} while (abs(Rphi) > sqrt(eps));											// && abs(Rphi/Rphi0) > sqrt(eps) && j<10
+		phic_gp = phic-Rphi/dRdc;														// converge phase -> phic (updated in material point memory)
+		phic = grInt(37);
+
+		const double phim = phimo/(J/Jo)*pow(J/Jo*phic/phico,eta);	// phim from <J*phim/phimo=(J*phic/phico)^eta>
+
+		// assume eta = 1
+		const double phic0 = (1.0 - Jo/J * phieo) / (1.0 + phimo / phico);
+		const double phim0 = (1.0 - Jo/J * phieo) / (1.0 + phico / phimo);
 
 		// recompute remodeled original stresses for smc and collagen (from remodeled natural configurations)
 		const double lto = (Fio.inverse()*N[1]).norm();
@@ -824,7 +836,7 @@ void stress_tangent_(const double Fe[3][3], const double time, const Vector<doub
 		grInt(k + 6)  = grInt(k + 1) / grInt(1) - 1.0; // delta sigma
 		grInt(k + 7)  = KsKi; // kski = delta sigma / deltau tau
 		grInt(k + 8)  = grInt(k + 6) - KsKi * grInt(k + 5); // ups -> 0
-		grInt(k + 11) = phic_gp;
+		grInt(k + 11) = phic;
 	}
 	// store g&r state
 	if (mode == gr)
