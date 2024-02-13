@@ -1,5 +1,6 @@
 /**
- * Copyright (c) Stanford University, The Regents of the University of California, and others.
+ * Copyright (c) Stanford University, The Regents of the University of
+ * California, and others.
  *
  * All Rights Reserved.
  *
@@ -30,29 +31,34 @@
  */
 
 #include "stdafx.h"
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <limits>
-#define _USE_MATH_DEFINES						// to introduce pi constant (1/2)
-#include <math.h>								// to introduce pi constant (2/2)
+
+#define _USE_MATH_DEFINES // to introduce pi constant (1/2)
+#include <cassert>
 #include <cmath>
 #include <mat3d.h>
-#include <vec2d.h>
-#include <vec3d.h>
+#include <math.h> // to introduce pi constant (2/2)
+#include <stdafx.h>
 #include <tens3d.h>
 #include <tens4d.h>
-#include <stdafx.h>
-#include <cassert>
+#include <vec2d.h>
+#include <vec3d.h>
+
 
 #include "Array.h"
 #include "Tensor4.h"
 
 #ifndef GR_EQUILIBRATED
-#define GR_EQUILIBRATED 
+#define GR_EQUILIBRATED
 
 namespace gr_equilibrated_ns {
 
-void stress_tangent_(const double Fe[3][3], const double time, const Vector<double>& eVWP, Vector<double>& grInt, double S_out[3][3], double CC_out[3][3][3][3], double& unused, const bool eval = true);
+void stress_tangent_(const double Fe[3][3], const double time,
+                     const Vector<double> &eVWP, Vector<double> &grInt,
+                     double S_out[3][3], double CC_out[3][3][3][3],
+                     double &unused, const bool eval = true);
 
 };
 
