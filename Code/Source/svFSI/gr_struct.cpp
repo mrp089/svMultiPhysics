@@ -216,33 +216,16 @@ void eval_gr_fd_global(ComMod &com_mod, const mshType &lM,
   lR_dummy = 0.0;
   lK_dummy = 0.0;
 
-  // Smooth internal G&R variables
-  enum Smoothing { none, element, elementnode };
-  Smoothing smooth = elementnode;
-
   // Select element set to evaluate
   std::set<int> elements;
-
-  // Residual evaluation: evaluate all elements
   if (residual) {
+    // Residual evaluation: evaluate all elements
     for (int i = 0; i < lM.nEl; ++i) {
       elements.insert(i);
     }
-  }
-
-  // Pick elements according to smoothing algorithm
-  else {
-    switch (smooth) {
-    case none:
-    case element: {
-      elements = lM.map_node_ele[0].at(dAc);
-      break;
-    }
-    case elementnode: {
-      elements = lM.map_node_ele[1].at(dAc);
-      break;
-    }
-    }
+  } else {
+    // Pick elements according to smoothing algorithm
+    elements = lM.map_node_ele[1].at(dAc);
   }
 
   // Update internal G&R variables without evaluating stress or tangent
@@ -253,75 +236,48 @@ void eval_gr_fd_global(ComMod &com_mod, const mshType &lM,
   // Index of Lagrange multiplier
   std::vector<int> gr_variables = {37};
 
-  switch (smooth) {
-  // No smoothing
-  case none: {
-    break;
-  }
+  // Initialize arrays
+  // todo: this could be of size elements.size() * lM.eNoN
+  Array<double> grInt_a(lM.gnNo, com_mod.nGrInt);
+  Array<double> grInt_n(lM.gnNo, com_mod.nGrInt);
+  grInt_a = 0.0;
+  grInt_n = 0.0;
 
-  // Average over Gauss points in element
-  case element: {
-    for (int igr : gr_variables) {
-      for (int e : elements) {
-        double avg = 0.0;
-        for (int g = 0; g < lM.nG; g++) {
-          avg += com_mod.grInt(e, g, igr);
-        }
-        avg /= lM.nG;
-        for (int g = 0; g < lM.nG; g++) {
-          com_mod.grInt(e, g, igr) = avg;
-        }
-      }
-    }
-    break;
-  }
+  int Ac;
+  double w;
+  double val;
+  Vector<double> N(lM.eNoN);
 
-  case elementnode: {
-    // Initialize arrays
-    // todo: this could be of size elements.size() * lM.eNoN
-    Array<double> grInt_a(lM.gnNo, com_mod.nGrInt);
-    Array<double> grInt_n(lM.gnNo, com_mod.nGrInt);
-    grInt_a = 0.0;
-    grInt_n = 0.0;
-
-    int Ac;
-    double w;
-    double val;
-    Vector<double> N(lM.eNoN);
-
-    // Project: integration point -> nodes
-    for (int g = 0; g < lM.nG; g++) {
-      w = lM.w(g);
-      N = lM.N.col(g);
-      for (int e : elements) {
-        for (int igr : gr_variables) {
-          val = com_mod.grInt(e, g, igr);
-          for (int a = 0; a < lM.eNoN; a++) {
-            Ac = lM.IEN(a, e);
-            // todo: add jacobian
-            grInt_n(Ac, igr) += w * N(a) * val;
-            grInt_a(Ac, igr) += w * N(a);
-          }
+  // Project: integration point -> nodes
+  for (int g = 0; g < lM.nG; g++) {
+    w = lM.w(g);
+    N = lM.N.col(g);
+    for (int e : elements) {
+      for (int igr : gr_variables) {
+        val = com_mod.grInt(e, g, igr);
+        for (int a = 0; a < lM.eNoN; a++) {
+          Ac = lM.IEN(a, e);
+          // todo: add jacobian
+          grInt_n(Ac, igr) += w * N(a) * val;
+          grInt_a(Ac, igr) += w * N(a);
         }
       }
     }
+  }
 
-    // Project: nodes -> integration points
-    for (int igr : gr_variables) {
-      for (int e : elements) {
-        for (int g = 0; g < lM.nG; g++) {
-          N = lM.N.col(g);
-          val = 0.0;
-          for (int a = 0; a < lM.eNoN; a++) {
-            Ac = lM.IEN(a, e);
-            val += N(a) * grInt_n(Ac, igr) / grInt_a(Ac, igr);
-          }
-          com_mod.grInt(e, g, igr) = val;
+  // Project: nodes -> integration points
+  for (int igr : gr_variables) {
+    for (int e : elements) {
+      for (int g = 0; g < lM.nG; g++) {
+        N = lM.N.col(g);
+        val = 0.0;
+        for (int a = 0; a < lM.eNoN; a++) {
+          Ac = lM.IEN(a, e);
+          val += N(a) * grInt_n(Ac, igr) / grInt_a(Ac, igr);
         }
+        com_mod.grInt(e, g, igr) = val;
       }
     }
-    break;
-  }
   }
 
   // Store internal G&R variables
@@ -355,167 +311,6 @@ void eval_gr_fd_global(ComMod &com_mod, const mshType &lM,
     }
 
     // Components of FD: central and difference
-    for (int a = 0; a < eNoN; ++a) {
-      for (int i = 0; i < dof; ++i) {
-        if (central) {
-          for (int j = 0; j < dof; ++j) {
-            lK(i * dof + j, a, 0) = -lR(i, a) * eps;
-          }
-        } else {
-          lK(i * dof + dj, a, 0) = lR(i, a) * eps;
-        }
-      }
-    }
-
-    // Assemble into global tangent
-    lhsa_ns::do_assem_tangent(com_mod, lM.eNoN, 1, ptr_row, ptr_col, lK);
-  }
-
-  // Restore internal G&R variables
-  com_mod.grInt = com_mod.grInt_orig;
-}
-
-void eval_gr_fd_global_phic(ComMod &com_mod, const mshType &lM,
-                            const Array<double> &Dg, const double eps,
-                            const int dAc, const int dj) {
-  using namespace consts;
-
-  // Check if the residual should be assembled
-  const bool residual = (dAc == -1) && (dj == -1);
-
-  // Check if this is the central evaluation
-  const bool central = (dAc != -1) && (dj == -1);
-
-  // Get dimensions
-  const int eNoN = lM.eNoN;
-  const int dof = com_mod.dof;
-  const int nsd = com_mod.nsd;
-
-  // Get equation properties
-  int cEq = com_mod.cEq;
-  auto &eq = com_mod.eq[cEq];
-  int cDmn = com_mod.cDmn;
-  auto &dmn = eq.dmn[cDmn];
-
-  // Initialize residual and tangent
-  Vector<int> ptr_dummy(eNoN);
-  Array<double> lR_dummy(dof, eNoN);
-  Array3<double> lK_dummy(dof * dof, eNoN, eNoN);
-  ptr_dummy = 0;
-  lR_dummy = 0.0;
-  lK_dummy = 0.0;
-
-  // Select element set to evaluate
-  std::set<int> elements;
-  if (residual) {
-    // Residual evaluation: evaluate all elements
-    for (int i = 0; i < lM.nEl; ++i) {
-      elements.insert(i);
-    }
-  } else {
-    // Pick elements according to smoothing algorithm
-    elements = lM.map_node_ele[1].at(dAc);
-  }
-
-  // Index of collagen mass fraction
-  const int igr = 37;
-
-  // Initialize arrays
-  const int n_ele = elements.size();
-  Vector<double> N(eNoN);
-  Array<double> avg_n(n_ele, eNoN), avg_a(n_ele, eNoN), Nx(nsd, eNoN);
-  int Ac;
-  int i_ele;
-  double w;
-  double val;
-  avg_n = 0.0;
-  avg_a = 0.0;
-
-  // G&R parameters
-  const double phieo = 0.34;
-  const double phimo = 0.5 * (1.0 - phieo);
-  const double phico = 0.5 * (1.0 - phieo);
-
-  // Project: integration point -> nodes
-  i_ele = 0;
-  for (int g = 0; g < lM.nG; g++) {
-    // Shape function
-    w = lM.w(g);
-    N = lM.N.col(g);
-    Nx = lM.Nx.slice(g);
-
-    for (int e : elements) {
-      // Deformation gradient
-      double F[3][3] = {};
-      for (int i = 0; i < 3; i++) {
-        F[i][i] = 1.0;
-      }
-      for (int a = 0; a < eNoN; a++) {
-        int Ac = lM.IEN(a, e);
-        for (int i = 0; i < 3; i++) {
-          for (int j = 0; j < 3; j++) {
-            F[i][j] += Nx(j, a) * Dg(i, Ac);
-          }
-        }
-      }
-      double J = mat_fun_carray::mat_det<3>(F);
-
-      // Calculate collagen mass fraction
-      double Jo = com_mod.grInt(e, g, 0);
-      double phic = (1.0 - Jo / J * phieo) / (1.0 + phimo / phico);
-
-      // Average at Jacobian at nodes
-      for (int a = 0; a < eNoN; a++) {
-        avg_n(i_ele, a) += w * N(a) * phic;
-        avg_a(i_ele, a) += w * N(a);
-      }
-    }
-    i_ele++;
-  }
-
-  // Project: nodes -> integration points
-  i_ele = 0;
-  for (int e : elements) {
-    for (int g = 0; g < lM.nG; g++) {
-      N = lM.N.col(g);
-      val = 0.0;
-      for (int a = 0; a < eNoN; a++) {
-        val += N(a) * avg_n(i_ele, a) / avg_a(i_ele, a);
-      }
-      com_mod.grInt(e, g, igr) = val;
-    }
-    i_ele++;
-  }
-
-  // Store internal G&R variables
-  if (residual) {
-    com_mod.grInt_orig = com_mod.grInt;
-  }
-
-  // Initialzie arrays for Finite Difference (FD)
-  Vector<int> ptr_row(eNoN);
-  Vector<int> ptr_col(1);
-  Array<double> lR(dof, eNoN);
-  Array3<double> lK(dof * dof, eNoN, 1);
-
-  // Assemble only the FD node
-  ptr_col = dAc;
-
-  // Loop over all elements of mesh
-  for (int e : elements) {
-    // Evaluate solid equations (with smoothed internal G&R variables)
-    ptr_row = 0;
-    lR = 0.0;
-    eval_gr(e, com_mod, lM, Dg, ptr_row, lR, lK_dummy, false);
-
-    // Assemble into global residual
-    if (residual) {
-      lhsa_ns::do_assem_residual(com_mod, lM.eNoN, ptr_row, lR);
-      continue;
-    }
-
-    // Components of FD: central and difference
-    lK = 0.0;
     for (int a = 0; a < eNoN; ++a) {
       for (int i = 0; i < dof; ++i) {
         if (central) {
