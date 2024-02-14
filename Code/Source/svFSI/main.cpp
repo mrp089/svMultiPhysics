@@ -143,6 +143,12 @@ void iterate_solution(Simulation* simulation)
     dt = dt / 10.0;
   }
 
+  // Do at least these many time steps, even if larger than nTS
+  int newTS = com_mod.newTS;
+  int minTS = cTS + newTS;
+  nTS = std::max(nTS, minTS);
+  stopTS = nTS;
+
   double& time = com_mod.time;
   auto& cEq = com_mod.cEq;
 

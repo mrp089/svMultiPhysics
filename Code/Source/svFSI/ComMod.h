@@ -1448,6 +1448,9 @@ class ComMod {
     /// @brief Number of time steps
     int nTS = 0;
 
+    /// @brief Number of new time steps
+    int newTS = 0;
+
     /// @brief Number of initialization time steps
     int nITs = 0;
 

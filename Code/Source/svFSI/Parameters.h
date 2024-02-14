@@ -1231,6 +1231,7 @@ class GeneralSimulationParameters : public ParameterLists
     Parameter<int> start_saving_after_time_step;
     Parameter<int> starting_time_step;
     Parameter<int> number_of_time_steps;
+    Parameter<int> number_of_new_time_steps;
 
     Parameter<std::string> name_prefix_of_saved_vtk_files;
     Parameter<std::string> restart_file_name; 

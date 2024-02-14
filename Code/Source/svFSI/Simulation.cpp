@@ -82,6 +82,7 @@ void Simulation::set_module_parameters()
   com_mod.nsymd = 3*(com_mod.nsd-1);
 
   com_mod.nTS = general.number_of_time_steps.value();
+  com_mod.newTS = general.number_of_new_time_steps.value();
   com_mod.nITs = general.number_of_initialization_time_steps.value();
   com_mod.startTS = general.starting_time_step.value();
   com_mod.dt = general.time_step_size.value();

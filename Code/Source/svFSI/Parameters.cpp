@@ -1806,6 +1806,7 @@ GeneralSimulationParameters::GeneralSimulationParameters()
   set_parameter("Number_of_initialization_time_steps", 0, !required, number_of_initialization_time_steps, {0,int_inf});
   set_parameter("Number_of_spatial_dimensions", 3, !required, number_of_spatial_dimensions);
   set_parameter("Number_of_time_steps", 0, required, number_of_time_steps, {0,int_inf});
+  set_parameter("Number_of_new_time_steps", 0, !required, number_of_new_time_steps, {0,int_inf});
 
   set_parameter("Overwrite_restart_file", false, !required, overwrite_restart_file);
 
