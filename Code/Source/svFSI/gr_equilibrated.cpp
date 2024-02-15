@@ -62,7 +62,7 @@ void stress_tangent_(const double Fe[3][3], const double time,
     std::terminate();
 
   // couple wss
-  const bool coup_wss = false;
+  const bool coup_wss = true;
 
   // set example
   enum Example { none, aneurysm, tortuosity, stenosis };
@@ -71,7 +71,7 @@ void stress_tangent_(const double Fe[3][3], const double time,
 
   // double KsKi = 0.35;
   // double KsKi = 0.0;
-  double KsKi = 0.9;
+  double KsKi = 1.0;
 
   const double curve = 0.0;
 
@@ -251,26 +251,24 @@ void stress_tangent_(const double Fe[3][3], const double time,
     const double z_om = lo / 2.0;
 
     double theta_od;
-    double phi_e_hm = 0.65;
-    const int vza = 5;
+    double phi_e_hm = 0.7;
+    int vza;
     int vzc;
-    const double z_od = lo / 3.0 / mult;
-    double nc;
+    double z_od;
     if (example_asym) {
       // 8d
       //			z_od = lo/3.0/mult;
       //			vz = 5;
-      theta_od = M_PI / 3.0;
+      //			theta_od = 3.0;
 
-      // z_od = lo/4.0/mult;
-      // theta_od = 0.9;
-      // vza = 4;
-      vzc = 5;
-      // nc = 5.0;
+      z_od = lo / 4.0 / mult;
+      theta_od = 0.55;
+      vza = 2;
+      vzc = 6;
     } else {
       // 8b, 8c
-      // z_od = lo/4.0/mult;
-      // vza = 2;
+      z_od = lo / 4.0 / mult;
+      vza = 2;
     }
 
     // axial factor (0, 1]
@@ -279,13 +277,10 @@ void stress_tangent_(const double Fe[3][3], const double time,
     // azimuth factor (0, 1]
     double f_cir = 1.0;
     if (example_asym)
-      f_cir = exp(-pow(abs((azimuth - M_PI) / (theta_od)), vzc));
-    // f_cir = (nc + cos(azimuth - M_PI)) / (1.0 + nc);
-    // f_cir = (nc + (1.0 + cos(pow(azimuth / M_PI - 1.0, vzc) * M_PI)) / 2.0) /
-    // (1.0 + nc);
+      f_cir = exp(-pow(abs((azimuth - M_PI) / (M_PI * theta_od)), vzc));
 
     mu *= 1.0 - f_time * f_axi * f_cir * phi_e_hm;
-    KsKi *= 1.0 - f_time * f_axi;
+    KsKi *= 1.0 - f_time * f_axi * f_cir;
   }
 
   if (example == tortuosity) {
@@ -547,7 +542,8 @@ void stress_tangent_(const double Fe[3][3], const double time,
     phic_gp = phic - Rphi / dRdc;
     phic = grInt(37);
 
-	if(!eval_s && !eval_cc) break;
+    if (!eval_s && !eval_cc)
+      break;
 
     // phim from <J*phim/phimo=(J*phic/phico)^eta>
     const double phim = phimo / (J / Jo) * pow(J / Jo * phic / phico, eta);
