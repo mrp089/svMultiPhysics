@@ -179,8 +179,7 @@ void picc(Simulation* simulation)
     for (int Ac = 0; Ac < tnNo; Ac++) {
       if (all_fun::is_domain(com_mod, eq, Ac, Equation_struct) || 
           all_fun::is_domain(com_mod, eq, Ac, Equation_ustruct) || 
-          all_fun::is_domain(com_mod, eq, Ac, Equation_lElas) || 
-          all_fun::is_domain(com_mod, eq, Ac, Equation_gr)) {
+          all_fun::is_domain(com_mod, eq, Ac, Equation_lElas)) {
         for (int i = 0; i < e-s+1; i++) {
           An(i+s,Ac) = An(i,Ac);
           Yn(i+s,Ac) = Yn(i,Ac);
@@ -532,7 +531,7 @@ void pici(Simulation* simulation, Array<double>& Ag, Array<double>& Yg, Array<do
     if (eq.phys == EquationType::phys_gr) {
       for (int a = 0; a < tnNo; a++) {
         for (int j = s; j <= e; j++) {
-          Dg(j,a) = Do(j,a) + Dn(j,a);
+          Dg(j,a) = Dn(j,a);
         }
       }
     }
