@@ -49,8 +49,7 @@ if(SV_USE_TRILINOS)
       MESSAGE(WARNING "Trilinos_FOUND is true but Trilinos_LIBRARIES is empty. This suggests that FIND_PACKAGE(Trilinos) failed quietly. Proceed with caution.")
     endif()
 
-    MESSAGE("Setting WITH_TRILINOS to true\n")
-    set(WITH_TRILINOS 1)
+    set(USE_TRILINOS 1)
   ELSE()
     MESSAGE(WARNING "Could not find Trilinos. Compiling svFSI without Trilinos.")
   ENDIF()
@@ -58,7 +57,7 @@ if(SV_USE_TRILINOS)
 endif()
 
 # add trilinos flags and defines
-if(WITH_TRILINOS)
+if(USE_TRILINOS)
   ADD_DEFINITIONS(-DWITH_TRILINOS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif()
@@ -191,7 +190,12 @@ set(CSRCS
   SPLIT.c
 )
 
-if(WITH_TRILINOS)
+  # Set PETSc interace code.
+  if(USE_PETSC)
+     #set(CSRCS ${CSRCS} petsc_linear_solver.c)
+  endif()
+
+if(USE_TRILINOS)
   set(CSRCS ${CSRCS} trilinos_linear_solver.cpp)
 
   # trilinos directories and libraries
@@ -243,11 +247,15 @@ if(SV_MPI_EXTRA_LIBRARY)
   target_link_libraries(${SV_SVFSI_EXE} ${SV_MPI_EXTRA_LIBRARY})
 endif()
 
-if(WITH_TRILINOS)
+if(USE_TRILINOS)
   target_link_libraries(${SV_SVFSI_EXE} ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})
 endif()
 
+<<<<<<< HEAD
 if(WITH_PETSC)
+=======
+if(USE_PETSC)
+>>>>>>> main
   target_link_libraries(${SV_SVFSI_EXE} ${PETSC_LIBRARY_DIRS})
 endif()
 
