@@ -251,11 +251,7 @@ if(USE_TRILINOS)
   target_link_libraries(${SV_SVFSI_EXE} ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})
 endif()
 
-<<<<<<< HEAD
-if(WITH_PETSC)
-=======
 if(USE_PETSC)
->>>>>>> main
   target_link_libraries(${SV_SVFSI_EXE} ${PETSC_LIBRARY_DIRS})
 endif()
 
