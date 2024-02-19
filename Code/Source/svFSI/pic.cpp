@@ -649,11 +649,29 @@ void picp(Simulation* simulation)
 
     // [TODO:DaveP] careful here with s amd e.
     if (eq.phys == EquationType::phys_gr) {
+      // Predict new load step
       for (int i = s; i <= e; i++) {
-        for (int j = 0; j < Ao.ncols(); j++) {
-          Dn(i,j) = Do(i,j);
+        for (int j = 0; j < Do.ncols(); j++) {
+          // Store information from previous load step
+          An(i,j) = Yo(i,j);
+          Yn(i,j) = Do(i,j);
+
+          // Const. displacements
+          // if (com_mod.time <= 2.0) {
+          //   Dn(i,j) = Do(i,j);
+          // }
+          // Lin. displacements
+          // else if (com_mod.time <= 3.0) {
+          // else {
+            Dn(i,j) = 2.0 * Do(i,j) - Yo(i,j);
+          // }
+          // // Quad. displacements
+          // else {
+          //   Dn(i,j) = 3.0 * Do(i,j) - 3.0 * Yo(i,j) + Ao(i,j);
+          // }
         }
       }
+      return;
     }
     else {
       for (int i = s; i <= e; i++) {
