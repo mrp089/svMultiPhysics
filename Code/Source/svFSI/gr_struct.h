@@ -128,7 +128,7 @@ void cc_to_voigt_carray(const double CC[N][N][N][N], double Dm[2 * N][2 * N]) {
 template <size_t N>
 void get_pk2cc(const ComMod &com_mod, const dmnType &lDmn, const double F[N][N],
                Vector<double> &gr_int, const Vector<double> &gr_props,
-               double S[N][N], double Dm[2 * N][2 * N], double &phic,
+               double S[N][N], double Dm[2 * N][2 * N],
                const bool eval_s = true, const bool eval_cc = true) {
   using namespace consts;
   using namespace mat_fun;
@@ -136,13 +136,14 @@ void get_pk2cc(const ComMod &com_mod, const dmnType &lDmn, const double F[N][N],
 
   const auto &stM = lDmn.stM;
   const int nsd = com_mod.nsd;
+  const bool coup_wss = com_mod.gr_coup_wss;
 
   double CC[N][N][N][N];
 
   switch (stM.isoType) {
   case ConstitutiveModelType::GR_equi: {
     gr_equilibrated_ns::stress_tangent_(F, com_mod.time, gr_props, gr_int, S,
-                                        CC, phic, eval_s, eval_cc);
+                                        CC, coup_wss, eval_s, eval_cc);
   } break;
 
   default:

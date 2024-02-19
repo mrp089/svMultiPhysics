@@ -456,9 +456,7 @@ void struct_3d_carray(ComMod &com_mod, const int eNoN, const double w,
   // Voigt notationa (Dm)
   double S[3][3];
   double Dm[6][6];
-  double phic;
-  get_pk2cc<3>(com_mod, dmn, F, gr_int_g, gr_props_g, S, Dm, phic, eval_s,
-               eval_cc);
+  get_pk2cc<3>(com_mod, dmn, F, gr_int_g, gr_props_g, S, Dm, eval_s, eval_cc);
 
   if (!eval_s && !eval_cc) {
     return;

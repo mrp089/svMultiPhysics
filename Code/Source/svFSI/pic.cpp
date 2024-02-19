@@ -649,26 +649,20 @@ void picp(Simulation* simulation)
 
     // [TODO:DaveP] careful here with s amd e.
     if (eq.phys == EquationType::phys_gr) {
+      // Update the solution vectors? (new load step in FSG coupling)
+      auto & lM = com_mod.msh[0];
+      const bool update = std::fabs(lM.gr_props(12, 0) - 1.0) < 1.0e-6;
+
       // Predict new load step
       for (int i = s; i <= e; i++) {
         for (int j = 0; j < Do.ncols(); j++) {
-          // Store information from previous load step
-          An(i,j) = Yo(i,j);
-          Yn(i,j) = Do(i,j);
-
-          // Const. displacements
-          // if (com_mod.time <= 2.0) {
-          //   Dn(i,j) = Do(i,j);
-          // }
-          // Lin. displacements
-          // else if (com_mod.time <= 3.0) {
-          // else {
+          if (com_mod.gr_coup_wss && !update) {
+            Dn(i,j) = Do(i,j);
+          } else {
+            An(i,j) = Yo(i,j);
+            Yn(i,j) = Do(i,j);
             Dn(i,j) = 2.0 * Do(i,j) - Yo(i,j);
-          // }
-          // // Quad. displacements
-          // else {
-          //   Dn(i,j) = 3.0 * Do(i,j) - 3.0 * Yo(i,j) + Ao(i,j);
-          // }
+          }
         }
       }
       return;

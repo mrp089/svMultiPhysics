@@ -174,6 +174,7 @@ void iterate_solution(Simulation* simulation)
 
   bool exit_now = false;
   double elapsed_time = 0.0;
+  com_mod.gr_coup_wss = true;
 
   // Uncomment these two lines to enable writting values to a file.
   //Array<double>::write_enabled = true;

@@ -1484,6 +1484,8 @@ class ComMod {
     /// @brief Number of internal growth and remodeling variables
     int nGrInt = 0;
 
+    /// @brief Is growth and remodeling coupled to fluids?
+    bool gr_coup_wss = 0;
 
     //----- double members -----//
 

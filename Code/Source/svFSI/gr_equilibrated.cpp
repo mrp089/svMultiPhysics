@@ -38,7 +38,8 @@ namespace gr_equilibrated_ns {
 void stress_tangent_(const double Fe[3][3], const double time,
                      const Vector<double> &eVWP, Vector<double> &grInt,
                      double S_out[3][3], double CC_out[3][3][3][3],
-                     double &unused, const bool eval_s, const bool eval_cc) {
+                     const bool coup_wss, const bool eval_s,
+                     const bool eval_cc) {
   // convert deformation gradient to FEBio format
   mat3d F(Fe[0][0], Fe[0][1], Fe[0][2], Fe[1][0], Fe[1][1], Fe[1][2], Fe[2][0],
           Fe[2][1], Fe[2][2]);
@@ -60,9 +61,6 @@ void stress_tangent_(const double Fe[3][3], const double time,
   const double J = F.det();
   if (J < 0.0)
     std::terminate();
-
-  // couple wss
-  const bool coup_wss = true;
 
   // set example
   enum Example { none, aneurysm, tortuosity, stenosis };
@@ -131,9 +129,6 @@ void stress_tangent_(const double Fe[3][3], const double time,
 
   // WSS
   const double tau = eVWP(6);
-
-  // WSS of previous time step
-  const double tau_old = eVWP(12);
 
   // dWSS
   const vec3d dtau(eVWP(9), eVWP(10), eVWP(11));

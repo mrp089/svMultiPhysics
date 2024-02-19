@@ -57,7 +57,7 @@ namespace gr_equilibrated_ns {
 void stress_tangent_(const double Fe[3][3], const double time,
                      const Vector<double> &eVWP, Vector<double> &grInt,
                      double S_out[3][3], double CC_out[3][3][3][3],
-                     double &unused, const bool eval_s = true,
+                     const bool coup_wss, const bool eval_s = true,
                      const bool eval_cc = true);
 
 };
