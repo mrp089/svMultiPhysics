@@ -27,22 +27,22 @@
 
   <Set_mesh_as_shell> true </Set_mesh_as_shell> 
 
-  <Mesh_file_path> ./mesh/tri3/mesh-complete.mesh.vtu </Mesh_file_path>
+  <Mesh_file_path> ./mesh/mesh-complete.mesh.vtu </Mesh_file_path>
 
   <Add_face name="left">
-      <Face_file_path> ./mesh/tri3/mesh-surfaces/x0.vtp </Face_file_path>
+      <Face_file_path> ./mesh/mesh-surfaces/x0.vtp </Face_file_path>
   </Add_face>
 
   <Add_face name="right">
-      <Face_file_path> mesh/tri3/mesh-surfaces/x1.vtp </Face_file_path>
+      <Face_file_path> mesh/mesh-surfaces/x1.vtp </Face_file_path>
   </Add_face>
 
   <Add_face name="bottom">
-      <Face_file_path> mesh/tri3/mesh-surfaces/y0.vtp </Face_file_path>
+      <Face_file_path> mesh/mesh-surfaces/y0.vtp </Face_file_path>
   </Add_face>
 
   <Add_face name="top">
-      <Face_file_path> mesh/tri3/mesh-surfaces/y1.vtp </Face_file_path>
+      <Face_file_path> mesh/mesh-surfaces/y1.vtp </Face_file_path>
   </Add_face>
 
 </Add_mesh>
