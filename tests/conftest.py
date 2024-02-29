@@ -15,6 +15,7 @@ RTOL = {
     "Def_grad": 1.0e-10,
     "Divergence": 1.0e-9,
     "Displacement": 1.0e-10,
+    "GR": 1.0e-10,
     "Jacobian": 1.0e-10,
     "Pressure": 1.0e-6,
     "Stress": 1.0e-4,

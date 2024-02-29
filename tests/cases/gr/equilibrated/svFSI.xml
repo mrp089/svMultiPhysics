@@ -52,8 +52,8 @@
 
    <Coupled> true </Coupled>
    <Min_iterations> 1</Min_iterations>  
-   <Max_iterations> 10 </Max_iterations> 
-   <Tolerance> 1e-9 </Tolerance> 
+   <Max_iterations> 7 </Max_iterations> 
+   <Tolerance> 1e-12 </Tolerance> 
 
    <Constitutive_model type="GR_equilibrated"> </Constitutive_model>
    <Density> 0.0 </Density> 
