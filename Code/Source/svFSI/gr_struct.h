@@ -45,21 +45,6 @@ namespace gr {
 void construct_gr(ComMod &com_mod, const mshType &lM, const Array<double> &Dg,
                   bool eval_fd = true);
 
-void construct_gr_fd_global(ComMod &com_mod, const mshType &lM,
-                            const Array<double> &Dg);
-
-void eval_gr_fd_global(ComMod &com_mod, const mshType &lM,
-                       const Array<double> &Dg, const double eps = 0.0,
-                       const int dAc = -1, const int di = -1);
-
-void eval_gr_fd_global_phic(ComMod &com_mod, const mshType &lM,
-                            const Array<double> &Dg, const double eps = 0.0,
-                            const int dAc = -1, const int di = -1);
-
-void eval_gr_fd_ele(const int &e, ComMod &com_mod, const mshType &lM,
-                    Array<double> &Dg, Vector<int> &ptr, Array<double> &lR,
-                    Array3<double> &lK);
-
 void eval_gr(const int &e, ComMod &com_mod, const mshType &lM,
              const Array<double> &Dg, Vector<int> &ptr, Array<double> &lR,
              Array3<double> &lK, const bool eval_s = true,

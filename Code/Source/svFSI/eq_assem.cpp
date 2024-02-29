@@ -370,7 +370,6 @@ void global_eq_assem(ComMod& com_mod, CepMod& cep_mod, CmMod& cm_mod, const mshT
 
     case EquationType::phys_gr:
         gr::construct_gr(com_mod, lM, Dg, false);
-        // gr::construct_gr_fd_global(com_mod, lM, Dg);
     break;
 
     case EquationType::phys_ustruct:

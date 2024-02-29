@@ -935,9 +935,6 @@ class mshType
     /// @brief The connectivity array mapping eNoN,nEl --> nNo
     Array<int> IEN;
 
-    /// @brief map: node -> element
-    std::vector<std::map<int, std::set<int>>> map_node_ele;
-
     /// @brief gIEN mapper from old to new
     Vector<int> otnIEN;
 
