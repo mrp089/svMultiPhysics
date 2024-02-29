@@ -105,8 +105,7 @@ void cc_to_voigt_carray(const double CC[N][N][N][N], double Dm[2*N][2*N])
 //
 template <size_t N>
 void get_pk2cc(const ComMod& com_mod, const CepMod& cep_mod, const dmnType& lDmn, const double F[N][N], const int nfd,
-    const Array<double>& fl, const double ya, Vector<double>& gr_int, const Vector<double>& gr_props, 
-    double S[N][N], double Dm[2*N][2*N])
+    const Array<double>& fl, const double ya, double S[N][N], double Dm[2*N][2*N])
 {
   using namespace consts;
   using namespace mat_fun;

@@ -44,7 +44,6 @@
 #include "mat_models_carray.h"
 #include "nn.h"
 #include "utils.h"
-#include "vtk_xml.h"
 
 #ifdef WITH_TRILINOS
 #include "trilinos_linear_solver.h"
@@ -201,69 +200,9 @@ void b_struct_3d(const ComMod& com_mod, const int eNoN, const double w, const Ve
   }
 }
 
-/// @brief Loop solid elements and assemble into global matrices
-void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, 
-                      const mshType& lM, const Array<double>& Ag, 
-                      const Array<double>& Yg, const Array<double>& Dg)
-{
-  using namespace consts;
-
-  // Get dimensions
-  const int eNoN = lM.eNoN;
-  const int dof = com_mod.dof;
-
-  // Get properties
-  auto cDmn = com_mod.cDmn;
-  const int cEq = com_mod.cEq;
-  const auto& eq = com_mod.eq[cEq];
-
-  // Initialize residual and tangent
-  Vector<int> ptr(eNoN);
-  Array<double> lR(dof, eNoN);
-  Array3<double> lK(dof * dof, eNoN, eNoN);
-
-  // Loop over all elements of mesh
-  for (int e = 0; e < lM.nEl; e++) {
-    // Reset
-    ptr = 0;
-    lR = 0.0;
-    lK = 0.0;
-    
-    // Update domain and proceed if domain phys and eqn phys match
-    cDmn = all_fun::domain(com_mod, lM, cEq, e);
-    auto cPhys = eq.dmn[cDmn].phys;
-    if (cPhys != EquationType::phys_struct) {
-      continue; 
-    }
-
-    // Update shape functions for NURBS
-    if (lM.eType == ElementType::NRB) {
-      //CALL NRBNNX(lM, e)
-    }
-
-    // Evaluate solid equations
-    eval_dsolid(e, com_mod, cep_mod, lM, Ag, Yg, Dg, ptr, lR, lK);
-
-    // Assemble into global residual and tangent
-#ifdef WITH_TRILINOS
-    if (eq.assmTLS) {
-      trilinos_doassem_(const_cast<int&>(eNoN), ptr.data(), lK.data(), lR.data());
-    } else {
-#endif
-      lhsa_ns::do_assem(com_mod, eNoN, ptr, lK, lR);
-#ifdef WITH_TRILINOS
-    }
-#endif
-  }
-}
-
 /// @brief Replicates the Fortan 'CONSTRUCT_dSOLID' subroutine.
 //
-void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
-                 const mshType &lM, const Array<double> &Ag,
-                 const Array<double> &Yg, const Array<double> &Dg,
-                 Vector<int> &ptr, Array<double> &lR, Array3<double> &lK,
-                 const bool eval)
+void construct_dsolid(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag, const Array<double>& Yg, const Array<double>& Dg)
 {
   using namespace consts;
 
@@ -277,6 +216,9 @@ void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
   const int nsd  = com_mod.nsd;
   const int tDof = com_mod.tDof;
   const int dof = com_mod.dof;
+  const int cEq = com_mod.cEq;
+  const auto& eq = com_mod.eq[cEq];
+  auto cDmn = com_mod.cDmn;
   const int nsymd = com_mod.nsymd;
   auto& pS0 = com_mod.pS0;
   auto& pSn = com_mod.pSn;
@@ -298,84 +240,88 @@ void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
   #endif
 
   // STRUCT: dof = nsd
-  Vector<double> pSl(nsymd), ya_l(eNoN), N(eNoN), gr_int_g(com_mod.nGrInt), gr_props_g(lM.n_gr_props);
+
+  Vector<int> ptr(eNoN);
+  Vector<double> pSl(nsymd), ya_l(eNoN), N(eNoN);
   Array<double> xl(nsd,eNoN), al(tDof,eNoN), yl(tDof,eNoN), dl(tDof,eNoN), 
-                bfl(nsd,eNoN), fN(nsd,nFn), pS0l(nsymd,eNoN), Nx(nsd,eNoN),
-                gr_props_l(lM.n_gr_props,eNoN);
-  
-  // Create local copies
-  fN  = 0.0;
-  pS0l = 0.0;
-  ya_l = 0.0;
-  gr_int_g = 0.0;
-  gr_props_l = 0.0;
-  gr_props_g = 0.0;
+                bfl(nsd,eNoN), fN(nsd,nFn), pS0l(nsymd,eNoN), Nx(nsd,eNoN), lR(dof,eNoN);
+  Array3<double> lK(dof*dof,eNoN,eNoN);
 
-  for (int a = 0; a < eNoN; a++) {
-    int Ac = lM.IEN(a,e);
-    ptr(a) = Ac;
+  // Loop over all elements of mesh
 
-    for (int i = 0; i < nsd; i++) {
-      xl(i,a) = com_mod.x(i,Ac);
-      bfl(i,a) = com_mod.Bf(i,Ac);
+  for (int e = 0; e < lM.nEl; e++) {
+    // Update domain and proceed if domain phys and eqn phys match
+    cDmn = all_fun::domain(com_mod, lM, cEq, e);
+    auto cPhys = eq.dmn[cDmn].phys;
+    if (cPhys != EquationType::phys_struct) {
+      continue; 
     }
 
-    for (int i = 0; i < tDof; i++) {
-      al(i,a) = Ag(i,Ac);
-      dl(i,a) = Dg(i,Ac);
-      yl(i,a) = Yg(i,Ac);
+    // Update shape functions for NURBS
+    if (lM.eType == ElementType::NRB) {
+      //CALL NRBNNX(lM, e)
     }
 
-    if (lM.fN.size() != 0) {
-      for (int iFn = 0; iFn < nFn; iFn++) {
-        for (int i = 0; i < nsd; i++) {
-          fN(i,iFn) = lM.fN(i+nsd*iFn,e);
+    // Create local copies
+    fN  = 0.0;
+    pS0l = 0.0;
+    ya_l = 0.0;
+
+    for (int a = 0; a < eNoN; a++) {
+      int Ac = lM.IEN(a,e);
+      ptr(a) = Ac;
+
+      for (int i = 0; i < nsd; i++) {
+        xl(i,a) = com_mod.x(i,Ac);
+        bfl(i,a) = com_mod.Bf(i,Ac);
+      }
+
+      for (int i = 0; i < tDof; i++) {
+        al(i,a) = Ag(i,Ac);
+        dl(i,a) = Dg(i,Ac);
+        yl(i,a) = Yg(i,Ac);
+      }
+
+      if (lM.fN.size() != 0) {
+        for (int iFn = 0; iFn < nFn; iFn++) {
+          for (int i = 0; i < nsd; i++) {
+            fN(i,iFn) = lM.fN(i+nsd*iFn,e);
+          }
         }
       }
-    }
 
-    if (pS0.size() != 0) { 
-      pS0l.set_col(a, pS0.col(Ac));
-    }
-
-    if (cem.cpld) {
-      ya_l(a) = cem.Ya(Ac);
-    }
-
-    if (lM.gr_props.size() != 0) {
-      for (int igr = 0; igr < lM.n_gr_props; igr++) {
-        gr_props_l(igr,a) = lM.gr_props(igr,Ac);
+      if (pS0.size() != 0) { 
+        pS0l.set_col(a, pS0.col(Ac));
       }
-    }
-  }
 
-  // Gauss integration
-  double Jac{0.0};
-  Array<double> ksix(nsd,nsd);
-
-  for (int g = 0; g < lM.nG; g++) {
-    if (g == 0 || !lM.lShpF) {
-      auto Nx_g = lM.Nx.slice(g);
-      nn::gnn(eNoN, nsd, nsd, Nx_g, xl, Nx, Jac, ksix);
-      if (utils::is_zero(Jac)) {
-        throw std::runtime_error("[construct_dsolid] Jacobian for element " + std::to_string(e) + " is < 0.");
-      }
-    }
-    double w = lM.w(g) * Jac;
-    N = lM.N.col(g);
-    pSl = 0.0;
-
-    // Get internal growth and remodeling variables
-    if (com_mod.grEq) {
-      // todo mrp089: add a function like rslice for vectors to Array3
-      for (int i = 0; i < com_mod.nGrInt; i++) {
-          gr_int_g(i) = com_mod.grInt(e,g,i);
+      if (cem.cpld) {
+        ya_l(a) = cem.Ya(Ac);
       }
     }
 
-    if (nsd == 3) {
-      struct_3d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK, eval);
-      // struct_3d_carray(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK);
+    // Gauss integration
+    //
+    lR = 0.0;
+    lK = 0.0;
+
+    double Jac{0.0};
+    Array<double> ksix(nsd,nsd);
+
+    for (int g = 0; g < lM.nG; g++) {
+      if (g == 0 || !lM.lShpF) {
+        auto Nx_g = lM.Nx.slice(g);
+        nn::gnn(eNoN, nsd, nsd, Nx_g, xl, Nx, Jac, ksix);
+        if (utils::is_zero(Jac)) {
+          throw std::runtime_error("[construct_dsolid] Jacobian for element " + std::to_string(e) + " is < 0.");
+        }
+      }
+      double w = lM.w(g) * Jac;
+      N = lM.N.col(g);
+      pSl = 0.0;
+
+      if (nsd == 3) {
+        struct_3d_carray(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, lR, lK);
+        //struct_3d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, lR, lK);
 
 #if 0
         if (e == 0 && g == 0) {
@@ -386,28 +332,45 @@ void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
           exit(0);
         }
 #endif
-    } else if (nsd == 2) {
-      struct_2d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, gr_int_g, gr_props_l, lR, lK);
-    }
 
-    // Set internal growth and remodeling variables
-    if (com_mod.grEq) {
-      // todo mrp089: add a function like rslice for vectors to Array3
-      for (int i = 0; i < com_mod.nGrInt; i++) {
-          com_mod.grInt(e,g,i) = gr_int_g(i);
+      } else if (nsd == 2) {
+        struct_2d(com_mod, cep_mod, eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN, pS0l, pSl, ya_l, lR, lK);
       }
-    }
 
-    // Prestress
-    if (pstEq) {
-      for (int a = 0; a < eNoN; a++) {
-        int Ac = ptr(a);
-        pSa(Ac) = pSa(Ac) + w*N(a);
-        for (int i = 0; i < pSn.nrows(); i++) {
-          pSn(i,Ac) = pSn(i,Ac) + w*N(a)*pSl(i);
+      // Prestress
+      if (pstEq) {
+        for (int a = 0; a < eNoN; a++) {
+          int Ac = ptr(a);
+          pSa(Ac) = pSa(Ac) + w*N(a);
+          for (int i = 0; i < pSn.nrows(); i++) {
+            pSn(i,Ac) = pSn(i,Ac) + w*N(a)*pSl(i);
+          }
         }
       }
+    } 
+
+#if 0
+    if (e+1 == 100) {
+      Array3<double>::write_enabled = true;
+      Array<double>::write_enabled = true;
+      lR.write("lR");
+      lK.write("lK");
+      exit(0);
     }
+#endif
+
+    // Assembly
+    //
+#ifdef WITH_TRILINOS
+    if (eq.assmTLS) {
+      trilinos_doassem_(const_cast<int&>(eNoN), ptr.data(), lK.data(), lR.data());
+    } else {
+#endif
+      lhsa_ns::do_assem(com_mod, eNoN, ptr, lK, lR);
+#ifdef WITH_TRILINOS
+    }
+#endif
+
   } 
 }
 
@@ -416,8 +379,7 @@ void eval_dsolid(const int &e, ComMod &com_mod, CepMod &cep_mod,
 void struct_2d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
     const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
     const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
-    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_g, Array<double>& gr_props_l,
-    Array<double>& lR, Array3<double>& lK) 
+    Vector<double>& pSl, const Vector<double>& ya_l, Array<double>& lR, Array3<double>& lK) 
 {
   using namespace consts;
   using namespace mat_fun;
@@ -460,7 +422,6 @@ void struct_2d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
   //
   Array<double> F(2,2), S0(2,2), vx(2,2);
   Vector<double> ud(2);
-  Vector<double> gr_props_g(gr_props_l.nrows());
 
   ud = -rho*fb;
   F = 0.0;
@@ -488,10 +449,6 @@ void struct_2d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
     S0(0,1) = S0(0,1) + N(a)*pS0l(2,a);
 
     ya_g = ya_g + N(a)*ya_l(a);
-
-    for (int igr = 0; igr < gr_props_l.nrows(); igr++) {
-      gr_props_g(igr) += gr_props_l(igr,a) * N(a);
-    }
   }
   #ifdef debug_struct_2d 
   debug << "ud: " << ud(0) << " " << ud(1);
@@ -516,7 +473,7 @@ void struct_2d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
   Svis = 2.0 * mu * Jac * mat_mul(Fi, Svis);
 
   Array<double> S(2,2), Dm(3,3);
-  mat_models::get_pk2cc(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, gr_int_g, gr_props_g, S, Dm);
+  mat_models::get_pk2cc(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, S, Dm);
 
   // Elastic + Viscous stresses
   S = S + Svis;
@@ -649,8 +606,7 @@ void struct_2d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
 void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
     const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
     const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
-    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_g, Array<double>& gr_props_l, 
-    Array<double>& lR, Array3<double>& lK, const bool eval) 
+    Vector<double>& pSl, const Vector<double>& ya_l, Array<double>& lR, Array3<double>& lK) 
 {
   using namespace consts;
   using namespace mat_fun;
@@ -702,7 +658,6 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
   double S0[3][3]={}; 
   double vx[3][3]={};
   double ud[3] = {-rho*fb[0], -rho*fb[1], -rho*fb[2]}; 
-  Vector<double> gr_props_g(gr_props_l.nrows());
 
   F[0][0] = 1.0;
   F[1][1] = 1.0;
@@ -742,10 +697,6 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
     S0[2][0] += N(a)*pS0l(5,a);
 
     ya_g = ya_g + N(a)*ya_l(a);
-
-    for (int igr = 0; igr < gr_props_l.nrows(); igr++) {
-      gr_props_g(igr) += gr_props_l(igr,a) * N(a);
-    }
   }
 
 
@@ -795,10 +746,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
   double S[3][3]; 
   double Dm[6][6]; 
 
-  mat_models_carray::get_pk2cc<3>(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, gr_int_g, gr_props_g, S, Dm);
-  if(!eval) {
-    return;
-  }
+  mat_models_carray::get_pk2cc<3>(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, S, Dm);
 
   // Elastic + Viscous stresses
   for (int i = 0; i < 3; i++) {
@@ -1050,8 +998,7 @@ void struct_3d_carray(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const in
 void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, const double w, 
     const Vector<double>& N, const Array<double>& Nx, const Array<double>& al, const Array<double>& yl, 
     const Array<double>& dl, const Array<double>& bfl, const Array<double>& fN, const Array<double>& pS0l, 
-    Vector<double>& pSl, const Vector<double>& ya_l, Vector<double>& gr_int_g, Array<double>& gr_props_l,
-    Array<double>& lR, Array3<double>& lK, const bool eval) 
+    Vector<double>& pSl, const Vector<double>& ya_l, Array<double>& lR, Array3<double>& lK) 
 {
   using namespace consts;
   using namespace mat_fun;
@@ -1101,7 +1048,7 @@ void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
   // Inertia, body force and deformation tensor (F)
   //
   Array<double> F(3,3), S0(3,3), vx(3,3);
-  Vector<double> ud(3), gr_props_g(gr_props_l.nrows());
+  Vector<double> ud(3);
 
   double F_f[3][3]={}; 
   F_f[0][0] = 1.0;
@@ -1161,10 +1108,6 @@ void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
     S0(2,0) = S0(2,0) + N(a)*pS0l(5,a);
 
     ya_g = ya_g + N(a)*ya_l(a);
-
-    for (int igr = 0; igr < gr_props_l.nrows(); igr++) {
-      gr_props_g(igr) += gr_props_l(igr,a) * N(a);
-    }
   }
 
   S0(1,0) = S0(0,1);
@@ -1196,10 +1139,7 @@ void struct_3d(ComMod& com_mod, CepMod& cep_mod, const int eNoN, const int nFn, 
   // Voigt notationa (Dm)
   //
   Array<double> S(3,3), Dm(6,6); 
-  mat_models::get_pk2cc(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, gr_int_g, gr_props_g, S, Dm);
-  if(!eval) {
-    return;
-  }
+  mat_models::get_pk2cc(com_mod, cep_mod, dmn, F, nFn, fN, ya_g, S, Dm);
 
   // Elastic + Viscous stresses
   S = S + Svis;
