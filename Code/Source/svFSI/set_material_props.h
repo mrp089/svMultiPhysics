@@ -180,7 +180,39 @@ SeMaterialPropertiesMapType set_material_props = {
   lDmn.stM.isoType = consts::ConstitutiveModelType::GR_equi;
   auto& params = domain_params->constitutive_model.gr_equilibrated;
 
-  // todo mrp: add parameters
+  lDmn.grM.n_t_pre = params.n_t_pre.value();
+  lDmn.grM.n_t_end = params.n_t_end.value();
+  lDmn.grM.example = params.example.value();
+  lDmn.grM.KsKi = params.KsKi.value();
+  lDmn.grM.curve = params.curve.value();
+  lDmn.grM.mult = params.mult.value();
+  lDmn.grM.rIo = params.rIo.value();
+  lDmn.grM.hwaves = params.hwaves.value();
+  lDmn.grM.lo = params.lo.value();
+  lDmn.grM.phieo = params.phieo.value();
+  lDmn.grM.phimo = params.phimo.value();
+  lDmn.grM.phico = params.phico.value();
+  lDmn.grM.eta = params.eta.value();
+  lDmn.grM.mu = params.mu.value();
+  lDmn.grM.Get = params.Get.value();
+  lDmn.grM.Gez = params.Gez.value();
+  lDmn.grM.alpha = params.alpha.value();
+  lDmn.grM.cm = params.cm.value();
+  lDmn.grM.dm = params.dm.value();
+  lDmn.grM.Gm = params.Gm.value();
+  lDmn.grM.cc = params.cc.value();
+  lDmn.grM.dc = params.dc.value();
+  lDmn.grM.Gc = params.Gc.value();
+  lDmn.grM.betat = params.betat.value();
+  lDmn.grM.betaz = params.betaz.value();
+  lDmn.grM.betad = params.betad.value();
+  lDmn.grM.Tmax = params.Tmax.value();
+  lDmn.grM.lamM = params.lamM.value();
+  lDmn.grM.lam0 = params.lam0.value();
+  lDmn.grM.KfKi = params.KfKi.value();
+  lDmn.grM.inflam = params.inflam.value();
+  lDmn.grM.aexp = params.aexp.value();
+  lDmn.grM.delta = params.delta.value();
 } },
 
 };

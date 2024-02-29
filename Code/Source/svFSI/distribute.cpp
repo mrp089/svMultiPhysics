@@ -1052,6 +1052,9 @@ void dist_eq(ComMod& com_mod, const CmMod& cm_mod, const cmType& cm, const std::
         (dmn.phys == EquationType::phys_gr)) {
       dist_mat_consts(com_mod, cm_mod, cm, dmn.stM);
     } 
+    if (dmn.phys == EquationType::phys_gr) {
+      dist_gr_consts(com_mod, cm_mod, cm, dmn.grM);
+    } 
 
     if ((dmn.phys == EquationType::phys_fluid) || 
         (dmn.phys == EquationType::phys_stokes) || 
@@ -1210,6 +1213,44 @@ void dist_mat_consts(const ComMod& com_mod, const CmMod& cm_mod, const cmType& c
    cm.bcast(cm_mod, lStM.Tf.gt.i, "lStM.Tf.gt.i");
   }
 
+}
+
+/// @brief Distribute G&R properties to all processors.
+void dist_gr_consts(const ComMod& com_mod, const CmMod& cm_mod, const cmType& cm, grModelType& grM)
+{
+  using namespace consts;
+
+  cm.bcast(cm_mod, &grM.KsKi);
+  cm.bcast(cm_mod, &grM.curve);
+  cm.bcast(cm_mod, &grM.mult);
+  cm.bcast(cm_mod, &grM.rIo);
+  cm.bcast(cm_mod, &grM.hwaves);
+  cm.bcast(cm_mod, &grM.lo);
+  cm.bcast(cm_mod, &grM.phieo);
+  cm.bcast(cm_mod, &grM.phimo);
+  cm.bcast(cm_mod, &grM.phico);
+  cm.bcast(cm_mod, &grM.eta);
+  cm.bcast(cm_mod, &grM.mu);
+  cm.bcast(cm_mod, &grM.Get);
+  cm.bcast(cm_mod, &grM.Gez);
+  cm.bcast(cm_mod, &grM.alpha);
+  cm.bcast(cm_mod, &grM.cm);
+  cm.bcast(cm_mod, &grM.dm);
+  cm.bcast(cm_mod, &grM.Gm);
+  cm.bcast(cm_mod, &grM.cc);
+  cm.bcast(cm_mod, &grM.dc);
+  cm.bcast(cm_mod, &grM.Gc);
+  cm.bcast(cm_mod, &grM.betat);
+  cm.bcast(cm_mod, &grM.betaz);
+  cm.bcast(cm_mod, &grM.betad);
+  cm.bcast(cm_mod, &grM.Tmax);
+  cm.bcast(cm_mod, &grM.lamM);
+  cm.bcast(cm_mod, &grM.lam0);
+  cm.bcast(cm_mod, &grM.KfKi);
+  cm.bcast(cm_mod, &grM.inflam);
+  cm.bcast(cm_mod, &grM.aexp);
+  cm.bcast(cm_mod, &grM.delta);
+  cm.bcast(cm_mod, &grM.example);
 }
 
 

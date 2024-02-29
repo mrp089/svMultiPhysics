@@ -2,6 +2,7 @@ import numpy as np
 
 import pytest
 import os
+import shutil
 import subprocess
 import meshio
 
@@ -50,6 +51,11 @@ def run_by_name(folder, name, t_max, n_proc=1):
     Returns:
     Simulation results
     """
+    # remove old results folders if they exist
+    dir_path = os.path.join(folder, str(n_proc) + "-procs")
+    if os.path.exists(dir_path):
+        shutil.rmtree(dir_path)
+
     # run simulation
     cmd = " ".join(
         [
@@ -64,9 +70,7 @@ def run_by_name(folder, name, t_max, n_proc=1):
     subprocess.call(cmd, cwd=folder, shell=True)
 
     # read results
-    fname = os.path.join(
-        folder, str(n_proc) + "-procs", "result_" + str(t_max).zfill(3) + ".vtu"
-    )
+    fname = os.path.join(dir_path, "result_" + str(t_max).zfill(3) + ".vtu")
     if not os.path.exists(fname):
         raise RuntimeError("No svFSIplus output: " + fname)
     return meshio.read(fname)

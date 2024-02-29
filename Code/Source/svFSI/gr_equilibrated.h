@@ -48,13 +48,14 @@
 
 #include "Array.h"
 #include "Tensor4.h"
+#include "ComMod.h"
 
 #ifndef GR_EQUILIBRATED
 #define GR_EQUILIBRATED
 
 namespace gr_equilibrated_ns {
 
-void stress_tangent_(const double Fe[3][3], const double time,
+void stress_tangent_(const grModelType &grM, const double Fe[3][3], const double time,
                      const Vector<double> &eVWP, Vector<double> &grInt,
                      double S_out[3][3], double CC_out[3][3][3][3],
                      const bool coup_wss, const bool eval_s = true,

@@ -383,6 +383,45 @@ class stModelType
     fibStrsType Tf;
 };
 
+class grModelType
+{
+  public:
+    int n_t_pre = 0;
+    int n_t_end = 0;
+    int example = 0;
+    double KsKi = 0.0;
+    double curve = 0.0;
+    double mult = 0.0;
+    double rIo = 0.0;
+    double hwaves = 0.0;
+    double lo = 0.0;
+    double phieo = 0.0;
+    double phimo = 0.0;
+    double phico = 0.0;
+    double eta = 0.0;
+    double mu = 0.0;
+    double Get = 0.0;
+    double Gez = 0.0;
+    double alpha = 0.0;
+    double cm = 0.0;
+    double dm = 0.0;
+    double Gm = 0.0;
+    double cc = 0.0;
+    double dc = 0.0;
+    double Gc = 0.0;
+    double betat = 0.0;
+    double betaz = 0.0;
+    double betad = 0.0;
+    double Tmax = 0.0;
+    double lamM = 0.0;
+    double lam0 = 0.0;
+    double KfKi = 0.0;
+    double inflam = 0.0;
+    double aexp = 0.0;
+    double delta = 0.0;
+
+};
+
 /// @brief Fluid viscosity model type
 //
 class viscModelType
@@ -439,6 +478,9 @@ class dmnType
 
     // Viscosity model for fluids
     viscModelType visc;
+
+    // G&R model for growth and remodeling
+    grModelType grM;
 };
 
 /// @brief Mesh adjacency (neighboring element for each element)

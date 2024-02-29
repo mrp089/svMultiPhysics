@@ -1,4 +1,3 @@
-import os
 import pytest
 
 from .conftest import run_with_reference
@@ -16,7 +15,7 @@ fields = [
     "Cauchy_stress",
     "Def_grad",
     "VonMises_stress",
-    "GR"
+    "GR",
 ]
 
 

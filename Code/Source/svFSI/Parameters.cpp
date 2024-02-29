@@ -730,11 +730,58 @@ void StVenantKirchhoffParameters::print_parameters()
 /// @brief Parameters associated with GR_equilibrated material model
 GREquilibratedParameters::GREquilibratedParameters()
 {
-  value_set = true;
+  // A parameter that must be defined.
+  const bool required = true;
+
+  set_parameter("n_t_pre", 0, required, n_t_pre);
+  set_parameter("n_t_end", 0, required, n_t_end);
+  set_parameter("example", 0, required, example);
+  set_parameter("KsKi", 0.0, required, KsKi);
+  set_parameter("curve", 0.0, required, curve);
+  set_parameter("mult", 0.0, required, mult);
+  set_parameter("rIo", 0.0, required, rIo);
+  set_parameter("hwaves", 0.0, required, hwaves);
+  set_parameter("lo", 0.0, required, lo);
+  set_parameter("phieo", 0.0, required, phieo);
+  set_parameter("phimo", 0.0, required, phimo);
+  set_parameter("phico", 0.0, required, phico);
+  set_parameter("eta", 0.0, required, eta);
+  set_parameter("mu", 0.0, required, mu);
+  set_parameter("Get", 0.0, required, Get);
+  set_parameter("Gez", 0.0, required, Gez);
+  set_parameter("alpha", 0.0, required, alpha);
+  set_parameter("cm", 0.0, required, cm);
+  set_parameter("dm", 0.0, required, dm);
+  set_parameter("Gm", 0.0, required, Gm);
+  set_parameter("cc", 0.0, required, cc);
+  set_parameter("dc", 0.0, required, dc);
+  set_parameter("Gc", 0.0, required, Gc);
+  set_parameter("betat", 0.0, required, betat);
+  set_parameter("betaz", 0.0, required, betaz);
+  set_parameter("betad", 0.0, required, betad);
+  set_parameter("Tmax", 0.0, required, Tmax);
+  set_parameter("lamM", 0.0, required, lamM);
+  set_parameter("lam0", 0.0, required, lam0);
+  set_parameter("KfKi", 0.0, required, KfKi);
+  set_parameter("inflam", 0.0, required, inflam);
+  set_parameter("aexp", 0.0, required, aexp);
+  set_parameter("delta", 0.0, required, delta);
+
+  set_xml_element_name("Constitutive_model type=GR_equilibrated");
 }
 
-void GREquilibratedParameters::set_values(tinyxml2::XMLElement* con_params)
+void GREquilibratedParameters::set_values(tinyxml2::XMLElement* xml_elem)
 {
+  
+  std::string error_msg = "Unknown Constitutive_model type=GR_equilibrated XML element '";
+
+  using std::placeholders::_1;
+  using std::placeholders::_2;
+  std::function<void(const std::string&, const std::string&)> ftpr =
+      std::bind( &LeeSacksParameters::set_parameter_value, *this, _1, _2);
+
+  xml_util_set_parameters(ftpr, xml_elem, error_msg);
+
   value_set = true;
 }
 

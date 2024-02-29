@@ -35,11 +35,11 @@
 namespace gr_equilibrated_ns {
 
 // Call with fixed-size arrays (more efficient)
-void stress_tangent_(const double Fe[3][3], const double time,
-                     const Vector<double> &eVWP, Vector<double> &grInt,
-                     double S_out[3][3], double CC_out[3][3][3][3],
-                     const bool coup_wss, const bool eval_s,
-                     const bool eval_cc) {
+void stress_tangent_(const grModelType &grM, const double Fe[3][3],
+                     const double time, const Vector<double> &eVWP,
+                     Vector<double> &grInt, double S_out[3][3],
+                     double CC_out[3][3][3][3], const bool coup_wss,
+                     const bool eval_s, const bool eval_cc) {
   // convert deformation gradient to FEBio format
   mat3d F(Fe[0][0], Fe[0][1], Fe[0][2], Fe[1][0], Fe[1][1], Fe[1][2], Fe[2][0],
           Fe[2][1], Fe[2][2]);
@@ -59,22 +59,18 @@ void stress_tangent_(const double Fe[3][3], const double time,
 
   // determinant of the deformation gradient
   const double J = F.det();
-  if (J < 0.0)
-    std::terminate();
 
   // set example
   enum Example { none, aneurysm, tortuosity, stenosis };
   Example example = aneurysm;
   const bool example_asym = true;
 
-  // double KsKi = 0.35;
-  // double KsKi = 0.0;
-  double KsKi = 1.0;
+  double KsKi = grM.KsKi;
 
-  const double curve = 0.0;
+  const double curve = grM.curve;
 
   // length multiplier
-  const double mult = 1.0;
+  const double mult = grM.mult;
 
   // get current time
   double t;
@@ -88,30 +84,29 @@ void stress_tangent_(const double Fe[3][3], const double time,
   // time step size
   const double dt = 1.0;
 
-  // number of time steps between updates
-  const int n_t_update = 1;
-
   // number of time steps for prestressing
-  const int n_t_pre = 1;
+  const int n_t_pre = grM.n_t_pre;
 
   // number of time steps total
-  const int n_t_end = 4;
+  const int n_t_end = grM.n_t_end;
 
   const double pretime = n_t_pre * dt;
-  const double endtime = n_t_end * dt; // 11.0 | 31.0-32.0 (TEVG)
+  // 11.0 | 31.0-32.0 (TEVG)
+  const double endtime = n_t_end * dt;
 
   const double eps = std::numeric_limits<double>::epsilon();
   const double epst = 1.0e-12;
-  const double partialtime =
-      endtime; // partialtime <= endtime | 10.0 | 10.4 (for TI calculation)
-  const double sgr =
-      std::min(t, partialtime); // min(t,partialtime) | min(t,9.0)
+  // partialtime <= endtime | 10.0 | 10.4 (for TI calculation)
+  const double partialtime = endtime;
+  // min(t,partialtime) | min(t,9.0)
+  const double sgr = std::min(t, partialtime);
 
   //	const double imper = 0.00;					// imper
   //> 0 for TORTUOSITY (see Matlab script <NodesElementsAsy.m>) | 0.00 | 20.0
-  const double rIo = 0.6468; // 0.6468 | 0.5678
-  const double hwaves = 2.0;
-  const double lo = 15.0 * mult;
+  // 0.6468 | 0.5678
+  const double rIo = grM.rIo;
+  const double hwaves = grM.hwaves;
+  const double lo = grM.lo * mult;
 
   const vec3d X(eVWP(3), eVWP(4), eVWP(5));
   //	const vec3d  Xcl(0.0, imper/100.0*rIo*sin(hwaves*M_PI*X.z/lo), X.z);
@@ -141,67 +136,80 @@ void stress_tangent_(const double Fe[3][3], const double time,
   const vec3d n2(curve * M_PI / lo * sin(2.0 * M_PI * X.z / lo), 0.0, 1.0);
   const vec3d n1(-NX.y, NX.x, NX.z);
   N[2] = n2;
-  N[2] = N[2] / sqrt(N[2] * N[2]); // axial = d(Xcl)/d(z)
-  N[1] = n1;                       // circumferential
-  N[0] = N[2] ^ N[1];              // radial
+  // axial = d(Xcl)/d(z)
+  N[2] = N[2] / sqrt(N[2] * N[2]);
+  // circumferential
+  N[1] = n1;
+  // radial
+  N[0] = N[2] ^ N[1];
 
-  const double azimuth = acos(-NX.y); // azimuth wrt axis -Y
+  // azimuth wrt axis -Y
+  const double azimuth = acos(-NX.y);
 
-  double phieo =
-      0.34; // 0.34 (CMAME | KNOCKOUTS) | 1.00 (TEVG) | 1.0/3.0 (TEVG)
-  double phimo = 0.5 * (1.0 - phieo);
-  double phico = 0.5 * (1.0 - phieo);
-  double J_star = 1.0;
+  // 0.34 (CMAME | KNOCKOUTS) | 1.00 (TEVG) | 1.0/3.0 (TEVG)
+  double phieo = grM.phieo;
+  double phimo = grM.phimo;
+  double phico = grM.phico;
+  assert(abs(phieo + phimo + phico - 1.0) < 1e-9);
 
-  const double eta = 1.0; // 1.0 | 1.0/3.0 (for uniform cases) | 0.714
+  // 1.0 | 1.0/3.0 (for uniform cases) | 0.714
+  const double eta = grM.eta;
 
-  double mu = 89.71;
-  double Get = 1.90;
-  double Gez = 1.62;
+  double mu = grM.mu;
+  double Get = grM.Get;
+  double Gez = grM.Gez;
 
-  double alpha = 0.522; // original orientation of diagonal collagen | 0.522
-                        // (CMAME | KNOCKOUTS) | 0.8713 (TEVG)
+  // original orientation of diagonal collagen | 0.522
+  // (CMAME | KNOCKOUTS) | 0.8713 (TEVG)
+  double alpha = grM.alpha;
 
   // original homeostatic parameters (adaptive)
 
   // passive
-  double cm = 261.4; // 261.4 (CMAME | KNOCKOUTS) | 46.61 (TEVG)
-  double dm = 0.24;
-  double Gm = 1.20;
-  double cc = 234.9; // 234.9 (CMAME | KNOCKOUTS) | 328.475 (TEVG)
-  double dc = 4.08;
-  double Gc = 1.25;
+  // 261.4 (CMAME | KNOCKOUTS) | 46.61 (TEVG)
+  double cm = grM.cm;
+  double dm = grM.dm;
+  double Gm = grM.Gm;
+  // 234.9 (CMAME | KNOCKOUTS) | 328.475 (TEVG)
+  double cc = grM.cc;
+  double dc = grM.dc;
+  double Gc = grM.Gc;
 
   // orientation fractions for collagen
-  const double betat = 0.056;
-  const double betaz = 0.067;
-  const double betad = 0.5 * (1.0 - betat - betaz);
+  const double betat = grM.betat;
+  const double betaz = grM.betaz;
+  const double betad = grM.betad;
+  assert(abs(betat + betaz + 2.0 * betad - 1.0) < 1e-9);
 
-  vec3d Np = N[1] * sin(alpha) +
-             N[2] * cos(alpha); // original diagonal fiber direction
-  vec3d Nn = N[1] * sin(alpha) - N[2] * cos(alpha); // idem for symmetric
+  // original diagonal fiber direction
+  vec3d Np = N[1] * sin(alpha) + N[2] * cos(alpha);
+  // idem for symmetric
+  vec3d Nn = N[1] * sin(alpha) - N[2] * cos(alpha);
 
   // active
-  const double Tmax = 250.0 * 0.0; // 250.0 | 50.0 | 150.0 (for uniform cases,
-                                   // except for contractility -> 250)
-  const double lamM = 1.1;
-  const double lam0 = 0.4;
-  double CB = sqrt(log(2.0)); // such that (1-exp(-CB^2)) = 0.5
-  double CS = 0.5 * CB *
-              1.0; // such that (1-exp( -C^2)) = 0.0 for lt = 1/(1+CB/CS)^(1/3)
-                   // = 0.7 and (1-exp(-C^2)) = 0.75 for lt = 2.0
+  // 250.0 | 50.0 | 150.0 (for uniform cases, except for contractility -> 250)
+  const double Tmax = grM.Tmax;
+
+  const double lamM = grM.lamM;
+  const double lam0 = grM.lam0;
+  // such that (1-exp(-CB^2)) = 0.5
+  double CB = sqrt(log(2.0));
+  // such that (1-exp(-C^2)) = 0.0 for lt = 1/(1+CB/CS)^(1/3) = 0.7
+  //       and (1-exp(-C^2)) = 0.75 for lt = 2.0
+  double CS = 0.5 * CB * 1.0;
 
   // time factor [0, 1]
   double f_time = (sgr - pretime) / (endtime - pretime);
 
   const double EPS = 1.0 + (1.0 - 1.0) * f_time;
 
-  double KfKi = 0.0;
-  const double inflam = 0.0 * f_time;
+  double KfKi = grM.KfKi;
+  const double inflam = grM.inflam * f_time;
 
-  double aexp = 0.0; // 1.0 (KNOCKOUTS | TEVG) | 0.0 (CMAME | TORTUOSITY)
+  // 1.0 (KNOCKOUTS | TEVG) | 0.0 (CMAME | TORTUOSITY)
+  double aexp = grM.aexp;
 
-  const double delta = 0.0;
+  const double delta = grM.delta;
 
   // hyperelastic incompressibility
   const double Jdep = 0.999;
@@ -221,7 +229,6 @@ void stress_tangent_(const double Fe[3][3], const double time,
   // stimulus residual
   double ups = 0.0;
 
-  // todo: do outside and once per time step
   // select G&R mode
   enum GR_Mode { prestress, gr, elastic };
   GR_Mode mode;
@@ -376,7 +383,7 @@ void stress_tangent_(const double Fe[3][3], const double time,
   double phich;
   double tauo;
   double tauh;
-  double po;
+  double po = 0.0;
   mat3ds smo;
   mat3ds smh;
   mat3ds sco;
@@ -887,11 +894,8 @@ void stress_tangent_(const double Fe[3][3], const double time,
 
   if (eval_s) {
     for (int i = 0; i < 3; i++)
-      for (int j = 0; j < 3; j++) {
+      for (int j = 0; j < 3; j++)
         S_out[i][j] = S(i, j);
-        if (std::isnan(S(i, j)))
-          std::terminate();
-      }
   }
 
   if (eval_cc) {
@@ -901,11 +905,8 @@ void stress_tangent_(const double Fe[3][3], const double time,
     for (int i = 0; i < 3; i++)
       for (int j = 0; j < 3; j++)
         for (int k = 0; k < 3; k++)
-          for (int l = 0; l < 3; l++) {
+          for (int l = 0; l < 3; l++)
             CC_out[i][j][k][l] = css_ref(i, j, k, l);
-            if (std::isnan(css_ref(i, j, k, l)))
-              std::terminate();
-          }
   }
 
   // store prestress state

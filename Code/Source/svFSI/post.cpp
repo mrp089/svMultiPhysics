@@ -2001,7 +2001,7 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
               }
             }
             else {
-              mat_models::get_pk2cc(com_mod, cep_mod, eq.dmn[cDmn], F, nFn, fN, ya, gr_int_l, gr_props_g, S, Dm);
+              mat_models::get_pk2cc(com_mod, cep_mod, eq.dmn[cDmn], F, nFn, fN, ya, S, Dm);
             }
 
             auto P1 = mat_mul(F, S);
