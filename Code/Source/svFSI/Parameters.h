@@ -514,6 +514,7 @@ class GREquilibratedParameters : public ParameterLists
     Parameter<int> n_t_pre;
     Parameter<int> n_t_end;
     Parameter<int> example;
+    Parameter<bool> coup_wss;
     Parameter<double> KsKi;
     Parameter<double> curve;
     Parameter<double> mult;

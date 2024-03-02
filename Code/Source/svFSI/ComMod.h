@@ -389,6 +389,7 @@ class grModelType
     int n_t_pre = 0;
     int n_t_end = 0;
     int example = 0;
+    bool coup_wss = false;
     double KsKi = 0.0;
     double curve = 0.0;
     double mult = 0.0;
@@ -1522,9 +1523,6 @@ class ComMod {
 
     /// @brief Number of internal growth and remodeling variables
     int nGrInt = 0;
-
-    /// @brief Is growth and remodeling coupled to fluids?
-    bool gr_coup_wss = 0;
 
     //----- double members -----//
 

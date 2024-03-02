@@ -183,6 +183,7 @@ SeMaterialPropertiesMapType set_material_props = {
   lDmn.grM.n_t_pre = params.n_t_pre.value();
   lDmn.grM.n_t_end = params.n_t_end.value();
   lDmn.grM.example = params.example.value();
+  lDmn.grM.coup_wss = params.coup_wss.value();
   lDmn.grM.KsKi = params.KsKi.value();
   lDmn.grM.curve = params.curve.value();
   lDmn.grM.mult = params.mult.value();

@@ -47,20 +47,26 @@
 #include <vec3d.h>
 
 #include "Array.h"
-#include "Tensor4.h"
 #include "ComMod.h"
+#include "Tensor4.h"
 
 #ifndef GR_EQUILIBRATED
 #define GR_EQUILIBRATED
 
 namespace gr_equilibrated_ns {
 
-void stress_tangent_(const grModelType &grM, const double Fe[3][3], const double time,
-                     const Vector<double> &eVWP, Vector<double> &grInt,
-                     double S_out[3][3], double CC_out[3][3][3][3],
-                     const bool coup_wss, const bool eval_s = true,
+void stress_tangent_(const grModelType &grM, const double Fe[3][3],
+                     const double time, const Vector<double> &eVWP,
+                     Vector<double> &grInt, double S_out[3][3],
+                     double CC_out[3][3][3][3], const bool eval_s = true,
                      const bool eval_cc = true);
 
-};
+void stress_tangent_stvk(const grModelType &grM, const double Fe[3][3],
+                         const double time, const Vector<double> &eVWP,
+                         Vector<double> &grInt, double S_out[3][3],
+                         double CC_out[3][3][3][3], const bool eval_s = true,
+                         const bool eval_cc = true);
+
+}; // namespace gr_equilibrated_ns
 
 #endif

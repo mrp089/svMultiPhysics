@@ -38,8 +38,8 @@ namespace gr_equilibrated_ns {
 void stress_tangent_(const grModelType &grM, const double Fe[3][3],
                      const double time, const Vector<double> &eVWP,
                      Vector<double> &grInt, double S_out[3][3],
-                     double CC_out[3][3][3][3], const bool coup_wss,
-                     const bool eval_s, const bool eval_cc) {
+                     double CC_out[3][3][3][3], const bool eval_s,
+                     const bool eval_cc) {
   // convert deformation gradient to FEBio format
   mat3d F(Fe[0][0], Fe[0][1], Fe[0][2], Fe[1][0], Fe[1][1], Fe[1][2], Fe[2][0],
           Fe[2][1], Fe[2][2]);
@@ -74,7 +74,7 @@ void stress_tangent_(const grModelType &grM, const double Fe[3][3],
 
   // get current time
   double t;
-  if (coup_wss)
+  if (grM.coup_wss)
     // time from partitioned coupling (passed through input file)
     t = eVWP(7);
   else
@@ -614,7 +614,7 @@ void stress_tangent_(const grModelType &grM, const double Fe[3][3],
         ro / rIo * lt -
         (ro - rIo) / rIo * lr; // rIrIo -> rIorIo = 1 for F -> Fo
 
-    if (coup_wss)
+    if (grM.coup_wss)
       tau_ratio = tau / tauo;
     else
       tau_ratio = pow(rIrIo, -3);
@@ -785,7 +785,7 @@ void stress_tangent_(const grModelType &grM, const double Fe[3][3],
              (IxIss - 2.0 * IoIss);
 
       // wss linearization
-      if (!coup_wss) {
+      if (!grM.coup_wss) {
         css += 3.0 * pow(rIrIo, -4) * phim * 2.0 * Cratio * CS * EPS *
                exp(-Cratio * Cratio) / (1.0 - exp(-CB * CB)) *
                (ro / rIo / lt * saoxntt - (ro - rIo) / rIo / lr * saoxnrr);
@@ -967,4 +967,58 @@ void stress_tangent_(const grModelType &grM, const double Fe[3][3],
     grInt(k + 11) = phic_gp;
   }
 }
+
+void stress_tangent_stvk(const grModelType &grM, const double Fe[3][3],
+                         const double time, const Vector<double> &eVWP,
+                         Vector<double> &grInt, double S_out[3][3],
+                         double CC_out[3][3][3][3], const bool coup_wss,
+                         const bool eval_s, const bool eval_cc) {
+  // convert deformation gradient to FEBio format
+  mat3d F(Fe[0][0], Fe[0][1], Fe[0][2], Fe[1][0], Fe[1][1], Fe[1][2], Fe[2][0],
+          Fe[2][1], Fe[2][2]);
+
+  // material parameters
+  const double young = 240.56596E6;
+  const double nu = 0.4;
+
+  // lame parameters
+  const double mu = young / (2.0 * (1.0 + nu));
+  const double lambda = nu * young / ((1.0 + nu) * (1.0 - 2.0 * nu));
+
+  // define identity tensor and some useful dyadic products of the identity
+  // tensor
+  const mat3dd I(1.0);
+  tens4ds IxI = dyad1s(I);
+  tens4ds IoI = dyad4s(I);
+  tens4dmm cIxI = tens4dmm(IxI);
+  tens4dmm cIoI = tens4dmm(IoI);
+
+  // green-lagrange strain
+  mat3ds E = 0.5 * ((F.transpose() * F).sym() - I);
+
+  // stress
+  mat3ds S = lambda * E.tr() * I + 2.0 * mu * E;
+
+  // tangent
+  tens4dmm css = lambda * cIxI + 2.0 * mu * cIoI;
+
+  // convert to vector for FORTRAN
+  typedef double(*ten2)[3];
+  typedef double(*ten4)[3][3][3];
+
+  if (eval_s) {
+    for (int i = 0; i < 3; i++)
+      for (int j = 0; j < 3; j++)
+        S_out[i][j] = S(i, j);
+  }
+
+  if (eval_cc) {
+    for (int i = 0; i < 3; i++)
+      for (int j = 0; j < 3; j++)
+        for (int k = 0; k < 3; k++)
+          for (int l = 0; l < 3; l++)
+            CC_out[i][j][k][l] = css(i, j, k, l);
+  }
+}
+
 } // namespace gr_equilibrated_ns

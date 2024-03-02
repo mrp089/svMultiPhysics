@@ -652,11 +652,18 @@ void picp(Simulation* simulation)
       // Update the solution vectors? (new load step in FSG coupling)
       auto & lM = com_mod.msh[0];
       const bool update = std::fabs(lM.gr_props(12, 0) - 1.0) < 1.0e-6;
+      
+      // Check if coupled to fluid
+      int cEq = com_mod.cEq;
+      auto &eq = com_mod.eq[cEq];
+      int cDmn = com_mod.cDmn;
+      auto &dmn = eq.dmn[cDmn];
+      const bool coup_wss = dmn.grM.coup_wss;
 
       // Predict new load step
       for (int i = s; i <= e; i++) {
         for (int j = 0; j < Do.ncols(); j++) {
-          if (com_mod.gr_coup_wss && !update) {
+          if (coup_wss && !update) {
             Dn(i,j) = Do(i,j);
           } else {
             An(i,j) = Yo(i,j);

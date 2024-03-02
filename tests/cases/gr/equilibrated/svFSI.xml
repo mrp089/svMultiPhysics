@@ -58,6 +58,7 @@
       <example> 0 </example>
       <n_t_pre> 1 </n_t_pre>
       <n_t_end> 4 </n_t_end>
+      <coup_wss> false </coup_wss>
       <KsKi> 1.0 </KsKi>
       <mult> 1.0 </mult>
       <rIo> 0.6468 </rIo>

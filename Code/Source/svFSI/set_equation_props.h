@@ -311,7 +311,7 @@ SetEquationPropertiesMapType set_equation_props = {
 
   // Set the possible equations for fsi: fluid (required), struct/ustruct/lElas
   EquationPhys phys { EquationType::phys_fluid, EquationType::phys_struct, EquationType::phys_ustruct, 
-                      EquationType::phys_lElas, EquationType::phys_gr };
+                      EquationType::phys_lElas };
   
   // Set fluid properties.
   int n = 0;

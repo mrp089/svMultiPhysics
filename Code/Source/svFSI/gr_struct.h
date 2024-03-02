@@ -122,14 +122,13 @@ void get_pk2cc(const ComMod &com_mod, const dmnType &lDmn, const double F[N][N],
   const auto &stM = lDmn.stM;
   const auto &grM = lDmn.grM;
   const int nsd = com_mod.nsd;
-  const bool coup_wss = com_mod.gr_coup_wss;
 
   double CC[N][N][N][N];
 
   switch (stM.isoType) {
   case ConstitutiveModelType::GR_equi: {
     gr_equilibrated_ns::stress_tangent_(grM, F, com_mod.time, gr_props, gr_int,
-                                        S, CC, coup_wss, eval_s, eval_cc);
+                                        S, CC, eval_s, eval_cc);
   } break;
 
   default:

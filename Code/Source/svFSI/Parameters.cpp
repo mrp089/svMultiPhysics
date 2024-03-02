@@ -736,6 +736,7 @@ GREquilibratedParameters::GREquilibratedParameters()
   set_parameter("n_t_pre", 0, required, n_t_pre);
   set_parameter("n_t_end", 0, required, n_t_end);
   set_parameter("example", 0, required, example);
+  set_parameter("coup_wss", false, required, coup_wss);
   set_parameter("KsKi", 0.0, required, KsKi);
   set_parameter("curve", 0.0, required, curve);
   set_parameter("mult", 0.0, required, mult);

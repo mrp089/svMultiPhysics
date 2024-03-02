@@ -1220,6 +1220,7 @@ void dist_gr_consts(const ComMod& com_mod, const CmMod& cm_mod, const cmType& cm
 {
   using namespace consts;
 
+  cm.bcast(cm_mod, &grM.coup_wss);
   cm.bcast(cm_mod, &grM.KsKi);
   cm.bcast(cm_mod, &grM.curve);
   cm.bcast(cm_mod, &grM.mult);
