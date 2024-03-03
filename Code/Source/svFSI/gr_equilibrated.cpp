@@ -59,6 +59,8 @@ void stress_tangent_(const grModelType &grM, const double Fe[3][3],
 
   // determinant of the deformation gradient
   const double J = F.det();
+  if (J < 0.0)
+    throw std::runtime_error("[gr_equilibrated] Negative Jacobian");
 
   // set example
   enum Example { none, aneurysm, tortuosity, stenosis };
