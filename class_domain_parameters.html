@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.9.1"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>svFSIplus: DomainParameters Class Reference</title>
+<title>svMultiPhysics: DomainParameters Class Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -22,7 +22,7 @@
  <tbody>
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">svFSIplus
+   <div id="projectname">svMultiPhysics
    </div>
   </td>
  </tr>
@@ -140,9 +140,12 @@ Public Attributes</h2></td></tr>
 <tr class="memitem:a06261df7ab05a7a05eecae1ec12926be"><td class="memItemLeft" align="right" valign="top"><a id="a06261df7ab05a7a05eecae1ec12926be"></a>
 <a class="el" href="class_stimulus_parameters.html">StimulusParameters</a>&#160;</td><td class="memItemRight" valign="bottom"><b>stimulus</b></td></tr>
 <tr class="separator:a06261df7ab05a7a05eecae1ec12926be"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afea05cba4e70c79f46a7a19192261293"><td class="memItemLeft" align="right" valign="top"><a id="afea05cba4e70c79f46a7a19192261293"></a>
-<a class="el" href="class_viscosity_parameters.html">ViscosityParameters</a>&#160;</td><td class="memItemRight" valign="bottom"><b>viscosity</b></td></tr>
-<tr class="separator:afea05cba4e70c79f46a7a19192261293"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5e6e08d2e05518e9cb9bc6c505c00af7"><td class="memItemLeft" align="right" valign="top"><a id="a5e6e08d2e05518e9cb9bc6c505c00af7"></a>
+<a class="el" href="class_fluid_viscosity_parameters.html">FluidViscosityParameters</a>&#160;</td><td class="memItemRight" valign="bottom"><b>fluid_viscosity</b></td></tr>
+<tr class="separator:a5e6e08d2e05518e9cb9bc6c505c00af7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a45d5d90936a90253e1a46db79e3b53b6"><td class="memItemLeft" align="right" valign="top"><a id="a45d5d90936a90253e1a46db79e3b53b6"></a>
+<a class="el" href="class_solid_viscosity_parameters.html">SolidViscosityParameters</a>&#160;</td><td class="memItemRight" valign="bottom"><b>solid_viscosity</b></td></tr>
+<tr class="separator:a45d5d90936a90253e1a46db79e3b53b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ade676fbca0d925f2de82d34932f40522"><td class="memItemLeft" align="right" valign="top"><a id="ade676fbca0d925f2de82d34932f40522"></a>
 <a class="el" href="class_parameter.html">Parameter</a>&lt; std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>id</b></td></tr>
 <tr class="separator:ade676fbca0d925f2de82d34932f40522"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -245,15 +248,15 @@ Public Attributes</h2></td></tr>
 <tr class="memitem:ae4143fffdbe9357401b176c3074d6bf0"><td class="memItemLeft" align="right" valign="top"><a id="ae4143fffdbe9357401b176c3074d6bf0"></a>
 <a class="el" href="class_parameter.html">Parameter</a>&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>solid_density</b></td></tr>
 <tr class="separator:ae4143fffdbe9357401b176c3074d6bf0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a816629a1db11f1da8d17282b7c3350dd"><td class="memItemLeft" align="right" valign="top"><a id="a816629a1db11f1da8d17282b7c3350dd"></a>
-<a class="el" href="class_parameter.html">Parameter</a>&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>solid_viscosity</b></td></tr>
-<tr class="separator:a816629a1db11f1da8d17282b7c3350dd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3b2a34f9c4d1e540453f9df12c252acf"><td class="memItemLeft" align="right" valign="top"><a id="a3b2a34f9c4d1e540453f9df12c252acf"></a>
 <a class="el" href="class_parameter.html">Parameter</a>&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>source_term</b></td></tr>
 <tr class="separator:a3b2a34f9c4d1e540453f9df12c252acf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1ac2c1e72c8a364c18cb445110a4829c"><td class="memItemLeft" align="right" valign="top"><a id="a1ac2c1e72c8a364c18cb445110a4829c"></a>
 <a class="el" href="class_parameter.html">Parameter</a>&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>time_step_for_integration</b></td></tr>
 <tr class="separator:a1ac2c1e72c8a364c18cb445110a4829c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4dcd20106ff5cb18af396afbc638e4c5"><td class="memItemLeft" align="right" valign="top"><a id="a4dcd20106ff5cb18af396afbc638e4c5"></a>
+<a class="el" href="class_parameter.html">Parameter</a>&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>inverse_darcy_permeability</b></td></tr>
+<tr class="separator:a4dcd20106ff5cb18af396afbc638e4c5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_attribs_class_parameter_lists"><td colspan="2" onclick="javascript:toggleInherit('pub_attribs_class_parameter_lists')"><img src="closed.png" alt="-"/>&#160;Public Attributes inherited from <a class="el" href="class_parameter_lists.html">ParameterLists</a></td></tr>
 <tr class="memitem:a6131758a550b2e63f34e7554933e27f8 inherit pub_attribs_class_parameter_lists"><td class="memItemLeft" align="right" valign="top">std::map&lt; std::string, std::variant&lt; <a class="el" href="class_parameter.html">Parameter</a>&lt; bool &gt; *, <a class="el" href="class_parameter.html">Parameter</a>&lt; double &gt; *, <a class="el" href="class_parameter.html">Parameter</a>&lt; int &gt; *, <a class="el" href="class_parameter.html">Parameter</a>&lt; std::string &gt; *, <a class="el" href="class_vector_parameter.html">VectorParameter</a>&lt; double &gt; *, <a class="el" href="class_vector_parameter.html">VectorParameter</a>&lt; int &gt; *, <a class="el" href="class_vector_parameter.html">VectorParameter</a>&lt; std::string &gt; * &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_parameter_lists.html#a6131758a550b2e63f34e7554933e27f8">params_map</a></td></tr>
 <tr class="memdesc:a6131758a550b2e63f34e7554933e27f8 inherit pub_attribs_class_parameter_lists"><td class="mdescLeft">&#160;</td><td class="mdescRight">Map used for storing parameters by name / <a class="el" href="class_parameter.html" title="The Parameter class template is used to store a named paramater and its scalar value as a basic type:...">Parameter</a> template union.  <a href="class_parameter_lists.html#a6131758a550b2e63f34e7554933e27f8">More...</a><br /></td></tr>
@@ -304,8 +307,8 @@ Static Public Attributes</h2></td></tr>
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following files:<ul>
-<li>svFSI/<a class="el" href="_parameters_8h_source.html">Parameters.h</a></li>
-<li>svFSI/Parameters.cpp</li>
+<li>solver/<a class="el" href="_parameters_8h_source.html">Parameters.h</a></li>
+<li>solver/Parameters.cpp</li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->

@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.9.1"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>svFSIplus: read_files_ns Namespace Reference</title>
+<title>svMultiPhysics: read_files_ns Namespace Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -22,7 +22,7 @@
  <tbody>
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">svFSIplus
+   <div id="projectname">svMultiPhysics
    </div>
   </td>
  </tr>
@@ -160,9 +160,12 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>read_trac_bcff</b> (<
 <tr class="memitem:ad8de3e1b4d1ed8960878953bca1067f7"><td class="memItemLeft" align="right" valign="top"><a id="ad8de3e1b4d1ed8960878953bca1067f7"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>read_rmsh</b> (<a class="el" href="class_simulation.html">Simulation</a> *simulation, <a class="el" href="class_equation_parameters.html">EquationParameters</a> *eq_param)</td></tr>
 <tr class="separator:ad8de3e1b4d1ed8960878953bca1067f7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa31608859a7d88f8342e6f09a8eca695"><td class="memItemLeft" align="right" valign="top"><a id="aa31608859a7d88f8342e6f09a8eca695"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>read_visc_model</b> (<a class="el" href="class_simulation.html">Simulation</a> *simulation, <a class="el" href="class_equation_parameters.html">EquationParameters</a> *eq_params, <a class="el" href="class_domain_parameters.html">DomainParameters</a> *domain_params, <a class="el" href="classdmn_type.html">dmnType</a> &amp;lDmn)</td></tr>
-<tr class="separator:aa31608859a7d88f8342e6f09a8eca695"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a92f8df44aaa6d6aacfe719efdb9be5e3"><td class="memItemLeft" align="right" valign="top"><a id="a92f8df44aaa6d6aacfe719efdb9be5e3"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>read_fluid_visc_model</b> (<a class="el" href="class_simulation.html">Simulation</a> *simulation, <a class="el" href="class_equation_parameters.html">EquationParameters</a> *eq_params, <a class="el" href="class_domain_parameters.html">DomainParameters</a> *domain_params, <a class="el" href="classdmn_type.html">dmnType</a> &amp;lDmn)</td></tr>
+<tr class="separator:a92f8df44aaa6d6aacfe719efdb9be5e3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a92283357db91a4fc9d54996540b5691d"><td class="memItemLeft" align="right" valign="top"><a id="a92283357db91a4fc9d54996540b5691d"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>read_solid_visc_model</b> (<a class="el" href="class_simulation.html">Simulation</a> *simulation, <a class="el" href="class_equation_parameters.html">EquationParameters</a> *eq_params, <a class="el" href="class_domain_parameters.html">DomainParameters</a> *domain_params, <a class="el" href="classdmn_type.html">dmnType</a> &amp;lDmn)</td></tr>
+<tr class="separator:a92283357db91a4fc9d54996540b5691d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a134e2fa41559ccccf83dc5c4a2ffcb13"><td class="memItemLeft" align="right" valign="top"><a id="a134e2fa41559ccccf83dc5c4a2ffcb13"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>read_wall_props_ff</b> (<a class="el" href="class_com_mod.html">ComMod</a> &amp;com_mod, const std::string &amp;file_name, const int iM, const int iFa)</td></tr>
 <tr class="separator:a134e2fa41559ccccf83dc5c4a2ffcb13"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -181,7 +184,7 @@ const int&#160;</td><td class="memItemRight" valign="bottom"><b>maxOutput</b> = 
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Define some types used to pass data to functions. </p>
-<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000012">Todo:</a></b></dt><dd>[TODO:DaveP] maxOutput=5 is is defined in consts but in the Fortran READEQ subroutine is defined as maxOutput=22. </dd></dl>
+<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000013">Todo:</a></b></dt><dd>[TODO:DaveP] maxOutput=5 is is defined in consts but in the Fortran READEQ subroutine is defined as maxOutput=22. </dd></dl>
 </div><h2 class="groupheader">Function Documentation</h2>
 <a id="a6efc237e196580d73a5eb1df52003a05"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a6efc237e196580d73a5eb1df52003a05">&#9670;&nbsp;</a></span>face_match()</h2>
@@ -222,7 +225,7 @@ const int&#160;</td><td class="memItemRight" valign="bottom"><b>maxOutput</b> = 
 </div><div class="memdoc">
 
 <p>Match two faces? </p>
-<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000011">Todo:</a></b></dt><dd>[TODO:DaveP] this has not been tested. </dd></dl>
+<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000012">Todo:</a></b></dt><dd>[TODO:DaveP] this has not been tested. </dd></dl>
 
 </div>
 </div>
