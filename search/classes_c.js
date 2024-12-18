@@ -1,6 +1,7 @@
 var searchData=
 [
-  ['odetype_659',['odeType',['../classode_type.html',1,'']]],
-  ['outputparameters_660',['OutputParameters',['../class_output_parameters.html',1,'']]],
-  ['outputtype_661',['outputType',['../classoutput_type.html',1,'']]]
+  ['odetype_661',['odeType',['../classode_type.html',1,'']]],
+  ['outputoptions_662',['OutputOptions',['../struct_output_options.html',1,'']]],
+  ['outputparameters_663',['OutputParameters',['../class_output_parameters.html',1,'']]],
+  ['outputtype_664',['outputType',['../classoutput_type.html',1,'']]]
 ];

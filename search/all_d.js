@@ -4,8 +4,8 @@ var searchData=
   ['odetype_370',['odeType',['../classode_type.html',1,'']]],
   ['ok_371',['ok',['../classeq_type.html#a168b70cd9f8b50c649d5dd5d64afadf0',1,'eqType']]],
   ['operator_28_29_372',['operator()',['../class_array3.html#a27e05c5e8acb935a71d1e77068330f03',1,'Array3::operator()(const int row, const int col, const int slice) const'],['../class_array3.html#af729e37db3bfafe7567f42ddb4d7f18e',1,'Array3::operator()(const int row, const int col, const int slice)']]],
-  ['operator_2a_373',['operator*',['../class_array3.html#ae38a715d174cb8433b9cc301ab371cdf',1,'Array3::operator*()'],['../class_vector.html#aecf1f5b67a87162c968726368c834cb8',1,'Vector::operator*(const T value) const']]],
-  ['operator_2b_374',['operator+',['../class_vector.html#a77f969fca41c0bf9c68049ee53c3e8b7',1,'Vector::operator+(const T value) const'],['../class_vector.html#a84b0cbbf4d1c68407d1c4532654df11e',1,'Vector::operator+(const Vector&lt; T &gt; &amp;vec) const']]],
+  ['operator_2a_373',['operator*',['../class_vector.html#aecf1f5b67a87162c968726368c834cb8',1,'Vector::operator*()'],['../class_array3.html#ae38a715d174cb8433b9cc301ab371cdf',1,'Array3::operator*()']]],
+  ['operator_2b_374',['operator+',['../class_vector.html#a84b0cbbf4d1c68407d1c4532654df11e',1,'Vector::operator+(const Vector&lt; T &gt; &amp;vec) const'],['../class_vector.html#a77f969fca41c0bf9c68049ee53c3e8b7',1,'Vector::operator+(const T value) const']]],
   ['operator_2d_375',['operator-',['../class_vector.html#a436d68d3bab5de8b41b2509f09bfb30b',1,'Vector']]],
   ['operator_2f_376',['operator/',['../class_vector.html#ac9ac12c2578afc22a5ee70df49536f70',1,'Vector']]],
   ['operator_3d_377',['operator=',['../class_array3.html#a88464026d0e75192e59faf853768bf76',1,'Array3::operator=()'],['../class_vector.html#a9b8984b2c1c9518cea638ac95507df38',1,'Vector::operator=()']]],
@@ -16,6 +16,7 @@ var searchData=
   ['out_5ffiles_382',['out_files',['../classecg_leads_type.html#af77b84a8b3e4444955a642447c278a34',1,'ecgLeadsType']]],
   ['outib_383',['outIB',['../classeq_type.html#a6986408c1ffc78110922fefa5506d792',1,'eqType']]],
   ['output_384',['output',['../classeq_type.html#ae6f3019943067b01b306086d24af0783',1,'eqType']]],
-  ['outputparameters_385',['OutputParameters',['../class_output_parameters.html',1,'']]],
-  ['outputtype_386',['outputType',['../classoutput_type.html',1,'']]]
+  ['outputoptions_385',['OutputOptions',['../struct_output_options.html',1,'']]],
+  ['outputparameters_386',['OutputParameters',['../class_output_parameters.html',1,'']]],
+  ['outputtype_387',['outputType',['../classoutput_type.html',1,'']]]
 ];
