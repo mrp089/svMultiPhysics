@@ -1,9 +1,9 @@
-name: test Ubuntu
+name: ubuntu-latest
 on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
-    container: simvascular/libraries:ubuntu-latest
+    container: simvascular/libraries:ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Build svZeroDSolver
