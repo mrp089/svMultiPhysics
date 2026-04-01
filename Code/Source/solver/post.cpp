@@ -1177,9 +1177,9 @@ void ppbin2vtk(Simulation* simulation)
       const int tDof = com_mod.tDof;
       const int tnNo = com_mod.tnNo;
       SolutionStates temp_solutions;
-      temp_solutions.old.A.resize(tDof, tnNo);
-      temp_solutions.old.Y.resize(tDof, tnNo);
-      temp_solutions.old.D.resize(tDof, tnNo);
+      temp_solutions.old.get_acceleration().resize(tDof, tnNo);
+      temp_solutions.old.get_velocity().resize(tDof, tnNo);
+      temp_solutions.old.get_displacement().resize(tDof, tnNo);
 
       std::array<double,3> rtmp;
       init_from_bin(simulation, fName, rtmp, temp_solutions);

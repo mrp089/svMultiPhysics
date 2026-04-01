@@ -140,9 +140,9 @@ void baf_ini(Simulation* simulation, SolutionStates& solutions)
     if (!com_mod.stFileFlag) {
       // Create temporary SolutionStates for set_bc calls
       SolutionStates temp_solutions;
-      temp_solutions.old.A = Ao;
-      temp_solutions.old.D = Do;
-      temp_solutions.old.Y = Yo;
+      temp_solutions.old.get_acceleration() = Ao;
+      temp_solutions.old.get_displacement() = Do;
+      temp_solutions.old.get_velocity() = Yo;
       set_bc::rcr_init(com_mod, cm_mod, temp_solutions);
     }
 
@@ -157,12 +157,12 @@ void baf_ini(Simulation* simulation, SolutionStates& solutions)
     if (com_mod.cplBC.schm != CplBCType::cplBC_E) {
       // Create temporary SolutionStates for set_bc calls
       SolutionStates temp_solutions;
-      temp_solutions.old.A = Ao;
-      temp_solutions.old.D = Do;
-      temp_solutions.old.Y = Yo;
-      temp_solutions.current.A = Yo;
-      temp_solutions.current.Y = Yo;
-      temp_solutions.current.D = Do;
+      temp_solutions.old.get_acceleration() = Ao;
+      temp_solutions.old.get_displacement() = Do;
+      temp_solutions.old.get_velocity() = Yo;
+      temp_solutions.current.get_acceleration() = Yo;
+      temp_solutions.current.get_velocity() = Yo;
+      temp_solutions.current.get_displacement() = Do;
       set_bc::calc_der_cpl_bc(com_mod, cm_mod, temp_solutions);
     }
   }

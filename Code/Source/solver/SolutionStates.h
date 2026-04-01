@@ -13,19 +13,19 @@
  * A (time derivative), D (integrated variable), and Y (variable)
  */
 struct Solution {
-  Array<double> A;  ///< Time derivative (acceleration in structural mechanics)
-  Array<double> D;  ///< Integrated variable (displacement in structural mechanics)
-  Array<double> Y;  ///< Variable (velocity in structural mechanics)
+  Array<double>& get_acceleration() { return acceleration_; }
+  const Array<double>& get_acceleration() const { return acceleration_; }
 
-  // Semantic getters for improved readability
-  Array<double>& get_acceleration() { return A; }
-  const Array<double>& get_acceleration() const { return A; }
+  Array<double>& get_velocity() { return velocity_; }
+  const Array<double>& get_velocity() const { return velocity_; }
 
-  Array<double>& get_velocity() { return Y; }
-  const Array<double>& get_velocity() const { return Y; }
+  Array<double>& get_displacement() { return displacement_; }
+  const Array<double>& get_displacement() const { return displacement_; }
 
-  Array<double>& get_displacement() { return D; }
-  const Array<double>& get_displacement() const { return D; }
+private:
+  Array<double> acceleration_;  ///< Time derivative (acceleration in structural mechanics)
+  Array<double> displacement_;  ///< Integrated variable (displacement in structural mechanics)
+  Array<double> velocity_;      ///< Variable (velocity in structural mechanics)
 };
 
 /**

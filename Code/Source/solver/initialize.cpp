@@ -641,9 +641,9 @@ void initialize(Simulation* simulation, Vector<double>& timeP)
 
   // Create SolutionStates that will be moved to Integrator at end
   SolutionStates initial_solutions;
-  initial_solutions.old.A.resize(tDof, tnNo);
-  initial_solutions.old.Y.resize(tDof, tnNo);
-  initial_solutions.old.D.resize(tDof, tnNo);
+  initial_solutions.old.get_acceleration().resize(tDof, tnNo);
+  initial_solutions.old.get_velocity().resize(tDof, tnNo);
+  initial_solutions.old.get_displacement().resize(tDof, tnNo);
   // An, Yn, Dn will be created in Integrator class
 
   // Local aliases for convenience (these reference initial_solutions members)
@@ -853,24 +853,24 @@ void initialize(Simulation* simulation, Vector<double>& timeP)
   // Modifies Ao, Yo, Do (local variables)
   //
   SolutionStates temp_solutions;
-  temp_solutions.old.A = Ao;
-  temp_solutions.old.Y = Yo;
-  temp_solutions.old.D = Do;
-  temp_solutions.current.A = Ao;
-  temp_solutions.current.Y = Yo;
-  temp_solutions.current.D = Do;
+  temp_solutions.old.get_acceleration() = Ao;
+  temp_solutions.old.get_velocity() = Yo;
+  temp_solutions.old.get_displacement() = Do;
+  temp_solutions.current.get_acceleration() = Ao;
+  temp_solutions.current.get_velocity() = Yo;
+  temp_solutions.current.get_displacement() = Do;
   set_bc::set_bc_dir(com_mod, temp_solutions);
   // Copy back modified values
-  Ao = temp_solutions.current.A;
-  Yo = temp_solutions.current.Y;
-  Do = temp_solutions.current.D;
+  Ao = temp_solutions.current.get_acceleration();
+  Yo = temp_solutions.current.get_velocity();
+  Do = temp_solutions.current.get_displacement();
 
   // Preparing TXT files (pass solution states for initial output)
   SolutionStates init_txt_solutions;
-  init_txt_solutions.current.A = Ao;
-  init_txt_solutions.current.Y = Yo;
-  init_txt_solutions.current.D = Do;
-  init_txt_solutions.old.D = Do;
+  init_txt_solutions.current.get_acceleration() = Ao;
+  init_txt_solutions.current.get_velocity() = Yo;
+  init_txt_solutions.current.get_displacement() = Do;
+  init_txt_solutions.old.get_displacement() = Do;
   txt_ns::txt(simulation, true, init_txt_solutions);
 
   // Printing the first line and initializing timeP
