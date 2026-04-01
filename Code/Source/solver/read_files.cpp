@@ -1000,17 +1000,26 @@ void read_cep_domain(Simulation* simulation, EquationParameters* eq_params, Doma
   }
 
   // Set Ttp parameters.
-  //
-  if (domain_params->G_Na.defined())  { cep_mod.ttp.G_Na = domain_params->G_Na.value(); }
-  if (domain_params->G_Kr.defined())  { cep_mod.ttp.G_Kr = domain_params->G_Kr.value(); }
-  if (domain_params->G_Ks.defined())  { cep_mod.ttp.G_Ks[lDmn.cep.imyo - 1] = domain_params->G_Ks.value(); }
-  if (domain_params->G_to.defined())  { cep_mod.ttp.G_to[lDmn.cep.imyo - 1] = domain_params->G_to.value(); }
-  if (domain_params->G_CaL.defined()) { cep_mod.ttp.G_CaL = domain_params->G_CaL.value(); }
+  // Scalar params
+  std::map<Parameter<double>*,double*> simple_ttp_params{
+    {&domain_params->G_Na, &lDmn.cep.ttp.G_Na},
+    {&domain_params->G_Kr, &lDmn.cep.ttp.G_Kr},
+    {&domain_params->G_CaL, &lDmn.cep.ttp.G_CaL}
+  };
 
-  // Set Bo parameters.
-  //
-  if (domain_params->tau_si.defined())  { cep_mod.bo.tau_si[lDmn.cep.imyo - 1] = domain_params->tau_si.value(); }
-  if (domain_params->tau_fi.defined())  { cep_mod.bo.tau_fi[lDmn.cep.imyo - 1] = domain_params->tau_fi.value(); }
+  for (auto& [param, value] : simple_ttp_params) {
+    if (param->defined()) {
+      *value = param->value();
+    }
+  }
+
+  // Array params
+  if (domain_params->G_Ks.defined()) {
+    lDmn.cep.ttp.G_Ks[lDmn.cep.imyo - 1] = domain_params->G_Ks.value();
+  }
+  if (domain_params->G_to.defined()) {
+    lDmn.cep.ttp.G_to[lDmn.cep.imyo - 1] = domain_params->G_to.value();
+  }
 
   // Set stimulus parameters. 
   //
@@ -1381,6 +1390,7 @@ void read_eq(Simulation* simulation, EquationParameters* eq_params, eqType& lEq)
   lEq.minItr = eq_params->min_iterations.value();
   lEq.maxItr = eq_params->max_iterations.value();
   lEq.tol = eq_params->tolerance.value();
+  lEq.expl_geom_cpl = eq_params->explicit_geometric_coupling.value();
 
   // Initialize coupled BC.
   //
@@ -1458,6 +1468,13 @@ void read_eq(Simulation* simulation, EquationParameters* eq_params, eqType& lEq)
   EquationNdop nDOP;
 
   set_equation_properties(simulation, eq_params, lEq, propL, outPuts, nDOP);
+
+  // Check if explicit geometric coupling is allowed for the equation
+  if (lEq.expl_geom_cpl) {
+    if (lEq.phys != EquationType::phys_FSI) {
+      throw std::runtime_error("Explicit geometric coupling is only allowed for FSI equation.");
+    }
+  }
 
   // Read VTK files or boundaries. [TODO:DaveP] this is not a correct comment.
   read_outputs(simulation, eq_params, lEq, nDOP, outPuts);
@@ -1796,7 +1813,9 @@ void read_files(Simulation* simulation, const std::string& file_name)
     if (eq.phys == EquationType::phys_mesh) {   
       if (!com_mod.mvMsh) {
         throw std::runtime_error("mesh equation can only be specified after FSI equation");
-      }     
+      }
+      // Use the explicit geometry coupling flag of the FSI equation.
+      eq.expl_geom_cpl = com_mod.eq[0].expl_geom_cpl; 
     }     
   }
   #ifdef debug_read_files
