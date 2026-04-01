@@ -5,6 +5,7 @@
 #define SET_BC_H 
 
 #include "Simulation.h"
+#include "SolutionStates.h"
 #include "consts.h"
 #include "RobinBoundaryCondition.h"
 

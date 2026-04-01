@@ -5,6 +5,7 @@
 #define MESH_H 
 
 #include "ComMod.h"
+#include "SolutionStates.h"
 
 #include "consts.h"
 

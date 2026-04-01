@@ -5,6 +5,7 @@
 #define RIS_H
 
 #include "ComMod.h"
+#include "SolutionStates.h"
 
 namespace ris {
 

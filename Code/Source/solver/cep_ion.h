@@ -5,6 +5,7 @@
 #define CEP_ION_H 
 
 #include "Array.h"
+#include "SolutionStates.h"
 #include "ComMod.h"
 #include "Simulation.h"
 

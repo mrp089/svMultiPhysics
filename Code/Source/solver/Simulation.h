@@ -5,6 +5,7 @@
 #define SIMULATION_H 
 
 #include "ComMod.h"
+#include "SolutionStates.h"
 #include "Parameters.h"
 #include "SimulationLogger.h"
 #include "LinearAlgebra.h"

@@ -5,6 +5,7 @@
 #define CMM_H 
 
 #include "ComMod.h"
+#include "SolutionStates.h"
 #include "Simulation.h"
 
 /// @brief These subroutines implement the Coupled Momentum Method (CMM).

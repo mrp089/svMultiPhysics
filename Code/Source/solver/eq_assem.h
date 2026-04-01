@@ -5,6 +5,7 @@
 #define EQ_ASSEM_H 
 
 #include "ComMod.h"
+#include "SolutionStates.h"
 #include "Simulation.h"
 
 namespace eq_assem {

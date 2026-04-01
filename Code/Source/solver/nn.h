@@ -5,6 +5,7 @@
 #define NN_H 
 
 #include "Simulation.h"
+#include "SolutionStates.h"
 #include "ComMod.h"
 #include "consts.h"
 

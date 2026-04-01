@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "Simulation.h"
+#include "SolutionStates.h"
 
 #ifndef INITIALIZE_H
 #define INITIALIZE_H

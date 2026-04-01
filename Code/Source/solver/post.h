@@ -5,6 +5,7 @@
 #define POST_H 
 
 #include "Simulation.h"
+#include "SolutionStates.h"
 #include "consts.h"
 
 namespace post {

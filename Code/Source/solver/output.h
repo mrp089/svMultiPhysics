@@ -5,6 +5,7 @@
 #define OUTPUT__H 
 
 #include "Simulation.h"
+#include "SolutionStates.h"
 
 #include<fstream>
 #include<iostream>

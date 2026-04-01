@@ -5,6 +5,7 @@
 #define READ_MSH_H 
 
 #include "ComMod.h"
+#include "SolutionStates.h"
 #include "Simulation.h"
 #include "Vector.h"
 

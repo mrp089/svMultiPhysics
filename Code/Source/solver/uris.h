@@ -5,6 +5,7 @@
 #define URIS_H
  
 #include "ComMod.h"
+#include "SolutionStates.h"
 #include "Simulation.h"
 
 namespace uris {

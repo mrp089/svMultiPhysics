@@ -5,6 +5,7 @@
 #define INTEGRATOR_H
 
 #include "Array.h"
+#include "SolutionStates.h"
 #include "Vector.h"
 #include "Simulation.h"
 

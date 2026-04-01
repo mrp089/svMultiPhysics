@@ -5,6 +5,7 @@
 #define ALL_FUN_H 
 
 #include "Array3.h"
+#include "SolutionStates.h"
 #include "Array.h"
 #include "Vector.h"
 #include "ComMod.h"

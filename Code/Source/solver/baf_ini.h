@@ -5,6 +5,7 @@
 #define BAF_INI_H 
 
 #include "ComMod.h"
+#include "SolutionStates.h"
 #include "Simulation.h"
 
 namespace baf_ini_ns {

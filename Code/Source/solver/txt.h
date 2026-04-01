@@ -5,6 +5,7 @@
 #define TXT_H 
 
 #include "Simulation.h"
+#include "SolutionStates.h"
 #include "Array.h"
 #include "ComMod.h"
 
