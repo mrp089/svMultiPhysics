@@ -20,7 +20,7 @@
 #include <iostream>
 #include <set>
 
-using namespace consts;
+#define n_debug_integrator_step
 
 //------------------------
 // Integrator Constructor
@@ -29,13 +29,6 @@ Integrator::Integrator(Simulation* simulation, SolutionStates&& solutions)
   : simulation_(simulation), solutions_(std::move(solutions)), newton_count_(0)
 {
   initialize_arrays();
-}
-
-//------------------------
-// Integrator Destructor
-//------------------------
-Integrator::~Integrator() {
-  // Arrays will be automatically cleaned up
 }
 
 //------------------------
@@ -77,7 +70,6 @@ bool Integrator::step() {
   int& cTS = com_mod.cTS;
   int& cEq = com_mod.cEq;
 
-  #define n_debug_integrator_step
   #ifdef debug_integrator_step
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
   dmsg.banner();
@@ -85,7 +77,6 @@ bool Integrator::step() {
 
   // Newton iteration loop
   newton_count_ = 1;
-  int reply;
   int iEqOld;
 
   // Looping over Newton iterations
@@ -179,15 +170,12 @@ bool Integrator::step() {
     output::output_result(simulation_, com_mod.timeP, 2, iEqOld);
     newton_count_ += 1;
   } // End of Newton iteration loop
-
-  return false;
 }
 
 //------------------------
 // initiator_step
 //------------------------
 void Integrator::initiator_step() {
-  #define n_debug_integrator_step
   #ifdef debug_integrator_step
   DebugMsg dmsg(__func__, simulation_->com_mod.cm.idcm());
   dmsg << "Initiator step ..." << std::endl;
@@ -195,18 +183,18 @@ void Integrator::initiator_step() {
 
   initiator(Ag_, Yg_, Dg_);
 
-  // Debug output
+  #ifdef debug_integrator_step
   Ag_.write("Ag_pic" + istr_);
   Yg_.write("Yg_pic" + istr_);
   Dg_.write("Dg_pic" + istr_);
   solutions_.current.get_velocity().write("solutions_.current.Ypic" + istr_);
+  #endif
 }
 
 //------------------------
 // allocate_linear_system
 //------------------------
 void Integrator::allocate_linear_system(eqType& eq) {
-  #define n_debug_integrator_step
   #ifdef debug_integrator_step
   DebugMsg dmsg(__func__, simulation_->com_mod.cm.idcm());
   dmsg << "Allocating the RHS and LHS" << std::endl;
@@ -214,15 +202,15 @@ void Integrator::allocate_linear_system(eqType& eq) {
 
   ls_ns::ls_alloc(simulation_->com_mod, eq);
 
-  // Debug output
+  #ifdef debug_integrator_step
   simulation_->com_mod.Val.write("Val_alloc" + istr_);
+  #endif
 }
 
 //------------------------
 // set_body_forces
 //------------------------
 void Integrator::set_body_forces() {
-  #define n_debug_integrator_step
   #ifdef debug_integrator_step
   DebugMsg dmsg(__func__, simulation_->com_mod.cm.idcm());
   dmsg << "Set body forces ..." << std::endl;
@@ -230,8 +218,9 @@ void Integrator::set_body_forces() {
 
   bf::set_bf(simulation_->com_mod, Dg_);
 
-  // Debug output
+  #ifdef debug_integrator_step
   simulation_->com_mod.Val.write("Val_bf" + istr_);
+  #endif
 }
 
 //------------------------
@@ -241,7 +230,6 @@ void Integrator::assemble_equations() {
   auto& com_mod = simulation_->com_mod;
   auto& cep_mod = simulation_->get_cep_mod();
 
-  #define n_debug_integrator_step
   #ifdef debug_integrator_step
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
   dmsg << "Assembling equation: " << com_mod.eq[com_mod.cEq].sym;
@@ -251,9 +239,10 @@ void Integrator::assemble_equations() {
     eq_assem::global_eq_assem(com_mod, cep_mod, com_mod.msh[iM], Ag_, Yg_, Dg_, solutions_);
   }
 
-  // Debug output
+  #ifdef debug_integrator_step
   com_mod.R.write("R_as" + istr_);
   com_mod.Val.write("Val_as" + istr_);
+  #endif
 }
 
 //------------------------
@@ -263,14 +252,15 @@ void Integrator::apply_boundary_conditions() {
   auto& com_mod = simulation_->com_mod;
   auto& cm_mod = simulation_->cm_mod;
 
-  #define n_debug_integrator_step
   #ifdef debug_integrator_step
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
   dmsg << "Apply boundary conditions ..." << std::endl;
   #endif
 
+  #ifdef debug_integrator_step
   Yg_.write("Yg_vor_neu" + istr_);
   Dg_.write("Dg_vor_neu" + istr_);
+  #endif
 
   // Apply Neumman or Traction boundary conditions
   set_bc::set_bc_neu(com_mod, cm_mod, Yg_, Dg_, solutions_);
@@ -296,11 +286,12 @@ void Integrator::apply_boundary_conditions() {
     contact::construct_contact_pnlty(com_mod, cm_mod, Dg_);
   }
 
-  // Debug output
+  #ifdef debug_integrator_step
   com_mod.Val.write("Val_neu" + istr_);
   com_mod.R.write("R_neu" + istr_);
   Yg_.write("Yg_neu" + istr_);
   Dg_.write("Dg_neu" + istr_);
+  #endif
 }
 
 //------------------------
@@ -310,7 +301,6 @@ void Integrator::solve_linear_system() {
   auto& com_mod = simulation_->com_mod;
   auto& eq = com_mod.eq[com_mod.cEq];
 
-  #define n_debug_integrator_step
   #ifdef debug_integrator_step
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
   dmsg << "Solving equation: " << eq.sym;
@@ -318,9 +308,10 @@ void Integrator::solve_linear_system() {
 
   ls_ns::ls_solve(com_mod, eq, incL_, res_);
 
-  // Debug output
+  #ifdef debug_integrator_step
   com_mod.Val.write("Val_solve" + istr_);
   com_mod.R.write("R_solve" + istr_);
+  #endif
 }
 
 //------------------------
@@ -329,7 +320,6 @@ void Integrator::solve_linear_system() {
 bool Integrator::corrector_and_check_convergence() {
   auto& com_mod = simulation_->com_mod;
 
-  #define n_debug_integrator_step
   #ifdef debug_integrator_step
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
   dmsg << "Update corrector ..." << std::endl;
@@ -337,8 +327,9 @@ bool Integrator::corrector_and_check_convergence() {
 
   corrector();
 
-  // Debug output
+  #ifdef debug_integrator_step
   solutions_.current.get_velocity().write("solutions_.current.Ycorrector" + istr_);
+  #endif
 
   // Check if all equations converged
   return std::count_if(com_mod.eq.begin(), com_mod.eq.end(),
@@ -349,11 +340,12 @@ bool Integrator::corrector_and_check_convergence() {
 // update_residual_arrays
 //------------------------
 void Integrator::update_residual_arrays(eqType& eq) {
+  using namespace consts;
+
   auto& com_mod = simulation_->com_mod;
   int nFacesLS = com_mod.nFacesLS;
   double dt = com_mod.dt;
 
-  #define n_debug_integrator_step
   #ifdef debug_integrator_step
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
   dmsg << "Update res() and incL ..." << std::endl;
@@ -635,9 +627,9 @@ void Integrator::initiator(Array<double>& Ag, Array<double>& Yg, Array<double>& 
 /// Modifies:
 /// \code {.cpp}
 ///   com_mod.Ad
-///   solutions_.current.A (member variable)
-///   com_mod.Dn
-///   com_mod.Yn
+///   solutions_.current.A
+///   solutions_.current.D
+///   solutions_.current.Y
 ///   cep_mod.Xion
 ///   com_mod.pS0
 ///   com_mod.pSa

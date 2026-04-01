@@ -9,9 +9,6 @@
 #include "Vector.h"
 #include "Simulation.h"
 
-// Note: Solution and SolutionStates structs are defined in ComMod.h
-// and available via Simulation.h include chain
-
 /**
  * @brief Integrator class encapsulates the Newton iteration loop for time integration
  *
@@ -34,11 +31,6 @@ public:
    * @param solutions Solution states containing old time level arrays (takes ownership via move)
    */
   Integrator(Simulation* simulation, SolutionStates&& solutions);
-
-  /**
-   * @brief Destroy the Integrator object
-   */
-  ~Integrator();
 
   /**
    * @brief Execute one time step with Newton iteration loop
@@ -65,6 +57,7 @@ public:
    * @return Reference to Ag array (acceleration in structural mechanics)
    */
   Array<double>& get_Ag() { return Ag_; }
+  const Array<double>& get_Ag() const { return Ag_; }
 
   /**
    * @brief Get reference to solution variable Yg (variables)
@@ -72,6 +65,7 @@ public:
    * @return Reference to Yg array (velocity in structural mechanics)
    */
   Array<double>& get_Yg() { return Yg_; }
+  const Array<double>& get_Yg() const { return Yg_; }
 
   /**
    * @brief Get reference to solution variable Dg (integrated variables)
@@ -79,6 +73,7 @@ public:
    * @return Reference to Dg array (displacement in structural mechanics)
    */
   Array<double>& get_Dg() { return Dg_; }
+  const Array<double>& get_Dg() const { return Dg_; }
 
   /**
    * @brief Get reference to solution states struct
@@ -92,6 +87,7 @@ public:
    * @return Reference to SolutionStates struct containing all solution arrays
    */
   SolutionStates& get_solutions() { return solutions_; }
+  const SolutionStates& get_solutions() const { return solutions_; }
 
 private:
   /** @brief Pointer to the simulation object */
