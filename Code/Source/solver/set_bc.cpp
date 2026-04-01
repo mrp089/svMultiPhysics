@@ -27,12 +27,11 @@ namespace set_bc {
 /// matrix M ~ dP/dQ stored in eq.bc[iBc].r.
 /// @param com_mod
 /// @param cm_mod
-void calc_der_cpl_bc(ComMod& com_mod, const CmMod& cm_mod, SolutionStates& solutions)
+void calc_der_cpl_bc(ComMod& com_mod, const CmMod& cm_mod, const SolutionStates& solutions)
 {
-  // Local aliases for solution arrays
-  auto& An = solutions.current.get_acceleration();
-  auto& Yn = solutions.current.get_velocity();
-  auto& Dn = solutions.current.get_displacement();
+  const auto& An = solutions.current.get_acceleration();
+  const auto& Yn = solutions.current.get_velocity();
+  const auto& Dn = solutions.current.get_displacement();
   const auto& Ao = solutions.old.get_acceleration();
   const auto& Yo = solutions.old.get_velocity();
   const auto& Do = solutions.old.get_displacement();
@@ -533,7 +532,7 @@ void RCR_Integ_X(ComMod& com_mod, const CmMod& cm_mod, int istat)
 ///
 /// Replaces 'SUBROUTINE RCRINIT()'
 //
-void rcr_init(ComMod& com_mod, const CmMod& cm_mod, SolutionStates& solutions)
+void rcr_init(ComMod& com_mod, const CmMod& cm_mod, const SolutionStates& solutions)
 {
   // Local aliases for old solution arrays
   const auto& Ao = solutions.old.get_acceleration();
@@ -573,7 +572,7 @@ void rcr_init(ComMod& com_mod, const CmMod& cm_mod, SolutionStates& solutions)
 
 /// @brief Below defines the SET_BC methods for the Coupled Momentum Method (CMM)
 //
-void set_bc_cmm(ComMod& com_mod, const CmMod& cm_mod, const Array<double>& Ag, const Array<double>& Dg, SolutionStates& solutions)
+void set_bc_cmm(ComMod& com_mod, const CmMod& cm_mod, const Array<double>& Ag, const Array<double>& Dg, const SolutionStates& solutions)
 {
   using namespace consts;
 
@@ -598,7 +597,7 @@ void set_bc_cmm(ComMod& com_mod, const CmMod& cm_mod, const Array<double>& Ag, c
   }
 }
 
-void set_bc_cmm_l(ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa, const Array<double>& Ag, const Array<double>& Dg, SolutionStates& solutions)
+void set_bc_cmm_l(ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa, const Array<double>& Ag, const Array<double>& Dg, const SolutionStates& solutions)
 {
   using namespace consts;
 
@@ -658,12 +657,11 @@ void set_bc_cmm_l(ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa, con
 /// @brief Coupled BC quantities are computed here.
 /// Reproduces the Fortran 'SETBCCPL()' subrotutine.
 //
-void set_bc_cpl(ComMod& com_mod, CmMod& cm_mod, SolutionStates& solutions)
+void set_bc_cpl(ComMod& com_mod, CmMod& cm_mod, const SolutionStates& solutions)
 {
-  // Local aliases for solution arrays
-  auto& An = solutions.current.get_acceleration();
-  auto& Yn = solutions.current.get_velocity();
-  auto& Dn = solutions.current.get_displacement();
+  const auto& An = solutions.current.get_acceleration();
+  const auto& Yn = solutions.current.get_velocity();
+  const auto& Dn = solutions.current.get_displacement();
   const auto& Ao = solutions.old.get_acceleration();
   const auto& Yo = solutions.old.get_velocity();
   const auto& Do = solutions.old.get_displacement();
@@ -1072,7 +1070,7 @@ void set_bc_dir_l(ComMod& com_mod, const bcType& lBc, const faceType& lFa, Array
 
 /// @brief Weak treatment of Dirichlet boundary conditions
 //
-void set_bc_dir_w(ComMod& com_mod, const Array<double>& Yg, const Array<double>& Dg, SolutionStates& solutions)
+void set_bc_dir_w(ComMod& com_mod, const Array<double>& Yg, const Array<double>& Dg, const SolutionStates& solutions)
 {
   // Local alias for old displacement
   const auto& Do = solutions.old.get_displacement();
@@ -1327,10 +1325,9 @@ void set_bc_dir_wl(ComMod& com_mod, const bcType& lBc, const mshType& lM, const 
 
 /// @brief Set outlet BCs.
 //
-void set_bc_neu(ComMod& com_mod, const CmMod& cm_mod, const Array<double>& Yg, const Array<double>& Dg, SolutionStates& solutions)
+void set_bc_neu(ComMod& com_mod, const CmMod& cm_mod, const Array<double>& Yg, const Array<double>& Dg, const SolutionStates& solutions)
 {
-  // Local aliases for solution arrays
-  auto& Yn = solutions.current.get_velocity();
+  const auto& Yn = solutions.current.get_velocity();
   const auto& Do = solutions.old.get_displacement();
 
   using namespace consts;
@@ -1373,10 +1370,9 @@ void set_bc_neu(ComMod& com_mod, const CmMod& cm_mod, const Array<double>& Yg, c
 
 /// @brief Set Neumann BC
 //
-void set_bc_neu_l(ComMod& com_mod, const CmMod& cm_mod, const bcType& lBc, const faceType& lFa, const Array<double>& Yg, const Array<double>& Dg, SolutionStates& solutions)
+void set_bc_neu_l(ComMod& com_mod, const CmMod& cm_mod, const bcType& lBc, const faceType& lFa, const Array<double>& Yg, const Array<double>& Dg, const SolutionStates& solutions)
 {
-  // Local aliases for solution arrays
-  auto& Yn = solutions.current.get_velocity();
+  const auto& Yn = solutions.current.get_velocity();
   const auto& Do = solutions.old.get_displacement();
 
   using namespace consts;
@@ -1492,7 +1488,7 @@ void set_bc_neu_l(ComMod& com_mod, const CmMod& cm_mod, const bcType& lBc, const
 /// @brief Set Robin BC contribution to residual and tangent
 //
 void set_bc_rbnl(ComMod& com_mod, const faceType& lFa, const RobinBoundaryCondition& robin_bc,
-  const Array<double>& Yg, const Array<double>& Dg, SolutionStates& solutions)
+  const Array<double>& Yg, const Array<double>& Dg, const SolutionStates& solutions)
 {
   // Local alias for old displacement
   const auto& Do = solutions.old.get_displacement();
@@ -1744,7 +1740,7 @@ void set_bc_rbnl(ComMod& com_mod, const faceType& lFa, const RobinBoundaryCondit
 
 /// @brief Set Traction BC
 //
-void set_bc_trac_l(ComMod& com_mod, const CmMod& cm_mod, const bcType& lBc, const faceType& lFa, SolutionStates& solutions)
+void set_bc_trac_l(ComMod& com_mod, const CmMod& cm_mod, const bcType& lBc, const faceType& lFa, const SolutionStates& solutions)
 {
   // Local alias for old displacement
   const auto& Do = solutions.old.get_displacement();

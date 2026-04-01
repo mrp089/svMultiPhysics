@@ -434,10 +434,9 @@ void bc_ini(const ComMod& com_mod, const CmMod& cm_mod, bcType& lBc, faceType& l
 // face_ini
 //----------
 //
-void face_ini(Simulation* simulation, mshType& lM, faceType& lFa, SolutionStates& solutions)
+void face_ini(Simulation* simulation, mshType& lM, faceType& lFa, const SolutionStates& solutions)
 {
-  // Local alias for old displacement
-  auto& Do = solutions.old.get_displacement();
+  const auto& Do = solutions.old.get_displacement();
 
   using namespace consts;
   auto& com_mod = simulation->com_mod;

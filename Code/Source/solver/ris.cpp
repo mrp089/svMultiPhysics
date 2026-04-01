@@ -13,12 +13,11 @@
 namespace ris {
 
 /// @brief This subroutine computes the mean pressure and flux on the ris surface
-void ris_meanq(ComMod& com_mod, CmMod& cm_mod, SolutionStates& solutions)
+void ris_meanq(ComMod& com_mod, CmMod& cm_mod, const SolutionStates& solutions)
 {
-  // Local aliases for solution arrays
-  auto& An = solutions.current.get_acceleration();
-  auto& Yn = solutions.current.get_velocity();
-  auto& Dn = solutions.current.get_displacement();
+  const auto& An = solutions.current.get_acceleration();
+  const auto& Yn = solutions.current.get_velocity();
+  const auto& Dn = solutions.current.get_displacement();
   const auto& Do = solutions.old.get_displacement();
 
   #define n_debug_ris_meanq
@@ -360,16 +359,15 @@ void clean_r_ris(ComMod& com_mod)
   // [HZ] looks not needed in the current implementation
 }
 
-void setbcdir_ris(ComMod& com_mod, SolutionStates& solutions)
+void setbcdir_ris(ComMod& com_mod, const SolutionStates& solutions)
 {
   // [HZ] looks not needed in the current implementation
 }
 
 /// RIS0D code
-void ris0d_bc(ComMod& com_mod, CmMod& cm_mod, const Array<double>& Yg, const Array<double>& Dg, SolutionStates& solutions)
+void ris0d_bc(ComMod& com_mod, CmMod& cm_mod, const Array<double>& Yg, const Array<double>& Dg, const SolutionStates& solutions)
 {
-  // Local aliases for solution arrays
-  auto& Yn = solutions.current.get_velocity();
+  const auto& Yn = solutions.current.get_velocity();
   const auto& Do = solutions.old.get_displacement();
 
   using namespace consts;
@@ -422,12 +420,11 @@ void ris0d_bc(ComMod& com_mod, CmMod& cm_mod, const Array<double>& Yg, const Arr
 
 }
 
-void ris0d_status(ComMod& com_mod, CmMod& cm_mod, SolutionStates& solutions)
+void ris0d_status(ComMod& com_mod, CmMod& cm_mod, const SolutionStates& solutions)
 {
-  // Local aliases for solution arrays
-  auto& An = solutions.current.get_acceleration();
-  auto& Yn = solutions.current.get_velocity();
-  auto& Dn = solutions.current.get_displacement();
+  const auto& An = solutions.current.get_acceleration();
+  const auto& Yn = solutions.current.get_velocity();
+  const auto& Dn = solutions.current.get_displacement();
   const auto& Do = solutions.old.get_displacement();
 
   using namespace consts;

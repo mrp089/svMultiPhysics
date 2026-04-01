@@ -251,7 +251,7 @@ void uris_meanv(ComMod& com_mod, CmMod& cm_mod, const int iUris, const SolutionS
 
 /// @brief  This subroutine computes the displacement of the immersed
 /// surface with fem projection
-void uris_update_disp(ComMod& com_mod, CmMod& cm_mod, SolutionStates& solutions) {
+void uris_update_disp(ComMod& com_mod, CmMod& cm_mod, const SolutionStates& solutions) {
   // Local alias for solution array
   const auto& Do = solutions.old.get_displacement();
   #define n_debug_uris_update_disp

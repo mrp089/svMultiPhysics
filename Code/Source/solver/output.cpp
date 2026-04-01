@@ -174,10 +174,9 @@ void read_restart_header(ComMod& com_mod, std::array<int,7>& tStamp, double& tim
 //
 void write_restart(Simulation* simulation, std::array<double,3>& timeP, const SolutionStates& solutions)
 {
-  // Local aliases for solution arrays
-  auto& An = solutions.current.get_acceleration();
-  auto& Yn = solutions.current.get_velocity();
-  auto& Dn = solutions.current.get_displacement();
+  const auto& An = solutions.current.get_acceleration();
+  const auto& Yn = solutions.current.get_velocity();
+  const auto& Dn = solutions.current.get_displacement();
 
   auto& com_mod = simulation->com_mod;
   #define n_debug_write_restart
@@ -393,10 +392,9 @@ void write_restart_header(ComMod& com_mod, std::array<double,3>& timeP, std::ofs
 //
 void write_results(ComMod& com_mod, const std::array<double,3>& timeP, const std::string& fName, const bool sstEq, const SolutionStates& solutions)
 {
-  // Local aliases for solution arrays
-  auto& An = solutions.current.get_acceleration();
-  auto& Yn = solutions.current.get_velocity();
-  auto& Dn = solutions.current.get_displacement();
+  const auto& An = solutions.current.get_acceleration();
+  const auto& Yn = solutions.current.get_velocity();
+  const auto& Dn = solutions.current.get_displacement();
 
   int cTS = com_mod.cTS;
 

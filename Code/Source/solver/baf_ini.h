@@ -13,7 +13,7 @@ void baf_ini(Simulation* simulation, SolutionStates& solutions);
 
 void bc_ini(const ComMod& com_mod, const CmMod& cm_mod, bcType& lBc, faceType& lFa, const SolutionStates& solutions);
 
-void face_ini(Simulation* simulation, mshType& lm, faceType& la, SolutionStates& solutions);
+void face_ini(Simulation* simulation, mshType& lm, faceType& la, const SolutionStates& solutions);
 
 void fsi_ls_ini(ComMod& com_mod, const CmMod& cm_mod, bcType& lBc, const faceType& lFa, int& lsPtr, const SolutionStates& solutions);
 

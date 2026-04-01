@@ -292,7 +292,7 @@ void b_neu_folw_p(ComMod& com_mod, const bcType& lBc, const faceType& lFa, const
 /// is eventually used in ADDBCMUL() in the linear solver to add the contribution
 /// from the resistance BC to the matrix-vector product of the tangent matrix and
 /// an arbitrary vector.
-void fsi_ls_upd(ComMod& com_mod, const bcType& lBc, const faceType& lFa, SolutionStates& solutions)
+void fsi_ls_upd(ComMod& com_mod, const bcType& lBc, const faceType& lFa, const SolutionStates& solutions)
 {
   // Local aliases for displacement arrays
   const auto& Dn = solutions.current.get_displacement();
