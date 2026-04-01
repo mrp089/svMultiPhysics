@@ -65,7 +65,6 @@ bool Integrator::step() {
 
   auto& com_mod = simulation_->com_mod;
   auto& cm_mod = simulation_->cm_mod;
-  auto& cep_mod = simulation_->get_cep_mod();
 
   int& cTS = com_mod.cTS;
   int& cEq = com_mod.cEq;
@@ -255,14 +254,11 @@ void Integrator::apply_boundary_conditions() {
   #ifdef debug_integrator_step
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
   dmsg << "Apply boundary conditions ..." << std::endl;
-  #endif
-
-  #ifdef debug_integrator_step
   Yg_.write("Yg_vor_neu" + istr_);
   Dg_.write("Dg_vor_neu" + istr_);
   #endif
 
-  // Apply Neumman or Traction boundary conditions
+  // Apply Neumann or Traction boundary conditions
   set_bc::set_bc_neu(com_mod, cm_mod, Yg_, Dg_, solutions_);
 
   // Apply CMM BC conditions
@@ -376,14 +372,10 @@ void Integrator::update_residual_arrays(eqType& eq) {
 /// @brief Predictor step for next time step
 ///
 /// Modifies:
-///   pS0
-///   Ad
-///   Ao
-///   Yo
-///   Do
-///   An
-///   Yn
-///   Dn
+///   com_mod.pS0
+///   com_mod.Ad
+///   solutions_.old (acceleration, velocity, displacement)
+///   solutions_.current (acceleration, velocity, displacement)
 ///
 void Integrator::predictor()
 {
@@ -581,9 +573,6 @@ void Integrator::initiator(Array<double>& Ag, Array<double>& Yg, Array<double>& 
     if ((eq.phys == Equation_heatF) && (com_mod.usePrecomp)){
         for (int a = 0; a < tnNo; a++) {
             for (int j = 0; j < com_mod.nsd; j++) {
-                //Ag(j, a) = An(j, a);
-                //Yg(j, a) = Yn(j, a);
-                //Dg(j, a) = Dn(j, a);
                 Ag(j, a) = Ao(j, a) * coef(0) + An(j, a) * coef(1);
                 Yg(j, a) = Yo(j, a) * coef(2) + Yn(j, a) * coef(3);
                 Dg(j, a) = Do(j, a) * coef(2) + Dn(j, a) * coef(3);
@@ -949,7 +938,6 @@ void Integrator::corrector_taylor_hood()
   using namespace consts;
 
   auto& com_mod = simulation_->com_mod;
-  auto& cep_mod = simulation_->get_cep_mod();
 
   const int nsd = com_mod.nsd;
   const int tnNo = com_mod.tnNo;
