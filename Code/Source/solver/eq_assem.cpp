@@ -57,9 +57,9 @@ void b_assem_neu_bc(ComMod& com_mod, const faceType& lFa, const Vector<double>& 
     cDmn = all_fun::domain(com_mod, msh, cEq, Ec);
     auto cPhys = eq.dmn[cDmn].phys;
 
-    Vector<int> ptr(eNoN);
-    Vector<double> N(eNoN), hl(eNoN);
-    Array<double> yl(tDof,eNoN), lR(dof,eNoN);
+    Vector<int> ptr(eNoN); 
+    Vector<double> N(eNoN), hl(eNoN); 
+    Array<double> yl(tDof,eNoN), lR(dof,eNoN); 
     Array3<double> lK(dof*dof,eNoN,eNoN);
 
     for (int a = 0; a < eNoN; a++) {
@@ -168,7 +168,7 @@ void b_neu_folw_p(ComMod& com_mod, const bcType& lBc, const faceType& lFa, const
   using namespace utils;
 
   #define n_debug_b_neu_folw_p
-  #ifdef debug_b_neu_folw_p
+  #ifdef debug_b_neu_folw_p 
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
   dmsg.banner();
   dmsg << "lFa.name: " << lFa.name;
@@ -187,7 +187,7 @@ void b_neu_folw_p(ComMod& com_mod, const bcType& lBc, const faceType& lFa, const
   auto& eq = com_mod.eq[cEq];
   auto& cDmn = com_mod.cDmn;
 
-  #ifdef debug_b_neu_folw_p
+  #ifdef debug_b_neu_folw_p 
   dmsg << "nsd: " << nsd;
   dmsg << "eNoN: " << nsd;
   #endif
@@ -197,13 +197,13 @@ void b_neu_folw_p(ComMod& com_mod, const bcType& lBc, const faceType& lFa, const
     cDmn = all_fun::domain(com_mod, msh, cEq, Ec);  // Changes global
     auto cPhys = eq.dmn[cDmn].phys;
 
-    Vector<int> ptr(eNoN);
-    Vector<double> hl(eNoN);
-    Array<double> xl(nsd,eNoN);
+    Vector<int> ptr(eNoN); 
+    Vector<double> hl(eNoN); 
+    Array<double> xl(nsd,eNoN); 
     Array<double> dl(tDof,eNoN);
-    Vector<double> N(eNoN);
-    Array<double> Nxi(nsd,eNoN);
-    Array<double> Nx(nsd,eNoN);
+    Vector<double> N(eNoN); 
+    Array<double> Nxi(nsd,eNoN); 
+    Array<double> Nx(nsd,eNoN); 
     Array<double> lR(dof,eNoN);
     Array3<double> lK(dof*dof,eNoN,eNoN);
     Array3<double> lKd;
@@ -316,8 +316,8 @@ void fsi_ls_upd(ComMod& com_mod, const bcType& lBc, const faceType& lFa, const S
   int iM = lFa.iM;
   int nNo = lFa.nNo;
 
-  Array<double> sVl(nsd,nNo);
-  Array<double> sV(nsd,tnNo);
+  Array<double> sVl(nsd,nNo); 
+  Array<double> sV(nsd,tnNo); 
 
   // Updating the value of the surface integral of the normal vector
   // using the deformed configuration ('n' = new = timestep n+1)
@@ -357,7 +357,7 @@ void fsi_ls_upd(ComMod& com_mod, const bcType& lBc, const faceType& lFa, const S
 ///
 /// Ag(tDof,tnNo), Yg(tDof,tnNo), Dg(tDof,tnNo)
 //
-void global_eq_assem(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag,
+void global_eq_assem(ComMod& com_mod, CepMod& cep_mod, const mshType& lM, const Array<double>& Ag, 
     const Array<double>& Yg, const Array<double>& Dg, const SolutionStates& solutions)
 {
   #define n_debug_global_eq_assem

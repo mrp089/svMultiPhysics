@@ -12,7 +12,7 @@
 
 namespace ris {
 
-/// @brief This subroutine computes the mean pressure and flux on the ris surface
+/// @brief This subroutine computes the mean pressure and flux on the ris surface 
 void ris_meanq(ComMod& com_mod, CmMod& cm_mod, const SolutionStates& solutions)
 {
   const auto& An = solutions.current.get_acceleration();
@@ -64,12 +64,12 @@ void ris_meanq(ComMod& com_mod, CmMod& cm_mod, const SolutionStates& solutions)
   }
 
   // For the velocity
-  m = nsd;
+  m = nsd; 
   s = eq[iEq].s;
   e = s + m - 1;
 
   for (int iProj = 0; iProj < nPrj; iProj++) {
-    // tmpV[0:m,:] = Yn[s:e,:];
+    // tmpV[0:m,:] = Yn[s:e,:]; 
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < Yn.ncols(); j++) {
           tmpV(i,j) = Yn(s+i,j);
@@ -81,7 +81,7 @@ void ris_meanq(ComMod& com_mod, CmMod& cm_mod, const SolutionStates& solutions)
 
     if (cm.mas(cm_mod)) {
       std::cout << "For RIS projection: " << iProj << std::endl;
-      std::cout << "    The average pressure is: " << RIS.meanP(iProj,0) << ", "
+      std::cout << "    The average pressure is: " << RIS.meanP(iProj,0) << ", " 
                 << RIS.meanP(iProj,1) << std::endl;
       std::cout << "    The average flow is: " << RIS.meanFl(iProj) << std::endl;
     }
@@ -149,15 +149,15 @@ void ris_resbc(ComMod& com_mod, const Array<double>& Yg, const Array<double>& Dg
 }
 
 
-void setbc_ris(ComMod& com_mod, const bcType& lBc, const mshType& lM, const faceType& lFa,
+void setbc_ris(ComMod& com_mod, const bcType& lBc, const mshType& lM, const faceType& lFa, 
                const Array<double>& Yg, const Array<double>& Dg, const SolutionStates& solutions)
 {
   // [HZ] looks not needed in the current implementation
 }
 
 
-/// @brief  This subroutine updates the resistance and activation flag for the
-/// closed and open configurations of the RIS surfaces
+/// @brief  This subroutine updates the resistance and activation flag for the 
+/// closed and open configurations of the RIS surfaces 
 void ris_updater(ComMod& com_mod, CmMod& cm_mod, SolutionStates& solutions)
 {
   // Local aliases for solution arrays
@@ -192,7 +192,7 @@ void ris_updater(ComMod& com_mod, CmMod& cm_mod, SolutionStates& solutions)
           std::cout << "RIS Proj " << iProj << ": Going from close to open." << std::endl;
         }
         RIS.nbrIter(iProj) = 0;
-        // I needed to update the state variables when the valve
+        // I needed to update the state variables when the valve 
         // goes from close to open to prevent the valve goes back
         // to close at the next iteration. This is needed only for
         // close to open and cannot be used for open to close.
@@ -405,14 +405,14 @@ void ris0d_bc(ComMod& com_mod, CmMod& cm_mod, const Array<double>& Yg, const Arr
       lBc.eDrn.resize(nsd);
       lBc.eDrn = 0;
 
-      // Apply bc Dir
+      // Apply bc Dir 
       lBc.gx.resize(msh[iM].fa[iFa].nNo);
       lBc.gx = 1.0;
       set_bc::set_bc_dir_wl(com_mod, lBc, msh[iM], msh[iM].fa[iFa], Yg, Dg, solutions);
       lBc.gx.clear();
       lBc.eDrn.clear();
     } else {
-      // Apply Neu bc
+      // Apply Neu bc 
       set_bc::set_bc_neu_l(com_mod, cm_mod, eq[cEq].bc[iBc], msh[iM].fa[iFa], Yg, Dg, solutions);
     }
 

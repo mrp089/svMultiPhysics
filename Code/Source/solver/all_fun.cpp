@@ -370,7 +370,7 @@ double integ(const ComMod& com_mod, const CmMod& cm_mod, int iM, const Array<dou
       xl.set_col(a, com_mod.x.col(Ac));
 
       if (com_mod.mvMsh) {
-        for (int i = 0; i < nsd; i++) {
+        for (int i = 0; i < nsd; i++) { 
           xl(i,a) += Do(i+nsd+1,Ac);
         }
       }
@@ -563,7 +563,7 @@ double integ(const ComMod& com_mod, const CmMod& cm_mod, int dId, const Array<do
           xl.set_col(a, com_mod.x.col(Ac));
 
           if (com_mod.mvMsh) {
-            for (int i = 0; i < nsd; i++) {
+            for (int i = 0; i < nsd; i++) { 
               xl(i,a) += Do(i+nsd+1,Ac);
             }
           }
@@ -697,9 +697,9 @@ double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa, co
   dmsg << "lFa.iM: " << lFa.iM+1;
   dmsg << "lFa.name: " << lFa.name;
   dmsg << "lFa.eType: " << lFa.eType;
-  #endif
+  #endif 
 
-  bool flag = pFlag;
+  bool flag = pFlag; 
   int nsd = com_mod.nsd;
   int insd = nsd - 1;
 
@@ -849,7 +849,7 @@ double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa, co
 /// @param pFlag flag for using Taylor-Hood function space for pressure
 /// @param cfg denotes which configuration (reference/timestep 0, old/timestep n, or new/timestep n+1). Default reference.
 //
-double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa,
+double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa, 
             const Array<double>& s, const SolutionStates& solutions, MechanicalConfigurationType cfg)
 {
   using namespace consts;
@@ -983,7 +983,7 @@ double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa,
 /// @param cfg denotes which configuration (reference/timestep 0, old/timestep n, or new/timestep n+1). Default reference.
 ///
 //
-double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa,
+double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa, 
     const Array<double>& s, const int l, const SolutionStates& solutions, std::optional<int> uo, bool THflag, MechanicalConfigurationType cfg)
 {
   using namespace consts;
@@ -1033,11 +1033,11 @@ double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa,
   double result = 0.0; 
   
   // If s vector, integrate as vector (dot with surface normal)
-  if (u-l+1 == nsd) {
+  if (u-l+1 == nsd) { 
      Array<double> vec(nsd,nNo);
      for (int a = 0; a < nNo; a++) {
        for (int i = l, n = 0; i <= u; i++, n++) {
-         vec(n,a) = s(i,a);
+         vec(n,a) = s(i,a);                 
        }
      }
      result = integ(com_mod, cm_mod, lFa, vec, solutions, cfg);

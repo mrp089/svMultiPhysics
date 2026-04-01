@@ -912,7 +912,7 @@ void write_vtu_debug(ComMod& com_mod, mshType& lM, const std::string& fName)
 void write_vtus(Simulation* simulation, const SolutionStates& solutions, const bool lAve)
 {
   #define n_debug_write_vtus
-  #ifdef debug_write_vtus
+  #ifdef debug_write_vtus 
   DebugMsg dmsg(__func__, simulation->com_mod.cm.idcm());
   dmsg.banner();
   #endif

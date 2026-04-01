@@ -59,7 +59,7 @@ void init_from_bin(Simulation* simulation, const std::string& fName, std::array<
   auto& com_mod = simulation->com_mod;
   auto& cm = com_mod.cm;
   int task_id = cm.idcm();
-  #ifdef debug_init_from_bin
+  #ifdef debug_init_from_bin 
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
   dmsg.banner();
   #endif
@@ -81,12 +81,12 @@ void init_from_bin(Simulation* simulation, const std::string& fName, std::array<
   com_mod.timeP[1] = timeP[1];
   com_mod.timeP[2] = timeP[2];
 
-  #ifdef debug_init_from_bin
+  #ifdef debug_init_from_bin 
   dmsg << "dFlag: " << dFlag;
   dmsg << "sstEq: " << sstEq;
   dmsg << "pstEq: " << pstEq;
   dmsg << "cepEq: " << cepEq;
-  dmsg << "cm.tF(): " << cm.tF(cm_mod);
+  dmsg << "cm.tF(): " << cm.tF(cm_mod); 
   #endif
 
   // Open file and position at the location in the file
@@ -301,13 +301,13 @@ void init_from_vtu(Simulation* simulation, const std::string& fName, std::array<
   Array<double> tmpA, tmpY, tmpD;
 
   if (cm.mas(cm_mod)) {
-    tmpA.resize(tDof,gtnNo);
-    tmpY.resize(tDof,gtnNo);
+    tmpA.resize(tDof,gtnNo); 
+    tmpY.resize(tDof,gtnNo); 
     tmpD.resize(tDof,gtnNo);
     vtk_xml::read_vtus(simulation, tmpA, tmpY, tmpD, fName);
-  } else {
+  } else { 
     //ALLOCATE(tmpA(0,0), tmpY(0,0), tmpD(0,0))
-  }
+  } 
 
   Ao = all_fun::local(com_mod, cm_mod, cm, tmpA);
   Yo = all_fun::local(com_mod, cm_mod, cm, tmpY);
@@ -637,7 +637,7 @@ void initialize(Simulation* simulation, Vector<double>& timeP)
       com_mod.ltg, com_mod.rowPtr, com_mod.colPtr, nFacesLS);
 
   // Variable allocation and initialization
-  int tnNo = com_mod.tnNo;
+  int tnNo = com_mod.tnNo; 
 
   // Create SolutionStates that will be moved to Integrator at end
   SolutionStates initial_solutions;
@@ -711,11 +711,11 @@ void initialize(Simulation* simulation, Vector<double>& timeP)
       flag = false;
     }
 
-    if (flag) {
+    if (flag) { 
       auto& iniFilePath = com_mod.iniFilePath;
       auto& timeP = com_mod.timeP;
 
-      if (iniFilePath.find(".bin") != std::string::npos) {
+      if (iniFilePath.find(".bin") != std::string::npos) { 
         init_from_bin(simulation, iniFilePath, timeP, initial_solutions);
       } else {
         init_from_vtu(simulation, iniFilePath, timeP, initial_solutions);
@@ -768,13 +768,13 @@ void initialize(Simulation* simulation, Vector<double>& timeP)
     Yo = all_fun::local(com_mod, cm_mod, cm, rmsh.Y0);
     Do = all_fun::local(com_mod, cm_mod, cm, rmsh.D0);
 
-    rmsh.A0.resize(tDof,tnNo);
+    rmsh.A0.resize(tDof,tnNo); 
     rmsh.A0 = Ao;
 
-    rmsh.Y0.resize(tDof,tnNo);
+    rmsh.Y0.resize(tDof,tnNo); 
     rmsh.Y0 = Yo;
 
-    rmsh.D0.resize(tDof,tnNo);
+    rmsh.D0.resize(tDof,tnNo); 
     rmsh.D0 = Do;
   } // resetSim
 

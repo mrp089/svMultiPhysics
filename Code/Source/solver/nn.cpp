@@ -522,7 +522,7 @@ void gnn(const int eNoN, const int nsd, const int insd, Array<double>& Nxi, Arra
 ///
 /// Reproduce Fortran 'GNNB'.
 //
-void gnnb(const ComMod& com_mod, const faceType& lFa, const int e, const int g, const int nsd, const int insd,
+void gnnb(const ComMod& com_mod, const faceType& lFa, const int e, const int g, const int nsd, const int insd, 
     const int eNoNb, const Array<double>& Nx, Vector<double>& n, const SolutionStates& solutions, MechanicalConfigurationType cfg)
 {
   // Local aliases for displacement arrays

@@ -254,7 +254,7 @@ void bc_ini(const ComMod& com_mod, const CmMod& cm_mod, bcType& lBc, faceType& l
   auto& cm = com_mod.cm;
   int nsd = com_mod.nsd;
   int tnNo = com_mod.tnNo;
-
+ 
   #define n_debug_bc_ini
   #ifdef debug_bc_ini
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
@@ -293,7 +293,7 @@ void bc_ini(const ComMod& com_mod, const CmMod& cm_mod, bcType& lBc, faceType& l
   Vector<int> disp(cm.np());
 
   // Just a constant value for Flat profile
-  if (btest(lBc.bType, iBC_flat)) {
+  if (btest(lBc.bType, iBC_flat)) { 
     for (int a = 0; a < lFa.nNo; a++) {
       int Ac = lFa.gN(a);
       s(Ac) = 1.0;
@@ -305,7 +305,7 @@ void bc_ini(const ComMod& com_mod, const CmMod& cm_mod, bcType& lBc, faceType& l
   // 3- maximize ew(i).e where e is the unit vector from current
   // point to the center 4- Use the point i as the diam here
   //
-  } else if (btest(lBc.bType, iBC_para)) {
+  } else if (btest(lBc.bType, iBC_para)) { 
     Vector<double> center(3);
     for (int i = 0; i < nsd; i++) {
       center(i) = all_fun::integ(com_mod, cm_mod, lFa, com_mod.x, i, solutions, std::nullopt, false, consts::MechanicalConfigurationType::reference) / lFa.area;
@@ -416,7 +416,7 @@ void bc_ini(const ComMod& com_mod, const CmMod& cm_mod, bcType& lBc, faceType& l
   // Normalizing the profile for flux
   //
   double tmp = 1.0;
-  if (btest(lBc.bType, enum_int(BoundaryConditionType::bType_flx))) {
+  if (btest(lBc.bType, enum_int(BoundaryConditionType::bType_flx))) { 
     tmp = all_fun::integ(com_mod, cm_mod, lFa, s, solutions, false, consts::MechanicalConfigurationType::reference);
     if (is_zero(tmp)) {
       tmp = 1.0;

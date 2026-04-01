@@ -25,8 +25,8 @@ namespace set_bc {
 /// as well as the resistance matrix M ~ dP/dQ from 0D using finite difference.
 /// Updates the pressure or flowrates stored in cplBC.fa[i].y and the resistance
 /// matrix M ~ dP/dQ stored in eq.bc[iBc].r.
-/// @param com_mod
-/// @param cm_mod
+/// @param com_mod 
+/// @param cm_mod 
 void calc_der_cpl_bc(ComMod& com_mod, const CmMod& cm_mod, const SolutionStates& solutions)
 {
   const auto& An = solutions.current.get_acceleration();
@@ -121,14 +121,14 @@ void calc_der_cpl_bc(ComMod& com_mod, const CmMod& cm_mod, const SolutionStates&
         cplBC.fa[ptr].Qn = all_fun::integ(com_mod, cm_mod, fa, Yn, 0, solutions, nsd-1, false, cfg_n);
         cplBC.fa[ptr].Po = 0.0;
         cplBC.fa[ptr].Pn = 0.0;
-        #ifdef debug_calc_der_cpl_bc
+        #ifdef debug_calc_der_cpl_bc 
         dmsg << "iBC_Neu ";
         dmsg << "cplBC.fa[ptr].Qo: " << cplBC.fa[ptr].Qo;
         dmsg << "cplBC.fa[ptr].Qn: " << cplBC.fa[ptr].Qn;
         #endif
 
       }
-      // Compute avg pressures at 3D Dirichlet boundaries at timesteps n and n+1
+      // Compute avg pressures at 3D Dirichlet boundaries at timesteps n and n+1 
       else if (utils::btest(bc.bType, iBC_Dir)) {
         double area = fa.area;
         cplBC.fa[ptr].Po = all_fun::integ(com_mod, cm_mod, fa, Yo, nsd, solutions, std::nullopt, false, MechanicalConfigurationType::reference) / area;
@@ -553,7 +553,7 @@ void rcr_init(ComMod& com_mod, const CmMod& cm_mod, const SolutionStates& soluti
     int ptr = bc.cplBCptr;
 
     if (!utils::btest(bc.bType, iBC_RCR)) {
-      continue;
+      continue; 
     }
 
     if (ptr != -1) {
@@ -583,7 +583,7 @@ void set_bc_cmm(ComMod& com_mod, const CmMod& cm_mod, const Array<double>& Ag, c
     auto& bc = eq.bc[iBc];
 
     if (!utils::btest(bc.bType,iBC_CMM)) {
-      continue;
+      continue; 
     }
 
     int iFa = bc.iFa;
@@ -684,9 +684,9 @@ void set_bc_cpl(ComMod& com_mod, CmMod& cm_mod, const SolutionStates& solutions)
   auto cfg_o = MechanicalConfigurationType::reference;
   auto cfg_n = MechanicalConfigurationType::reference;
 
-  // If coupling scheme is implicit, calculate updated pressure and flowrate
+  // If coupling scheme is implicit, calculate updated pressure and flowrate 
   // from 0D, as well as resistance from 0D using finite difference.
-  if (cplBC.schm == CplBCType::cplBC_I) {
+  if (cplBC.schm == CplBCType::cplBC_I) { 
     calc_der_cpl_bc(com_mod, cm_mod, solutions);
 
   // If coupling scheme is semi-implicit or explicit, only calculated updated
@@ -1362,7 +1362,7 @@ void set_bc_neu(ComMod& com_mod, const CmMod& cm_mod, const Array<double>& Yg, c
       #endif
       set_bc_neu_l(com_mod, cm_mod, bc, com_mod.msh[iM].fa[iFa], Yg, Dg, solutions);
 
-    } else if (utils::btest(bc.bType,iBC_trac)) {
+    } else if (utils::btest(bc.bType,iBC_trac)) { 
       set_bc_trac_l(com_mod, cm_mod, bc, com_mod.msh[iM].fa[iFa], solutions);
     } 
   }
@@ -1549,7 +1549,7 @@ void set_bc_rbnl(ComMod& com_mod, const faceType& lFa, const RobinBoundaryCondit
       nn::gnnb(com_mod, lFa, e, g, nsd, nsd-1, eNoN, Nx, nV, solutions, consts::MechanicalConfigurationType::reference);
       double Jac = sqrt(utils::norm(nV));
       nV  = nV / Jac;
-      double w = lFa.w(g) * Jac;
+      double w = lFa.w(g) * Jac; 
       N = lFa.N.col(g);
       Vector<double> u(nsd), ud(nsd);
 
@@ -1747,8 +1747,8 @@ void set_bc_trac_l(ComMod& com_mod, const CmMod& cm_mod, const bcType& lBc, cons
 
   using namespace consts;
 
-  #define n_debug_set_bc_trac_l
-  #ifdef debug_set_bc_trac_l
+  #define n_debug_set_bc_trac_l 
+  #ifdef debug_set_bc_trac_l 
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
   dmsg.banner();
   #endif

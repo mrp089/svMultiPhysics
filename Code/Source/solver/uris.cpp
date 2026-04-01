@@ -17,8 +17,8 @@
 
 namespace uris { 
 
-/// @brief This subroutine computes the mean pressure and flux on the
-/// immersed surface
+/// @brief This subroutine computes the mean pressure and flux on the 
+/// immersed surface 
 void uris_meanp(ComMod& com_mod, CmMod& cm_mod, const int iUris, const SolutionStates& solutions) {
   // Local aliases for solution arrays
   auto& Yn = solutions.current.get_velocity();
@@ -151,8 +151,8 @@ void uris_meanp(ComMod& com_mod, CmMod& cm_mod, const int iUris, const SolutionS
   
 }
 
-/// @brief This subroutine computes the mean velocity in the fluid elements
-/// near the immersed surface
+/// @brief This subroutine computes the mean velocity in the fluid elements 
+/// near the immersed surface  
 void uris_meanv(ComMod& com_mod, CmMod& cm_mod, const int iUris, const SolutionStates& solutions) {
   // Local aliases for solution arrays
   auto& Yn = solutions.current.get_velocity();
@@ -249,12 +249,12 @@ void uris_meanv(ComMod& com_mod, CmMod& cm_mod, const int iUris, const SolutionS
 
 }
 
-/// @brief  This subroutine computes the displacement of the immersed
+/// @brief  This subroutine computes the displacement of the immersed 
 /// surface with fem projection
 void uris_update_disp(ComMod& com_mod, CmMod& cm_mod, const SolutionStates& solutions) {
   // Local alias for solution array
   const auto& Do = solutions.old.get_displacement();
-  #define n_debug_uris_update_disp
+  #define n_debug_uris_update_disp 
   #ifdef debug_uris_update_disp
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
   dmsg.banner();
@@ -319,7 +319,7 @@ void uris_update_disp(ComMod& com_mod, CmMod& cm_mod, const SolutionStates& solu
       d = 0.0;
       for (int a = 0; a < mesh.eNoN; a++) {
         int Ac = mesh.IEN(a, iEln);
-        //We have to use Do because Dn contains the result coming from the solid
+        //We have to use Do because Dn contains the result coming from the solid 
         d(0) += N(a)*Do(nsd+1, Ac);
         d(1) += N(a)*Do(nsd+2, Ac);
         d(2) += N(a)*Do(nsd+3, Ac);

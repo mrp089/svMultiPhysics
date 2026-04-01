@@ -197,7 +197,7 @@ void write_restart(Simulation* simulation, std::array<double,3>& timeP, const So
 
   const bool ibFlag = com_mod.ibFlag;
   const bool dFlag = com_mod.dFlag;
-  const bool sstEq = com_mod.sstEq;
+  const bool sstEq = com_mod.sstEq; 
   const bool pstEq = com_mod.pstEq;
   const bool cepEq = cep_mod.cepEq;
   const bool risFlag = com_mod.risFlag;

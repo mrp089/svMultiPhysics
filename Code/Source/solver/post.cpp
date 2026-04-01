@@ -18,7 +18,7 @@
 namespace post {
 
 void all_post(Simulation* simulation, Array<double>& res, const SolutionStates& solutions,
-    consts::OutputNameType outGrp, const int iEq)
+    consts::OutputNameType outGrp, const int iEq) 
 {
   using namespace consts;
 
@@ -45,7 +45,7 @@ void all_post(Simulation* simulation, Array<double>& res, const SolutionStates& 
       }
 
     } else if (outGrp == OutputNameType::outGrp_J) {
-      Array<double> tmpV(1,msh.nNo);
+      Array<double> tmpV(1,msh.nNo); 
       Vector<double> tmpVe(msh.nEl);
       tpost(simulation, msh, 1, tmpV, tmpVe, solutions, iEq, outGrp);
       res = 0.0;
@@ -55,7 +55,7 @@ void all_post(Simulation* simulation, Array<double>& res, const SolutionStates& 
       }
 
      } else if (outGrp == OutputNameType::outGrp_mises) {
-       Array<double> tmpV(1,msh.nNo);
+       Array<double> tmpV(1,msh.nNo); 
        Vector<double> tmpVe(msh.nEl);
        tpost(simulation, msh, 1, tmpV, tmpVe, solutions, iEq, outGrp);
        res = 0.0;
@@ -65,7 +65,7 @@ void all_post(Simulation* simulation, Array<double>& res, const SolutionStates& 
        }
 
      } else if (outGrp ==  OutputNameType::outGrp_divV) {
-       Array<double> tmpV(1,msh.nNo);
+       Array<double> tmpV(1,msh.nNo); 
        div_post(simulation, msh, tmpV, solutions, iEq);
        res = 0.0;
        for (int a = 0; a < com_mod.msh[iM].nNo; a++) {
@@ -1205,7 +1205,7 @@ void ppbin2vtk(Simulation* simulation)
 //
 // Reproduces Fortran SHLPOST.
 //
-void shl_post(Simulation* simulation, const mshType& lM, const int m, Array<double>& res,
+void shl_post(Simulation* simulation, const mshType& lM, const int m, Array<double>& res, 
     Vector<double>& resE, const SolutionStates& solutions, const int iEq, consts::OutputNameType outGrp)
 {
   using namespace consts;
@@ -1646,7 +1646,7 @@ void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>
   using namespace mat_fun;
 
   auto& com_mod = simulation->com_mod;
-  auto& cep_mod = simulation->cep_mod;
+  auto& cep_mod = simulation->cep_mod; 
   auto& cm = com_mod.cm;
   auto& cm_mod = simulation->cm_mod;
   const auto& lY = solutions.current.get_velocity();

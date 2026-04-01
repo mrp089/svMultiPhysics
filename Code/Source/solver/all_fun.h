@@ -31,13 +31,13 @@ namespace all_fun {
 
   double integ(const ComMod& com_mod, const CmMod& cm_mod, int iM, const Array<double>& s, const SolutionStates& solutions);
 
-  double integ(const ComMod& com_mod, const CmMod& cm_mod, int dId, const Array<double>& s, int l, int u,
+  double integ(const ComMod& com_mod, const CmMod& cm_mod, int dId, const Array<double>& s, int l, int u, 
       const SolutionStates& solutions, bool pFlag=false);
 
-  double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa, const Vector<double>& s,
+  double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa, const Vector<double>& s, 
       const SolutionStates& solutions, bool pFlag=false, consts::MechanicalConfigurationType cfg=consts::MechanicalConfigurationType::reference);
 
-  double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa, const Array<double>& s,
+  double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa, const Array<double>& s, 
       const int l, const SolutionStates& solutions, std::optional<int> uo=std::nullopt, bool THflag=false, consts::MechanicalConfigurationType cfg=consts::MechanicalConfigurationType::reference);
 
   double integ(const ComMod& com_mod, const CmMod& cm_mod, const faceType& lFa, const Array<double>& s, const SolutionStates& solutions, consts::MechanicalConfigurationType cfg=consts::MechanicalConfigurationType::reference);

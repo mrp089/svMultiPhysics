@@ -342,7 +342,7 @@ void iterate_solution(Simulation* simulation)
 
     iterate_precomputed_time(simulation, solutions);
 
-    // Inner loop for Newton iteration 
+    // Inner loop for Newton iteration
     //
     #ifdef debug_iterate_solution
     dmsg << "Starting Newton iteration via Integrator ..." << std::endl;
