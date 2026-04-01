@@ -143,8 +143,6 @@ void cep_init_l(cepModelType& cep, int nX, int nG, Vector<double>& X, Vector<dou
 //
 void cep_integ(Simulation* simulation, const int iEq, const int iDof, SolutionStates& solutions)
 {
-  // Local aliases for solution arrays
-  const auto& Dg = solutions.old.get_displacement();
   auto& Yo = solutions.old.get_velocity();
   static bool IPASS = true;
 
@@ -185,7 +183,7 @@ void cep_integ(Simulation* simulation, const int iEq, const int iDof, SolutionSt
 
       if (msh.nFn != 0) {
         Vector<double> sA(msh.nNo);
-        post::fib_strech(simulation, iEq, msh, Dg, sA);
+        post::fib_strech(simulation, iEq, msh, solutions, sA);
         for (int a = 0; a < msh.nNo; a++) {
           int Ac = msh.gN(a);
           I4f(Ac) = sA(a);

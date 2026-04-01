@@ -85,13 +85,19 @@ void read_files(Simulation* simulation, const std::string& file_name)
 
 /// @brief Iterate the precomputed state-variables in time using linear interpolation to the current time step size
 //
-void iterate_precomputed_time(Simulation* simulation, Array<double>& An, Array<double>& Yn, Array<double>& Ao, Array<double>& Yo, Array<double>& Do) {
+void iterate_precomputed_time(Simulation* simulation, SolutionStates& solutions) {
   using namespace consts;
 
   auto& com_mod = simulation->com_mod;
   auto& cm_mod = simulation->cm_mod;
   auto& cm = com_mod.cm;
   auto& cep_mod = simulation->get_cep_mod();
+
+  auto& An = solutions.current.get_acceleration();
+  auto& Yn = solutions.current.get_velocity();
+  auto& Ao = solutions.old.get_acceleration();
+  auto& Yo = solutions.old.get_velocity();
+  auto& Do = solutions.old.get_displacement();
 
   int nTS = com_mod.nTS;
   int stopTS = nTS;
@@ -302,7 +308,7 @@ void iterate_solution(Simulation* simulation)
     // Compute mesh properties to check if remeshing is required
     //
     if (com_mod.mvMsh && com_mod.rmsh.isReqd) {
-      read_msh_ns::calc_mesh_props(com_mod, cm_mod, com_mod.nMsh, com_mod.msh, Do);
+      read_msh_ns::calc_mesh_props(com_mod, cm_mod, com_mod.nMsh, com_mod.msh, solutions);
       if (com_mod.resetSim) {
         #ifdef debug_iterate_solution
         dmsg << "#### resetSim is true " << std::endl;
@@ -334,7 +340,7 @@ void iterate_solution(Simulation* simulation)
 
     if (com_mod.urisFlag) {uris::uris_calc_sdf(com_mod);}
 
-    iterate_precomputed_time(simulation, An, Yn, Ao, Yo, Do);
+    iterate_precomputed_time(simulation, solutions);
 
     // Inner loop for Newton iteration 
     //
@@ -479,7 +485,7 @@ void iterate_solution(Simulation* simulation)
       if (l2 && l3) {
         output::output_result(simulation, com_mod.timeP, 3, iEqOld);
         bool lAvg = false;
-        vtk_xml::write_vtus(simulation, An, Yn, Dn, lAvg);
+        vtk_xml::write_vtus(simulation, solutions, lAvg);
       } else {
         output::output_result(simulation, com_mod.timeP, 2, iEqOld);
       }

@@ -52,8 +52,9 @@ std::map<consts::ElementType, std::function<void(mshType&)>> check_element_conn 
 
 /// @brief Calculate element Aspect Ratio of a given mesh
 //
-void calc_elem_ar(ComMod& com_mod, const CmMod& cm_mod, mshType& lM, bool& rflag, const Array<double>& Do)
+void calc_elem_ar(ComMod& com_mod, const CmMod& cm_mod, mshType& lM, bool& rflag, const SolutionStates& solutions)
 {
+  const auto& Do = solutions.old.get_displacement();
   #define n_debug_calc_elem_ar
   #ifdef debug_calc_elem_ar
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
@@ -147,8 +148,9 @@ void calc_elem_ar(ComMod& com_mod, const CmMod& cm_mod, mshType& lM, bool& rflag
 
 /// @brief Calculate element Jacobian of a given mesh.
 //
-void calc_elem_jac(ComMod& com_mod, const CmMod& cm_mod, mshType& lM, bool& rflag, const Array<double>& Do)
+void calc_elem_jac(ComMod& com_mod, const CmMod& cm_mod, mshType& lM, bool& rflag, const SolutionStates& solutions)
 {
+  const auto& Do = solutions.old.get_displacement();
   #define n_debug_calc_elem_jac
   #ifdef debug_calc_elem_jac
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
@@ -267,8 +269,9 @@ void calc_elem_jac(ComMod& com_mod, const CmMod& cm_mod, mshType& lM, bool& rfla
 
 /// @brief Calculate element Skewness of a given mesh.
 //
-void calc_elem_skew(ComMod& com_mod, const CmMod& cm_mod, mshType& lM, bool& rflag, const Array<double>& Do)
+void calc_elem_skew(ComMod& com_mod, const CmMod& cm_mod, mshType& lM, bool& rflag, const SolutionStates& solutions)
 {
+  const auto& Do = solutions.old.get_displacement();
   #define n_debug_calc_elem_skew
   #ifdef debug_calc_elem_skew
   DebugMsg dmsg(__func__, com_mod.cm.idcm());
@@ -355,7 +358,7 @@ void calc_elem_skew(ComMod& com_mod, const CmMod& cm_mod, mshType& lM, bool& rfl
   #endif
 }
 
-void calc_mesh_props(ComMod& com_mod, const CmMod& cm_mod, const int nMesh, std::vector<mshType>& mesh, const Array<double>& Do)
+void calc_mesh_props(ComMod& com_mod, const CmMod& cm_mod, const int nMesh, std::vector<mshType>& mesh, const SolutionStates& solutions)
 {
   #define n_debug_calc_mesh_props
   #ifdef debug_calc_mesh_props
@@ -378,9 +381,9 @@ void calc_mesh_props(ComMod& com_mod, const CmMod& cm_mod, const int nMesh, std:
     dmsg << "----- mesh " + mesh[iM].name << " -----";
     #endif
     bool flag = false;
-    calc_elem_jac(com_mod, cm_mod, mesh[iM], flag, Do);
-    calc_elem_skew(com_mod, cm_mod, mesh[iM], flag, Do);
-    calc_elem_ar(com_mod, cm_mod, mesh[iM], flag, Do);
+    calc_elem_jac(com_mod, cm_mod, mesh[iM], flag, solutions);
+    calc_elem_skew(com_mod, cm_mod, mesh[iM], flag, solutions);
+    calc_elem_ar(com_mod, cm_mod, mesh[iM], flag, solutions);
     rmsh.flag[iM] = flag;
     #ifdef debug_calc_mesh_props
     dmsg << "mesh[iM].flag: " << rmsh.flag[iM];

@@ -17,8 +17,8 @@
 
 namespace post {
 
-void all_post(Simulation* simulation, Array<double>& res, const Array<double>& lY, const Array<double>& lD, 
-    consts::OutputNameType outGrp, const int iEq) 
+void all_post(Simulation* simulation, Array<double>& res, const SolutionStates& solutions,
+    consts::OutputNameType outGrp, const int iEq)
 {
   using namespace consts;
 
@@ -38,16 +38,16 @@ void all_post(Simulation* simulation, Array<double>& res, const Array<double>& l
     Array<double> tmpV(maxNSD,msh.nNo);
 
     if (outGrp == OutputNameType::outGrp_WSS ||  outGrp == OutputNameType::outGrp_trac) {
-      bpost(simulation, msh,  tmpV, lY, lD, outGrp);
+      bpost(simulation, msh,  tmpV, solutions, outGrp);
       for (int a = 0; a < com_mod.msh[iM].nNo; a++) {
         int Ac = msh.gN(a);
         res.set_col(Ac, tmpV.col(a));
       }
 
     } else if (outGrp == OutputNameType::outGrp_J) {
-      Array<double> tmpV(1,msh.nNo); 
+      Array<double> tmpV(1,msh.nNo);
       Vector<double> tmpVe(msh.nEl);
-      tpost(simulation, msh, 1, tmpV, tmpVe, lD, lY, iEq, outGrp);
+      tpost(simulation, msh, 1, tmpV, tmpVe, solutions, iEq, outGrp);
       res = 0.0;
       for (int a = 0; a < com_mod.msh[iM].nNo; a++) {
         int Ac = msh.gN(a);
@@ -55,9 +55,9 @@ void all_post(Simulation* simulation, Array<double>& res, const Array<double>& l
       }
 
      } else if (outGrp == OutputNameType::outGrp_mises) {
-       Array<double> tmpV(1,msh.nNo); 
+       Array<double> tmpV(1,msh.nNo);
        Vector<double> tmpVe(msh.nEl);
-       tpost(simulation, msh, 1, tmpV, tmpVe, lD, lY, iEq, outGrp);
+       tpost(simulation, msh, 1, tmpV, tmpVe, solutions, iEq, outGrp);
        res = 0.0;
        for (int a = 0; a < com_mod.msh[iM].nNo; a++) {
          int Ac = msh.gN(a);
@@ -65,8 +65,8 @@ void all_post(Simulation* simulation, Array<double>& res, const Array<double>& l
        }
 
      } else if (outGrp ==  OutputNameType::outGrp_divV) {
-       Array<double> tmpV(1,msh.nNo); 
-       div_post(simulation, msh, tmpV, lY, lD, iEq);
+       Array<double> tmpV(1,msh.nNo);
+       div_post(simulation, msh, tmpV, solutions, iEq);
        res = 0.0;
        for (int a = 0; a < com_mod.msh[iM].nNo; a++) {
          int Ac = msh.gN(a);
@@ -74,7 +74,7 @@ void all_post(Simulation* simulation, Array<double>& res, const Array<double>& l
        }
 
      } else {
-       post(simulation, msh, tmpV, lY, lD, outGrp, iEq);
+       post(simulation, msh, tmpV, solutions, outGrp, iEq);
        for (int a = 0; a < com_mod.msh[iM].nNo; a++) {
          int Ac = msh.gN(a);
          res.set_col(Ac, tmpV.col(a));
@@ -87,7 +87,7 @@ void all_post(Simulation* simulation, Array<double>& res, const Array<double>& l
 /// faces. Currently this calculates WSS, which is t.n - (n.t.n)n
 /// Here t is stress tensor: t = \mu (grad(u) + grad(u)^T)
 //
-void bpost(Simulation* simulation, const mshType& lM, Array<double>& res, const Array<double>& lY, const Array<double>& lD, 
+void bpost(Simulation* simulation, const mshType& lM, Array<double>& res, const SolutionStates& solutions,
     consts::OutputNameType outGrp)
 {
   using namespace consts;
@@ -95,6 +95,8 @@ void bpost(Simulation* simulation, const mshType& lM, Array<double>& res, const 
   auto& com_mod = simulation->com_mod;
   auto& cm = com_mod.cm;
   auto& cm_mod = simulation->cm_mod;
+  const auto& lY = solutions.current.get_velocity();
+  const auto& lD = solutions.current.get_displacement();
 
   #define n_debug_bpost
   #ifdef debug_bpost
@@ -336,7 +338,7 @@ void bpost(Simulation* simulation, const mshType& lM, Array<double>& res, const 
   }
 }
 
-void div_post(Simulation* simulation, const mshType& lM, Array<double>& res, const Array<double>& lY, const Array<double>& lD,
+void div_post(Simulation* simulation, const mshType& lM, Array<double>& res, const SolutionStates& solutions,
     const int iEq)
 {
   using namespace consts;
@@ -350,6 +352,8 @@ void div_post(Simulation* simulation, const mshType& lM, Array<double>& res, con
   auto& com_mod = simulation->com_mod;
   auto& cm = com_mod.cm;
   auto& cm_mod = simulation->cm_mod;
+  const auto& lY = solutions.current.get_velocity();
+  const auto& lD = solutions.current.get_displacement();
   auto& eq = com_mod.eq[iEq];
 
   // [NOTE] Setting gobal variable 'dof'.
@@ -499,13 +503,14 @@ void div_post(Simulation* simulation, const mshType& lM, Array<double>& res, con
 
 /// @brief Routine for post processing fiber alignment
 //
-void fib_algn_post(Simulation* simulation, const mshType& lM, Array<double>& res, const Array<double>& lD, const int iEq)
+void fib_algn_post(Simulation* simulation, const mshType& lM, Array<double>& res, const SolutionStates& solutions, const int iEq)
 {
   using namespace consts;
 
   auto& com_mod = simulation->com_mod;
   auto& cm = com_mod.cm;
   auto& cm_mod = simulation->cm_mod;
+  const auto& lD = solutions.current.get_displacement();
   auto& eq = com_mod.eq[iEq];
 
   int eNoN = lM.eNoN;
@@ -613,13 +618,14 @@ void fib_algn_post(Simulation* simulation, const mshType& lM, Array<double>& res
 
 /// @brief Routine for post processing fiber directions.
 //
-void fib_dir_post(Simulation* simulation, const mshType& lM, const int nFn, Array<double>& res, const Array<double>& lD, const int iEq)
+void fib_dir_post(Simulation* simulation, const mshType& lM, const int nFn, Array<double>& res, const SolutionStates& solutions, const int iEq)
 {
   using namespace consts;
 
   auto& com_mod = simulation->com_mod;
   auto& cm = com_mod.cm;
   auto& cm_mod = simulation->cm_mod;
+  const auto& lD = solutions.current.get_displacement();
   auto& eq = com_mod.eq[iEq];
 
   // [NOTE] Setting gobal variable 'dof'.
@@ -736,13 +742,14 @@ void fib_dir_post(Simulation* simulation, const mshType& lM, const int nFn, Arra
 
 /// @brief Compute fiber stretch based on 4th invariant: I_{4,f}
 //
-void fib_strech(Simulation* simulation, const int iEq, const mshType& lM, const Array<double>& lD, Vector<double>& res)
+void fib_strech(Simulation* simulation, const int iEq, const mshType& lM, const SolutionStates& solutions, Vector<double>& res)
 {
   using namespace consts;
 
   auto& com_mod = simulation->com_mod;
   auto& cm = com_mod.cm;
   auto& cm_mod = simulation->cm_mod;
+  const auto& lD = solutions.old.get_displacement();
   auto& eq = com_mod.eq[iEq];
 
   int nsd = com_mod.nsd;
@@ -833,13 +840,15 @@ void fib_strech(Simulation* simulation, const int iEq, const mshType& lM, const 
 
 }
 
-void post(Simulation* simulation, const mshType& lM, Array<double>& res, const Array<double>& lY, const Array<double>& lD, 
+void post(Simulation* simulation, const mshType& lM, Array<double>& res, const SolutionStates& solutions,
     consts::OutputNameType outGrp, const int iEq)
 {
   using namespace consts;
   auto& com_mod = simulation->com_mod;
   auto& cm = com_mod.cm;
   auto& cm_mod = simulation->cm_mod;
+  const auto& lY = solutions.current.get_velocity();
+  const auto& lD = solutions.current.get_displacement();
 
   #define n_debug_post
   #ifdef debug_post
@@ -1175,9 +1184,12 @@ void ppbin2vtk(Simulation* simulation)
       std::array<double,3> rtmp;
       init_from_bin(simulation, fName, rtmp, temp_solutions);
 
+      // Copy old solution to current for write_vtus (which reads current time level)
+      temp_solutions.current = temp_solutions.old;
+
       bool lAve = false;
 
-      vtk_xml::write_vtus(simulation, temp_solutions.old.A, temp_solutions.old.Y, temp_solutions.old.D, lAve);
+      vtk_xml::write_vtus(simulation, temp_solutions, lAve);
     }
   }
 
@@ -1193,8 +1205,8 @@ void ppbin2vtk(Simulation* simulation)
 //
 // Reproduces Fortran SHLPOST.
 //
-void shl_post(Simulation* simulation, const mshType& lM, const int m, Array<double>& res, 
-    Vector<double>& resE, const Array<double>& lD, const int iEq, consts::OutputNameType outGrp)
+void shl_post(Simulation* simulation, const mshType& lM, const int m, Array<double>& res,
+    Vector<double>& resE, const SolutionStates& solutions, const int iEq, consts::OutputNameType outGrp)
 {
   using namespace consts;
   using namespace mat_fun;
@@ -1208,6 +1220,7 @@ void shl_post(Simulation* simulation, const mshType& lM, const int m, Array<doub
 
   auto& com_mod = simulation->com_mod;
   auto& cm = com_mod.cm;
+  const auto& lD = solutions.current.get_displacement();
   auto& cm_mod = simulation->cm_mod;
   auto& eq = com_mod.eq[iEq];
 
@@ -1626,16 +1639,18 @@ void shl_post(Simulation* simulation, const mshType& lM, const int m, Array<doub
 //-------
 // Routine for post processing stress tensor
 //
-void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>& res, Vector<double>& resE, const Array<double>& lD, 
-    const Array<double>& lY, const int iEq, consts::OutputNameType outGrp)
+void tpost(Simulation* simulation, const mshType& lM, const int m, Array<double>& res, Vector<double>& resE,
+    const SolutionStates& solutions, const int iEq, consts::OutputNameType outGrp)
 {
   using namespace consts;
   using namespace mat_fun;
 
   auto& com_mod = simulation->com_mod;
-  auto& cep_mod = simulation->cep_mod; 
+  auto& cep_mod = simulation->cep_mod;
   auto& cm = com_mod.cm;
   auto& cm_mod = simulation->cm_mod;
+  const auto& lY = solutions.current.get_velocity();
+  const auto& lD = solutions.current.get_displacement();
   auto& eq = com_mod.eq[iEq];
 
   #define n_debug_tpost

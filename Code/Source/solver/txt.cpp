@@ -303,7 +303,7 @@ void txt(Simulation* simulation, const bool init_write, const SolutionStates& so
         case OutputNameType::outGrp_WSS: 
         case OutputNameType::outGrp_vort: 
         case OutputNameType::outGrp_trac:
-          post::all_post(simulation, tmpV, Yn, Dn, oGrp, iEq);
+          post::all_post(simulation, tmpV, solutions, oGrp, iEq);
           for (int a = 0; a < tnNo; a++) {
             auto vec = tmpV.col(a, {0,nsd-1});
             tmpV(0,a) = sqrt(norm(vec));
@@ -316,7 +316,7 @@ void txt(Simulation* simulation, const bool init_write, const SolutionStates& so
         case OutputNameType::outGrp_divV: 
         case OutputNameType::outGrp_J: 
         case OutputNameType::outGrp_mises:
-          post::all_post(simulation, tmpV, Yn, Dn, oGrp, iEq);
+          post::all_post(simulation, tmpV, solutions, oGrp, iEq);
         break;
 
         case OutputNameType::outGrp_absV:
