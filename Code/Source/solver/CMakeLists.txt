@@ -176,6 +176,7 @@ set(CSRCS
   eq_assem.h eq_assem.cpp
   fluid.h fluid.cpp
   fsi.h fsi.cpp
+  fsi_coupling.h fsi_coupling.cpp
   fs.h fs.cpp
   fft.h fft.cpp
   heatf.h heatf.cpp
@@ -342,7 +343,7 @@ if(ENABLE_UNIT_TEST)
   target_compile_definitions(run_all_unit_tests PRIVATE
     TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/../tests/cases"
   )
-  
+
   if(USE_TRILINOS)
     target_link_libraries(run_all_unit_tests ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})
   endif()
