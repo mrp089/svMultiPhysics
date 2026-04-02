@@ -144,8 +144,13 @@ bool PartitionedFSI::step()
     // Apply strong Dirichlet BCs (needed to enforce interface displacement)
     set_bc::set_bc_dir(com_mod, solutions);
 
-    // 3. Solve mesh equation to convergence
-    integrator_->step_equation(config_.mesh_eq_index);
+    // 3. Solve mesh equation with interface displacement enforced as Dirichlet BC
+    integrator_->step_equation(config_.mesh_eq_index,
+        [&]() {
+          // Enforce Dirichlet BC at interface: zero R and diagonalize Val
+          // so the Newton correction is zero at prescribed displacement nodes
+          fsi_coupling::enforce_dirichlet_on_face(com_mod, *fluid_face_, nsd);
+        });
 
     // 4. Solve fluid equation to convergence
     integrator_->step_equation(config_.fluid_eq_index);
@@ -206,13 +211,17 @@ bool PartitionedFSI::step()
     disp_norm = sqrt(disp_norm);
     double rel_change = (disp_norm > 1e-30) ? res_norm / disp_norm : res_norm;
 
-    // Print coupling iteration info
+    // Print coupling iteration info (matching solver output format)
     if (cm.mas(cm_mod)) {
-      std::cout << " CP " << com_mod.cTS << "-" << outer + 1
-                << std::scientific << std::setprecision(3)
-                << "  omega=" << omega_
-                << "  rel_disp=" << rel_change
-                << std::endl;
+      int dB = (rel_change > 0 && disp_norm > 0)
+               ? static_cast<int>(10.0 * log10(rel_change)) : 0;
+      char buf[128];
+      snprintf(buf, sizeof(buf),
+               " CP %d-%d  %4.3e  [%d %.3e %.3e]",
+               com_mod.cTS, outer + 1,
+               com_mod.timer.get_elapsed_time(),
+               dB, rel_change, omega_);
+      std::cout << buf << std::endl;
     }
 
     if (rel_change < config_.coupling_tolerance) {

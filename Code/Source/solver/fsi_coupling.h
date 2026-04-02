@@ -101,6 +101,13 @@ Array<double> transfer_face_data(
     const faceType& source_face, const faceType& target_face,
     const Array<double>& source_data);
 
+/// @brief Enforce Dirichlet BC at face nodes in the assembled linear system.
+///
+/// Zeros the residual and diagonalizes the system matrix rows for the
+/// face nodes, so the linear solve produces zero correction there.
+/// Call this in a post_assembly callback for step_equation().
+void enforce_dirichlet_on_face(ComMod& com_mod, const faceType& lFa, int nsd);
+
 } // namespace fsi_coupling
 
 #endif // FSI_COUPLING_H

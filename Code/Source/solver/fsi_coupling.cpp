@@ -297,4 +297,44 @@ Array<double> transfer_face_data(
   return result;
 }
 
+//----------------------------------------------------------------------
+// enforce_dirichlet_on_face
+//----------------------------------------------------------------------
+// Following the pattern of set_bc_undef_neu_l (set_bc.cpp:1882):
+// zero residual R and diagonalize Val rows at face nodes.
+//
+void enforce_dirichlet_on_face(ComMod& com_mod, const faceType& lFa, int nsd)
+{
+  const auto& eq = com_mod.eq[com_mod.cEq];
+  const int dof = eq.dof;
+  const auto& rowPtr = com_mod.rowPtr;
+  const auto& colPtr = com_mod.colPtr;
+  auto& R = com_mod.R;
+  auto& Val = com_mod.Val;
+
+  for (int a = 0; a < lFa.nNo; a++) {
+    int rowN = lFa.gN(a);
+
+    // Zero residual for all DOFs of this equation at this node
+    for (int i = 0; i < dof; i++) {
+      R(i, rowN) = 0.0;
+    }
+
+    // Diagonalize the row in the system matrix:
+    // set diagonal = 1, off-diagonal = 0 for this node's DOFs
+    for (int j = rowPtr(rowN); j <= rowPtr(rowN + 1) - 1; j++) {
+      int colN = colPtr(j);
+      for (int iDof = 0; iDof < dof * dof; iDof++) {
+        Val(iDof, j) = 0.0;
+      }
+      if (colN == rowN) {
+        // Set diagonal entries to 1
+        for (int i = 0; i < dof; i++) {
+          Val(i * dof + i, j) = 1.0;
+        }
+      }
+    }
+  }
+}
+
 } // namespace fsi_coupling
