@@ -152,8 +152,28 @@ bool PartitionedFSI::step()
           fsi_coupling::enforce_dirichlet_on_face(com_mod, *fluid_face_, nsd);
         });
 
-    // 4. Solve fluid equation to convergence
+    // 4. ALE: temporarily deform fluid mesh coordinates using mesh displacement.
+    //    construct_fluid() uses com_mod.x for element coordinates.
+    //    In monolithic FSI, construct_fsi() adds dl(nsd+1..2*nsd) to xl.
+    //    Here we add the mesh equation's displacement directly to com_mod.x.
+    auto& mesh_eq_ref = com_mod.eq[config_.mesh_eq_index];
+    int mesh_s = mesh_eq_ref.s;
+    auto& Dg_ale = integrator_->get_Dg();
+    for (int a = 0; a < com_mod.tnNo; a++) {
+      for (int i = 0; i < nsd; i++) {
+        com_mod.x(i, a) += Dg_ale(i + mesh_s, a);
+      }
+    }
+
+    // Solve fluid equation on deformed mesh
     integrator_->step_equation(config_.fluid_eq_index);
+
+    // Restore original mesh coordinates
+    for (int a = 0; a < com_mod.tnNo; a++) {
+      for (int i = 0; i < nsd; i++) {
+        com_mod.x(i, a) -= Dg_ale(i + mesh_s, a);
+      }
+    }
 
     // 5. Extract fluid traction at interface
     auto fluid_traction = fsi_coupling::extract_fluid_traction(
