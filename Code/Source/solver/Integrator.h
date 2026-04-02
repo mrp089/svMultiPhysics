@@ -9,6 +9,8 @@
 #include "Vector.h"
 #include "Simulation.h"
 
+#include <functional>
+
 /**
  * @brief Integrator class encapsulates the Newton iteration loop for time integration
  *
@@ -41,6 +43,21 @@ public:
    * @return True if all equations converged, false otherwise
    */
   bool step();
+
+  /**
+   * @brief Solve a single equation to convergence (for partitioned coupling)
+   *
+   * Runs Newton iterations for only the specified equation, without cycling
+   * to other equations. Used by partitioned FSI to solve fluid, solid, and
+   * mesh equations independently.
+   *
+   * @param iEq Index of the equation to solve
+   * @param post_assembly Optional callback invoked after boundary condition
+   *        application but before the linear solve. Used by partitioned FSI
+   *        to inject interface traction into the residual.
+   * @return True if the equation converged, false if max iterations reached
+   */
+  bool step_equation(int iEq, std::function<void()> post_assembly = nullptr);
 
   /**
    * @brief Perform predictor step for next time step
@@ -184,10 +201,19 @@ private:
   void initiator(Array<double>& Ag, Array<double>& Yg, Array<double>& Dg);
 
   /**
+   * @brief Update solution and check convergence of current equation
+   *
+   * Performs the corrector step: updates An, Yn, Dn from the linear solve
+   * result and checks convergence norms. Sets eq.ok if converged.
+   * Does NOT handle equation cycling -- that is done separately in corrector().
+   */
+  void update_solution();
+
+  /**
    * @brief Corrector function with convergence check (corrector)
    *
-   * Updates solution at n+1 time level and checks convergence of Newton
-   * iterations. Also handles equation switching for coupled problems.
+   * Calls update_solution(), then handles equation switching for coupled
+   * problems (modifies cEq global).
    */
   void corrector();
 

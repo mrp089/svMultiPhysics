@@ -172,6 +172,89 @@ bool Integrator::step() {
 }
 
 //------------------------
+// step_equation
+//------------------------
+/// @brief Solve a single equation to convergence without cycling to other equations
+bool Integrator::step_equation(int iEq, std::function<void()> post_assembly) {
+  using namespace consts;
+
+  auto& com_mod = simulation_->com_mod;
+  auto& cm_mod = simulation_->cm_mod;
+
+  int& cTS = com_mod.cTS;
+
+  // Set up for this equation
+  com_mod.cEq = iEq;
+  auto& eq = com_mod.eq[iEq];
+  eq.itr = 0;
+  eq.ok = false;
+  eq.iNorm = 0.0;
+
+  newton_count_ = 1;
+
+  while (true) {
+    istr_ = "_" + std::to_string(cTS) + "_" + std::to_string(newton_count_);
+    auto& eq = com_mod.eq[iEq];
+
+    // Coupled BC handling (same as step())
+    if (com_mod.cplBC.coupled && iEq == 0) {
+      set_bc::set_bc_cpl(com_mod, cm_mod, solutions_);
+      set_bc::set_bc_dir(com_mod, solutions_);
+    }
+
+    // Initiator step for Generalized α-Method
+    initiator_step();
+
+    if (com_mod.Rd.size() != 0) {
+      com_mod.Rd = 0.0;
+      com_mod.Kd = 0.0;
+    }
+
+    // Allocate, assemble, apply BCs
+    allocate_linear_system(eq);
+    set_body_forces();
+    assemble_equations();
+    apply_boundary_conditions();
+
+    // Optional post-assembly callback (e.g., for injecting interface traction)
+    if (post_assembly) {
+      post_assembly();
+    }
+
+    // Synchronize R across processes
+    if (!eq.assmTLS) {
+      all_fun::commu(com_mod, com_mod.R);
+    }
+
+    // Update residual in displacement equation for USTRUCT phys
+    if (com_mod.sstEq) {
+      ustruct::ustruct_r(com_mod, Yg_);
+    }
+
+    // Set the residual of the continuity equation to 0 on edge nodes
+    if (std::set<EquationType>{Equation_stokes, Equation_fluid, Equation_ustruct, Equation_FSI}.count(eq.phys) != 0) {
+      fs::thood_val_rc(com_mod);
+    }
+
+    set_bc::set_bc_undef_neu(com_mod);
+    update_residual_arrays(eq);
+
+    // Solve linear system
+    solve_linear_system();
+
+    // Update solution and check convergence (no equation cycling)
+    update_solution();
+
+    if (eq.ok) {
+      return true;
+    }
+
+    output::output_result(simulation_, com_mod.timeP, 2, iEq);
+    newton_count_ += 1;
+  }
+}
+
+//------------------------
 // initiator_step
 //------------------------
 void Integrator::initiator_step() {
@@ -607,11 +690,13 @@ void Integrator::initiator(Array<double>& Ag, Array<double>& Yg, Array<double>& 
   }
 }
 //------------------------
-// corrector
+// update_solution
 //------------------------
-/// @brief Corrector with convergence check
+/// @brief Update solution from linear solve result and check convergence
 ///
-/// Decision for next eqn is also made here (modifies cEq global).
+/// Performs the corrector update of An, Yn, Dn from the Newton solve result
+/// and checks convergence norms. Sets eq.ok if converged.
+/// Does NOT handle equation cycling (that is done by corrector()).
 ///
 /// Modifies:
 /// \code {.cpp}
@@ -623,13 +708,12 @@ void Integrator::initiator(Array<double>& Ag, Array<double>& Yg, Array<double>& 
 ///   com_mod.pS0
 ///   com_mod.pSa
 ///   com_mod.pSn
-///
-///   com_mod.cEq
 ///   eq.FSILS.RI.iNorm
 ///   eq.pNorm
+///   eq.ok
 /// \endcode
 //
-void Integrator::corrector()
+void Integrator::update_solution()
 {
   using namespace consts;
 
@@ -839,10 +923,42 @@ void Integrator::corrector()
     dmsg << "com_mod.eq[1].ok: " << com_mod.eq[1].ok;
     #endif
   }
+}
 
+//------------------------
+// corrector
+//------------------------
+/// @brief Corrector with convergence check and equation cycling
+///
+/// Calls update_solution() to update the solution and check convergence,
+/// then handles equation switching for coupled problems (modifies cEq global).
+//
+void Integrator::corrector()
+{
+  using namespace consts;
+
+  auto& com_mod = simulation_->com_mod;
+  const int tnNo = com_mod.tnNo;
+  auto& cEq = com_mod.cEq;
+  auto& eq = com_mod.eq[cEq];
+
+  auto& An = solutions_.current.get_acceleration();
+  auto& Dn = solutions_.current.get_displacement();
+  auto& Yn = solutions_.current.get_velocity();
+
+  #define n_debug_corrector_cycling
+  #ifdef debug_corrector_cycling
+  DebugMsg dmsg(__func__, com_mod.cm.idcm());
+  dmsg.banner();
+  #endif
+
+  // Update solution and check convergence
+  update_solution();
+
+  // Check if all equations converged - if so, skip equation cycling
   auto& eqs = com_mod.eq;
   if (std::count_if(eqs.begin(),eqs.end(),[](eqType& eq){return eq.ok;}) == eqs.size()) {
-    #ifdef debug_corrector
+    #ifdef debug_corrector_cycling
     dmsg << "all ok";
     #endif
     return;
@@ -854,7 +970,7 @@ void Integrator::corrector()
       // For coupled equations, if explicit geometric coupling is not used,
       // increment the equation counter after each linear solve
       cEq = cEq + 1;
-      #ifdef debug_corrector
+      #ifdef debug_corrector_cycling
       dmsg << "eq " << " coupled ";
       dmsg << "1st update cEq: " << cEq;
       #endif
@@ -915,7 +1031,7 @@ void Integrator::corrector()
       cEq = cEq + 1;
     }
   }
- #ifdef debug_corrector
+ #ifdef debug_corrector_cycling
  dmsg << "eq " << " coupled ";
  dmsg << "2nd update cEq: " << cEq;
  #endif
