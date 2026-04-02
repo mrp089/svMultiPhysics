@@ -9,6 +9,7 @@
 //
 #include "Simulation.h"
 #include "Integrator.h"
+#include "PartitionedFSI.h"
 
 #include "all_fun.h"
 #include "bf.h"
@@ -349,7 +350,14 @@ void iterate_solution(Simulation* simulation)
     #endif
 
     int iEqOld = cEq;
-    integrator.step();
+
+    // Use partitioned FSI coupling loop if configured, otherwise monolithic
+    auto* partitioned_fsi = simulation->get_partitioned_fsi();
+    if (partitioned_fsi) {
+      partitioned_fsi->step();
+    } else {
+      integrator.step();
+    }
 
     #ifdef debug_iterate_solution
     dmsg << ">>> End of Newton iteration" << std::endl;
@@ -652,6 +660,9 @@ int main(int argc, char *argv[])
       auto& eq = simulation->com_mod.eq[iEq];
       add_eq_linear_algebra(simulation->com_mod, eq);
     }
+
+    // Initialize partitioned FSI coupling if configured
+    simulation->initialize_partitioned_fsi();
 
     #ifdef debug_main
     for (int iM = 0; iM < simulation->com_mod.nMsh; iM++) {

@@ -1660,6 +1660,33 @@ class URISMeshParameters : public ParameterLists
 
 
 
+//////////////////////////////////////////////////////////
+//          PartitionedCouplingParameters               //
+//////////////////////////////////////////////////////////
+
+/// @brief Parameters for the 'Partitioned_coupling' XML element.
+///
+/// Configures partitioned FSI coupling between separately solved
+/// fluid and solid equations with Aitken relaxation.
+class PartitionedCouplingParameters : public ParameterLists
+{
+  public:
+    PartitionedCouplingParameters();
+    static const std::string xml_element_name_;
+    void set_values(tinyxml2::XMLElement* xml_elem);
+    bool defined() const { return value_set; }
+
+    Parameter<int> max_coupling_iterations;
+    Parameter<double> coupling_tolerance;
+    Parameter<double> initial_relaxation;
+    Parameter<bool> use_aitken;
+    Parameter<std::string> fluid_interface_face;
+    Parameter<std::string> solid_interface_face;
+
+    bool value_set = false;
+};
+
+
 /// @brief The Parameters class stores parameter values read in from a solver input file.
 class Parameters {
 
@@ -1683,6 +1710,7 @@ class Parameters {
 
     void set_RIS_projection_values(tinyxml2::XMLElement* root_element);
     void set_URIS_mesh_values(tinyxml2::XMLElement* root_element);
+    void set_partitioned_coupling_values(tinyxml2::XMLElement* root_element);
 
     // Objects representing each parameter section of XML file.
     ContactParameters contact_parameters;
@@ -1694,6 +1722,8 @@ class Parameters {
 
     std::vector<RISProjectionParameters*> RIS_projection_parameters;
     std::vector<URISMeshParameters*> URIS_mesh_parameters;
+
+    PartitionedCouplingParameters partitioned_coupling_parameters;
 
 };
 

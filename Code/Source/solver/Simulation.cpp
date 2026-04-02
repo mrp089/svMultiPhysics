@@ -3,6 +3,7 @@
 
 #include "Simulation.h"
 #include "Integrator.h"
+#include "PartitionedFSI.h"
 
 #include "all_fun.h"
 #include "load_msh.h"
@@ -111,4 +112,29 @@ Integrator& Simulation::get_integrator()
     throw std::runtime_error("Integrator not initialized. Call initialize_integrator() first.");
   }
   return *integrator_;
+}
+
+/// @brief Get pointer to PartitionedFSI object (null if not configured)
+PartitionedFSI* Simulation::get_partitioned_fsi()
+{
+  return partitioned_fsi_.get();
+}
+
+/// @brief Initialize partitioned FSI if configured in parameters
+void Simulation::initialize_partitioned_fsi()
+{
+  if (!parameters.partitioned_coupling_parameters.defined()) {
+    return;
+  }
+
+  auto& pcp = parameters.partitioned_coupling_parameters;
+  PartitionedFSIConfig config;
+  config.max_coupling_iterations = pcp.max_coupling_iterations.value();
+  config.coupling_tolerance = pcp.coupling_tolerance.value();
+  config.initial_relaxation = pcp.initial_relaxation.value();
+  config.use_aitken = pcp.use_aitken.value();
+  config.fluid_interface_face = pcp.fluid_interface_face.value();
+  config.solid_interface_face = pcp.solid_interface_face.value();
+
+  partitioned_fsi_ = std::make_unique<PartitionedFSI>(this, &get_integrator(), config);
 }

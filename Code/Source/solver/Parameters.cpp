@@ -175,6 +175,9 @@ void Parameters::read_xml(std::string file_name)
   // Set mesh projection parameters.
   set_projection_values(root_element);
 
+  // Set partitioned coupling parameters.
+  set_partitioned_coupling_values(root_element);
+
   // Set Add_equation values.
   set_equation_values(root_element);
 
@@ -2765,6 +2768,48 @@ void ProjectionParameters::set_values(tinyxml2::XMLElement* xml_elem)
       std::bind( &ProjectionParameters::set_parameter_value, *this, _1, _2);
 
   xml_util_set_parameters(ftpr, xml_elem, error_msg);
+}
+
+//////////////////////////////////////////////////////////
+//    PartitionedCouplingParameters                      //
+//////////////////////////////////////////////////////////
+
+const std::string PartitionedCouplingParameters::xml_element_name_ = "Partitioned_coupling";
+
+PartitionedCouplingParameters::PartitionedCouplingParameters()
+{
+  bool required = true;
+
+  set_parameter("Max_coupling_iterations", 50, !required, max_coupling_iterations);
+  set_parameter("Coupling_tolerance", 1e-6, !required, coupling_tolerance);
+  set_parameter("Initial_relaxation", 1.0, !required, initial_relaxation);
+  set_parameter("Use_Aitken", true, !required, use_aitken);
+  set_parameter("Fluid_interface_face", "", required, fluid_interface_face);
+  set_parameter("Solid_interface_face", "", required, solid_interface_face);
+}
+
+void PartitionedCouplingParameters::set_values(tinyxml2::XMLElement* xml_elem)
+{
+  using namespace tinyxml2;
+  std::string error_msg = "Unknown " + xml_element_name_ + " XML element '";
+
+  using std::placeholders::_1;
+  using std::placeholders::_2;
+
+  std::function<void(const std::string&, const std::string&)> ftpr =
+      std::bind(&PartitionedCouplingParameters::set_parameter_value, *this, _1, _2);
+
+  xml_util_set_parameters(ftpr, xml_elem, error_msg);
+  value_set = true;
+}
+
+void Parameters::set_partitioned_coupling_values(tinyxml2::XMLElement* root_element)
+{
+  auto item = root_element->FirstChildElement(PartitionedCouplingParameters::xml_element_name_.c_str());
+  if (item == nullptr) {
+    return;
+  }
+  partitioned_coupling_parameters.set_values(item);
 }
 
 //////////////////////////////////////////////////////////
