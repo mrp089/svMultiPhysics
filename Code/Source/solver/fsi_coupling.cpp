@@ -222,6 +222,51 @@ Array<double> extract_solid_displacement(
 }
 
 //----------------------------------------------------------------------
+// extract_solid_velocity
+//----------------------------------------------------------------------
+Array<double> extract_solid_velocity(
+    const ComMod& com_mod, const eqType& solid_eq,
+    const faceType& lFa, const SolutionStates& solutions)
+{
+  const int nsd = com_mod.nsd;
+  const int s = solid_eq.s;
+  const auto& Yn = solutions.current.get_velocity();
+
+  Array<double> result(nsd, lFa.nNo);
+  for (int a = 0; a < lFa.nNo; a++) {
+    int Ac = lFa.gN(a);
+    for (int i = 0; i < nsd; i++) {
+      result(i, a) = Yn(i + s, Ac);
+    }
+  }
+  return result;
+}
+
+//----------------------------------------------------------------------
+// apply_velocity_on_fluid
+//----------------------------------------------------------------------
+void apply_velocity_on_fluid(
+    ComMod& com_mod, const eqType& fluid_eq,
+    const faceType& lFa,
+    const Array<double>& velocity,
+    SolutionStates& solutions)
+{
+  const int nsd = com_mod.nsd;
+  const int s = fluid_eq.s;
+
+  auto& An = solutions.current.get_acceleration();
+  auto& Yn = solutions.current.get_velocity();
+
+  for (int a = 0; a < lFa.nNo; a++) {
+    int Ac = lFa.gN(a);
+    for (int i = 0; i < nsd; i++) {
+      Yn(i + s, Ac) = velocity(i, a);
+      An(i + s, Ac) = 0.0;  // zero acceleration for prescribed velocity
+    }
+  }
+}
+
+//----------------------------------------------------------------------
 // apply_traction_on_solid
 //----------------------------------------------------------------------
 void apply_traction_on_solid(
@@ -295,6 +340,47 @@ Array<double> transfer_face_data(
   }
 
   return result;
+}
+
+//----------------------------------------------------------------------
+// regularize_unassembled_nodes
+//----------------------------------------------------------------------
+void regularize_unassembled_nodes(ComMod& com_mod, const mshType& active_mesh)
+{
+  const auto& eq = com_mod.eq[com_mod.cEq];
+  const int dof = eq.dof;
+  const auto& rowPtr = com_mod.rowPtr;
+  const auto& colPtr = com_mod.colPtr;
+  auto& R = com_mod.R;
+  auto& Val = com_mod.Val;
+
+  // Mark nodes belonging to the active mesh
+  std::vector<bool> is_active(com_mod.tnNo, false);
+  for (int a = 0; a < active_mesh.nNo; a++) {
+    is_active[active_mesh.gN(a)] = true;
+  }
+
+  // For inactive nodes: zero R, zero all Val entries, set diagonal to 1
+  for (int Ac = 0; Ac < com_mod.tnNo; Ac++) {
+    if (is_active[Ac]) continue;
+
+    // Zero residual
+    for (int i = 0; i < dof; i++) {
+      R(i, Ac) = 0.0;
+    }
+
+    // Zero entire row in Val and set diagonal to identity
+    for (int j = rowPtr(Ac); j <= rowPtr(Ac + 1) - 1; j++) {
+      for (int iDof = 0; iDof < dof * dof; iDof++) {
+        Val(iDof, j) = 0.0;
+      }
+      if (colPtr(j) == Ac) {
+        for (int i = 0; i < dof; i++) {
+          Val(i * dof + i, j) = 1.0;
+        }
+      }
+    }
+  }
 }
 
 //----------------------------------------------------------------------

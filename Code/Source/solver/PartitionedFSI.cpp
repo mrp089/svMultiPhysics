@@ -37,6 +37,7 @@ void PartitionedFSI::resolve_faces()
       }
       if (fa.name == config_.solid_interface_face) {
         solid_face_ = &fa;
+        solid_mesh_ = &com_mod.msh[iM];
       }
     }
   }
@@ -132,25 +133,45 @@ bool PartitionedFSI::step()
 
   for (int outer = 0; outer < config_.max_coupling_iterations; outer++) {
 
-    // 1. Transfer solid displacement to fluid mesh interface
+    // 1. Transfer solid displacement and velocity to fluid mesh interface
     auto mesh_disp = fsi_coupling::transfer_face_data(
         com_mod, *solid_face_, *fluid_face_, disp_prev_);
 
-    // 2. Apply displacement as Dirichlet BC on mesh interface
+    auto solid_vel = fsi_coupling::extract_solid_velocity(
+        com_mod, solid_eq, *solid_face_, solutions);
+    auto fluid_vel = fsi_coupling::transfer_face_data(
+        com_mod, *solid_face_, *fluid_face_, solid_vel);
+
+    // 2. Apply displacement as Dirichlet BC on mesh interface,
+    //    and solid velocity as no-slip condition on fluid interface
     fsi_coupling::apply_displacement_on_mesh(
         com_mod, com_mod.eq[config_.mesh_eq_index],
         *fluid_face_, mesh_disp, solutions);
+    fsi_coupling::apply_velocity_on_fluid(
+        com_mod, fluid_eq, *fluid_face_, fluid_vel, solutions);
 
-    // Apply strong Dirichlet BCs (needed to enforce interface displacement)
+    // Apply strong Dirichlet BCs (inlet/outlet from XML)
     set_bc::set_bc_dir(com_mod, solutions);
 
     // 3. Solve mesh equation with interface displacement enforced as Dirichlet BC
-    integrator_->step_equation(config_.mesh_eq_index,
-        [&]() {
-          // Enforce Dirichlet BC at interface: zero R and diagonalize Val
-          // so the Newton correction is zero at prescribed displacement nodes
-          fsi_coupling::enforce_dirichlet_on_face(com_mod, *fluid_face_, nsd);
-        });
+    {
+      auto& mesh_eq_local = com_mod.eq[config_.mesh_eq_index];
+      integrator_->step_equation(config_.mesh_eq_index,
+          [&]() {
+            // Regularize: set diagonal to 1 for solid mesh nodes
+            fsi_coupling::regularize_unassembled_nodes(com_mod, *fluid_mesh_);
+            // Enforce Dirichlet BCs from XML (inlet/outlet zero displacement)
+            for (int iBc = 0; iBc < mesh_eq_local.nBc; iBc++) {
+              auto& bc = mesh_eq_local.bc[iBc];
+              if (utils::btest(bc.bType, consts::iBC_Dir)) {
+                fsi_coupling::enforce_dirichlet_on_face(
+                    com_mod, com_mod.msh[bc.iM].fa[bc.iFa], nsd);
+              }
+            }
+            // Enforce prescribed displacement at FSI interface
+            fsi_coupling::enforce_dirichlet_on_face(com_mod, *fluid_face_, nsd);
+          });
+    }
 
     // 4. ALE: temporarily deform fluid mesh coordinates using mesh displacement.
     //    construct_fluid() uses com_mod.x for element coordinates.
@@ -166,7 +187,19 @@ bool PartitionedFSI::step()
     }
 
     // Solve fluid equation on deformed mesh
-    integrator_->step_equation(config_.fluid_eq_index);
+    integrator_->step_equation(config_.fluid_eq_index,
+        [&]() {
+          // Regularize: set diagonal to 1 for solid mesh nodes
+          fsi_coupling::regularize_unassembled_nodes(com_mod, *fluid_mesh_);
+          // Enforce all Dirichlet BCs for this equation (wall no-slip, etc.)
+          for (int iBc = 0; iBc < fluid_eq.nBc; iBc++) {
+            auto& bc = fluid_eq.bc[iBc];
+            if (utils::btest(bc.bType, consts::iBC_Dir)) {
+              fsi_coupling::enforce_dirichlet_on_face(
+                  com_mod, com_mod.msh[bc.iM].fa[bc.iFa], nsd);
+            }
+          }
+        });
 
     // Restore original mesh coordinates
     for (int a = 0; a < com_mod.tnNo; a++) {
@@ -187,6 +220,9 @@ bool PartitionedFSI::step()
     // 6. Solve solid equation with traction as Neumann BC
     integrator_->step_equation(config_.solid_eq_index,
         [&]() {
+          // Regularize: set diagonal to 1 for fluid mesh nodes
+          fsi_coupling::regularize_unassembled_nodes(com_mod, *solid_mesh_);
+          // Apply traction forces from fluid
           fsi_coupling::apply_traction_on_solid(
               com_mod, solid_eq, *solid_face_, solid_traction);
         });

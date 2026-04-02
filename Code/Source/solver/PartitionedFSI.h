@@ -55,6 +55,7 @@ private:
 
   // Mesh and face references (resolved from config names)
   const mshType* fluid_mesh_ = nullptr;
+  const mshType* solid_mesh_ = nullptr;
   const faceType* fluid_face_ = nullptr;
   const faceType* solid_face_ = nullptr;
 
