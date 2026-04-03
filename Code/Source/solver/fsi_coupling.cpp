@@ -295,18 +295,38 @@ void apply_displacement_on_mesh(
     SolutionStates& solutions)
 {
   const int nsd = com_mod.nsd;
-  const int s = mesh_eq.s;  // DOF offset for the mesh equation
+  const int s = mesh_eq.s;
+  const double dt = com_mod.dt;
+  const double gam = mesh_eq.gam;
+  const double beta = mesh_eq.beta;
 
   auto& An = solutions.current.get_acceleration();
   auto& Yn = solutions.current.get_velocity();
   auto& Dn = solutions.current.get_displacement();
+  const auto& Do = solutions.old.get_displacement();
+  const auto& Yo = solutions.old.get_velocity();
+  const auto& Ao = solutions.old.get_acceleration();
 
   for (int a = 0; a < lFa.nNo; a++) {
     int Ac = lFa.gN(a);
     for (int i = 0; i < nsd; i++) {
-      Dn(i + s, Ac) = displacement(i, a);
-      Yn(i + s, Ac) = 0.0;
-      An(i + s, Ac) = 0.0;
+      double d_new = displacement(i, a);
+      double d_old = Do(i + s, Ac);
+      double v_old = Yo(i + s, Ac);
+      double a_old = Ao(i + s, Ac);
+
+      // Prescribe displacement
+      Dn(i + s, Ac) = d_new;
+
+      // Compute acceleration and velocity consistent with Newmark:
+      //   Dn = Do + dt*Yo + dt^2*((0.5-beta)*Ao + beta*An)
+      //   Yn = Yo + dt*((1-gamma)*Ao + gamma*An)
+      double a_new = (d_new - d_old - dt * v_old) / (beta * dt * dt)
+                   - (0.5 - beta) / beta * a_old;
+      double v_new = v_old + dt * ((1.0 - gam) * a_old + gam * a_new);
+
+      An(i + s, Ac) = a_new;
+      Yn(i + s, Ac) = v_new;
     }
   }
 }

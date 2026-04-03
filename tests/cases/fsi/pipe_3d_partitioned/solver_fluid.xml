@@ -43,7 +43,7 @@
   <Solid_interface_face> lumen_wall </Solid_interface_face>
 </Partitioned_coupling>
 
-<Add_equation type="fluid" >
+<Add_equation type="FSI" >
    <Coupled> false </Coupled>
    <Min_iterations> 1 </Min_iterations>
    <Max_iterations> 10 </Max_iterations>
@@ -77,10 +77,9 @@
       <Value> 5.0e4 </Value>
    </Add_BC>
 
-   <Add_BC name="lumen_wall" >
-      <Type> Dir </Type>
-      <Value> 0.0 </Value>
-   </Add_BC>
+   <!-- No Dir BC on lumen_wall: in monolithic FSI, the wall velocity comes
+        from the coupled structural dynamics, not from a zero-velocity BC.
+        The coupling code prescribes the solid velocity at the wall. -->
 
 </Add_equation>
 
@@ -122,10 +121,11 @@
       <Value> 0.0 </Value>
    </Add_BC>
 
-   <Add_BC name="lumen_wall" >
-      <Type> Dir </Type>
-      <Value> 0.0 </Value>
-   </Add_BC>
+   <!-- No BC on lumen_wall for the mesh equation. The wall displacement
+        is prescribed by the coupling code (apply_displacement_on_mesh)
+        and enforced via enforce_dirichlet_on_face in the post-assembly
+        callback. This matches the monolithic solver where the wall
+        displacement comes from the FSI equation DOFs, not a mesh BC. -->
 
 </Add_equation>
 

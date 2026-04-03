@@ -477,40 +477,26 @@ bool PartitionedFSI::step()
       return false;
     }
 
-    // ---- ALE: deform fluid mesh coordinates ----
-    auto& Dg = fluid_int.get_Dg();
-    int mesh_s = mesh_eq.s;  // DOF offset for mesh equation (= nsd+1 = 4)
-    for (int a = 0; a < fluid_com.tnNo; a++)
-      for (int i = 0; i < nsd; i++)
-        fluid_com.x(i, a) += Dg(mesh_s + i, a);
-
-    // ---- FLUID SOLVE (eq 0 in fluid sub-sim) ----
-    // ALE formulation: construct_fluid reads mesh velocity from DOFs 4-6
-    // and subtracts it from the convective velocity (mvMsh=true).
-    // Do NOT call set_bc_dir again here — it would zero out the mesh
-    // displacement at lumen_wall (mesh Dir BC = 0), undoing the mesh solve.
-    // Fluid BCs were already set by the set_bc_dir call before the mesh solve.
+    // ---- FLUID SOLVE (eq 0, type=FSI) ----
+    // construct_fsi deforms element coordinates internally via dl(nsd+1..2*nsd)
+    // and ALE subtracts mesh velocity from convection (mvMsh=true).
+    // No Dir BC on lumen_wall: in monolithic FSI, the wall velocity is
+    // determined by the coupled system, not by a BC. The mesh DOFs (4-6)
+    // provide the wall motion through ALE.
     fluid_int.step_equation(FLUID_EQ);
+
     if (has_nan(fluid_sol)) {
       if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in fluid solve" << std::endl;
-      for (int a = 0; a < fluid_com.tnNo; a++)
-        for (int i = 0; i < nsd; i++)
-          fluid_com.x(i, a) -= Dg(mesh_s + i, a);
       return false;
     }
 
-    // ---- Extract traction ON DEFORMED MESH ----
+    // ---- Extract traction ----
     auto fluid_traction = fsi_coupling::extract_fluid_traction(
         fluid_com, fluid_sim_->cm_mod,
         *fluid_mesh_, *fluid_face_, fluid_com.eq[FLUID_EQ],
         fluid_int.get_Yg(), fluid_int.get_Dg(), fluid_sol);
     auto solid_traction = transfer_data(fluid_to_solid_map_,
                                         fluid_traction, solid_face_->nNo);
-
-    // ---- Restore fluid mesh coordinates ----
-    for (int a = 0; a < fluid_com.tnNo; a++)
-      for (int i = 0; i < nsd; i++)
-        fluid_com.x(i, a) -= Dg(mesh_s + i, a);
 
     // ---- SOLID SOLVE ----
     // Re-apply XML BCs (inlet/outlet Dir) before solid solve
