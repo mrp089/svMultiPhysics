@@ -423,7 +423,7 @@ bool PartitionedFSI::step()
   const int MESH_EQ = 1;
   auto& mesh_eq = fluid_com.eq[MESH_EQ];
 
-  omega_ = config_.initial_relaxation;
+  omega_ = 0.5;
 
   // Save predictor state. Each coupling iteration restores to this.
   struct SavedState {
@@ -477,13 +477,44 @@ bool PartitionedFSI::step()
       return false;
     }
 
+    // ---- Prescribe wall velocity from mesh motion ----
+    // The wall velocity must equal the mesh velocity (no-slip). The mesh
+    // velocity was computed by apply_displacement_on_mesh using Newmark.
+    // Extract it from the mesh DOFs and apply to the fluid DOFs.
+    {
+      int mesh_s = mesh_eq.s;  // DOF offset for mesh eq (=4)
+      auto& Yn = fluid_sol.current.get_velocity();
+      auto& An = fluid_sol.current.get_acceleration();
+      for (int a = 0; a < fluid_face_->nNo; a++) {
+        int Ac = fluid_face_->gN(a);
+        for (int i = 0; i < nsd; i++) {
+          Yn(i, Ac) = Yn(mesh_s + i, Ac);  // fluid vel = mesh vel
+          An(i, Ac) = An(mesh_s + i, Ac);  // fluid acc = mesh acc
+        }
+      }
+    }
+
+    // Debug: print wall velocity
+    if (cm.mas(cm_mod)) {
+      auto& Yn = fluid_sol.current.get_velocity();
+      int mesh_s = mesh_eq.s;
+      double max_vf = 0, max_vm = 0;
+      for (int a = 0; a < fluid_face_->nNo; a++) {
+        int Ac = fluid_face_->gN(a);
+        for (int i = 0; i < nsd; i++) {
+          max_vf = std::max(max_vf, std::abs(Yn(i, Ac)));
+          max_vm = std::max(max_vm, std::abs(Yn(mesh_s + i, Ac)));
+        }
+      }
+      std::cout << "    wall vel: fluid=" << max_vf << " mesh=" << max_vm << std::endl;
+    }
+
     // ---- FLUID SOLVE (eq 0, type=FSI) ----
-    // construct_fsi deforms element coordinates internally via dl(nsd+1..2*nsd)
-    // and ALE subtracts mesh velocity from convection (mvMsh=true).
-    // No Dir BC on lumen_wall: in monolithic FSI, the wall velocity is
-    // determined by the coupled system, not by a BC. The mesh DOFs (4-6)
-    // provide the wall motion through ALE.
-    fluid_int.step_equation(FLUID_EQ);
+    // construct_fsi deforms coordinates via dl(4-6). ALE subtracts mesh
+    // velocity from convection. Wall velocity = mesh velocity (no-slip).
+    fluid_int.step_equation(FLUID_EQ, [&]() {
+      fsi_coupling::enforce_dirichlet_dofs_on_face(fluid_com, *fluid_face_, 0, nsd);
+    });
 
     if (has_nan(fluid_sol)) {
       if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in fluid solve" << std::endl;
@@ -514,27 +545,108 @@ bool PartitionedFSI::step()
     disp_current = fsi_coupling::extract_solid_displacement(
         solid_com, solid_com.eq[0], *solid_face_, solid_sol);
 
-    // ---- Residual + Aitken relaxation on displacement ----
-    Array<double> disp_residual(nsd, solid_face_->nNo);
+    // ---- Compute residual: r^k = x_tilde^k - x^k ----
+    const int u = nsd * solid_face_->nNo;  // interface DOF count
+    std::vector<double> r(u), x_tilde(u), x_cur(u);
     for (int a = 0; a < solid_face_->nNo; a++)
-      for (int i = 0; i < nsd; i++)
-        disp_residual(i, a) = disp_current(i, a) - disp_prev_(i, a);
+      for (int i = 0; i < nsd; i++) {
+        int idx = a * nsd + i;
+        x_tilde[idx] = disp_current(i, a);     // output of S(F(x))
+        x_cur[idx]   = disp_prev_(i, a);        // current x^k
+        r[idx]       = x_tilde[idx] - x_cur[idx]; // residual
+      }
 
-    if (cp > 0 && config_.use_aitken)
-      omega_ = compute_aitken_omega(disp_residual, disp_residual_prev_, omega_);
+    // ---- IQN-ILS update (Algorithm 10, Degroote 2013) ----
+    if (cp == 0) {
+      // First iteration: simple relaxation x^1 = x^0 + omega * r^0
+      for (int j = 0; j < u; j++)
+        disp_prev_(j / nsd, j % nsd) = x_cur[j] + omega_ * r[j];
+      // Store for next iteration
+      V_cols_.clear();
+      W_cols_.clear();
+    } else {
+      // Build difference vectors (Eq. 125a, 125b)
+      // Delta_r^{k-1} = r^k - r^{k-1}
+      // Delta_x_tilde^{k-1} = x_tilde^k - x_tilde^{k-1}
+      std::vector<double> dr(u), dx_tilde(u);
+      for (int j = 0; j < u; j++) {
+        dr[j]       = r[j] - r_prev_[j];
+        dx_tilde[j] = x_tilde[j] - x_tilde_prev_[j];
+      }
 
-    for (int a = 0; a < solid_face_->nNo; a++)
-      for (int i = 0; i < nsd; i++)
-        disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
-    disp_residual_prev_ = disp_residual;
+      // Add to front of V and W columns (most recent first)
+      V_cols_.insert(V_cols_.begin(), dr);
+      W_cols_.insert(W_cols_.begin(), dx_tilde);
+
+      int v = static_cast<int>(V_cols_.size());
+
+      // QR decomposition of V^k via modified Gram-Schmidt
+      // V^k = Q^k * R^k
+      std::vector<std::vector<double>> Q(v, std::vector<double>(u));
+      std::vector<std::vector<double>> R(v, std::vector<double>(v, 0.0));
+
+      for (int col = 0; col < v; col++) {
+        Q[col] = V_cols_[col];
+        for (int prev = 0; prev < col; prev++) {
+          double dot = 0;
+          for (int j = 0; j < u; j++) dot += Q[prev][j] * Q[col][j];
+          R[prev][col] = dot;
+          for (int j = 0; j < u; j++) Q[col][j] -= dot * Q[prev][j];
+        }
+        double norm = 0;
+        for (int j = 0; j < u; j++) norm += Q[col][j] * Q[col][j];
+        norm = sqrt(norm);
+
+        // Check for linear dependence
+        if (norm < 1e-14) {
+          V_cols_.erase(V_cols_.begin() + col);
+          W_cols_.erase(W_cols_.begin() + col);
+          v--;
+          col--;
+          continue;
+        }
+
+        R[col][col] = norm;
+        for (int j = 0; j < u; j++) Q[col][j] /= norm;
+      }
+
+      // Solve R^k * c^k = -Q^{kT} * r^k (Eq. 132)
+      // First: Q^{kT} * r^k
+      std::vector<double> qt_r(v);
+      for (int col = 0; col < v; col++) {
+        double dot = 0;
+        for (int j = 0; j < u; j++) dot += Q[col][j] * r[j];
+        qt_r[col] = dot;
+      }
+
+      // Back-substitution: R * c = -qt_r
+      std::vector<double> c(v, 0.0);
+      for (int col = v - 1; col >= 0; col--) {
+        c[col] = -qt_r[col];
+        for (int row = col + 1; row < v; row++)
+          c[col] -= R[col][row] * c[row];
+        c[col] /= R[col][col];
+      }
+
+      // Update: x^{k+1} = x^k + W^k * c^k + r^k (Eq. 11, line 11 of Alg. 10)
+      for (int j = 0; j < u; j++) {
+        double dx = r[j];
+        for (int col = 0; col < v; col++)
+          dx += W_cols_[col][j] * c[col];
+        disp_prev_(j / nsd, j % nsd) = x_cur[j] + dx;
+      }
+    }
+
+    // Store for next iteration
+    r_prev_ = r;
+    x_tilde_prev_ = x_tilde;
 
     // ---- Convergence check ----
     double res_norm = 0.0, disp_norm = 0.0;
-    for (int a = 0; a < solid_face_->nNo; a++)
-      for (int i = 0; i < nsd; i++) {
-        res_norm  += disp_residual(i, a) * disp_residual(i, a);
-        disp_norm += disp_current(i, a) * disp_current(i, a);
-      }
+    for (int j = 0; j < u; j++) {
+      res_norm  += r[j] * r[j];
+      disp_norm += x_tilde[j] * x_tilde[j];
+    }
     res_norm  = sqrt(res_norm);
     disp_norm = sqrt(disp_norm);
     double rel = (disp_norm > 1e-30) ? res_norm / disp_norm : res_norm;

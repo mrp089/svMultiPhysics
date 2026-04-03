@@ -88,11 +88,16 @@ private:
   std::vector<int> fluid_to_solid_map_;   // lumen_wall (fluid) → wall_inner
   std::vector<int> solid_to_mesh_map_;    // wall_inner → lumen_wall (mesh)
 
-  // Aitken relaxation state
+  // Coupling state
   Array<double> disp_prev_;
-  Array<double> disp_residual_prev_;
   double omega_;
   double first_res_norm_ = 0.0;
+
+  // IQN-ILS state (Degroote 2013, Algorithm 10)
+  std::vector<std::vector<double>> V_cols_;  // residual differences
+  std::vector<std::vector<double>> W_cols_;  // displacement differences
+  std::vector<double> r_prev_;               // previous residual
+  std::vector<double> x_tilde_prev_;         // previous S(F(x))
 
   // Output file for coupling convergence history
   std::ofstream coupling_log_;
