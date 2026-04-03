@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <svMultiPhysicsFile version="0.1">
 
-<!-- Standalone fluid solve on lumen mesh for partitioned FSI.
-     Dir BC on lumen_wall is a placeholder; the coupling overwrites
-     the velocity there with the solid velocity each iteration. -->
+<!-- Fluid + mesh (ALE) solve on lumen mesh for partitioned FSI.
+     The mesh equation provides DOFs 4-6 for ALE mesh velocity in the
+     fluid assembly (construct_fluid subtracts mesh velocity from convective
+     velocity when mvMsh=true). Both equations share the same solution arrays.
+     The coupling code solves mesh (eq 1) then fluid (eq 0) in each iteration. -->
 
 <GeneralSimulationParameters>
   <Continue_previous_simulation> 0 </Continue_previous_simulation>
@@ -34,6 +36,12 @@
   </Add_face>
   <Domain> 0 </Domain>
 </Add_mesh>
+
+<!-- Minimal Partitioned_coupling to set mvMsh flag for mesh equation -->
+<Partitioned_coupling>
+  <Fluid_interface_face> lumen_wall </Fluid_interface_face>
+  <Solid_interface_face> lumen_wall </Solid_interface_face>
+</Partitioned_coupling>
 
 <Add_equation type="fluid" >
    <Coupled> false </Coupled>
@@ -67,6 +75,51 @@
    <Add_BC name="lumen_inlet" >
       <Type> Neu </Type>
       <Value> 5.0e4 </Value>
+   </Add_BC>
+
+   <Add_BC name="lumen_wall" >
+      <Type> Dir </Type>
+      <Value> 0.0 </Value>
+   </Add_BC>
+
+</Add_equation>
+
+<!-- Mesh equation (ALE): solved before fluid in the coupling loop.
+     Provides mesh displacement (DOFs 4-6) and mesh velocity for ALE. -->
+<Add_equation type="mesh" >
+   <Coupled> false </Coupled>
+   <Min_iterations> 1 </Min_iterations>
+   <Max_iterations> 10 </Max_iterations>
+   <Tolerance> 1e-6 </Tolerance>
+   <Poisson_ratio> 0.3 </Poisson_ratio>
+
+   <Domain id="0" >
+      <Equation> mesh </Equation>
+      <Density> 0.0 </Density>
+      <Elasticity_modulus> 1.0 </Elasticity_modulus>
+      <Poisson_ratio> 0.3 </Poisson_ratio>
+   </Domain>
+
+   <LS type="CG" >
+      <Linear_algebra type="fsils" >
+         <Preconditioner> fsils </Preconditioner>
+      </Linear_algebra>
+      <Tolerance> 1e-12 </Tolerance>
+      <Max_iterations> 400 </Max_iterations>
+   </LS>
+
+   <Output type="Spatial" >
+     <Displacement> true </Displacement>
+   </Output>
+
+   <Add_BC name="lumen_inlet" >
+      <Type> Dir </Type>
+      <Value> 0.0 </Value>
+   </Add_BC>
+
+   <Add_BC name="lumen_outlet" >
+      <Type> Dir </Type>
+      <Value> 0.0 </Value>
    </Add_BC>
 
    <Add_BC name="lumen_wall" >
