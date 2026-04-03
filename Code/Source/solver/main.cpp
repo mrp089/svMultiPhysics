@@ -351,13 +351,8 @@ void iterate_solution(Simulation* simulation)
 
     int iEqOld = cEq;
 
-    // Use partitioned FSI coupling loop if configured, otherwise monolithic
-    auto* partitioned_fsi = simulation->get_partitioned_fsi();
-    if (partitioned_fsi) {
-      partitioned_fsi->step();
-    } else {
-      integrator.step();
-    }
+    // Monolithic Newton iteration loop
+    integrator.step();
 
     #ifdef debug_iterate_solution
     dmsg << ">>> End of Newton iteration" << std::endl;
@@ -576,7 +571,12 @@ void iterate_solution(Simulation* simulation)
 
 void run_simulation(Simulation* simulation)
 {
-  iterate_solution(simulation);
+  auto* partitioned_fsi = simulation->get_partitioned_fsi();
+  if (partitioned_fsi) {
+    partitioned_fsi->run();
+  } else {
+    iterate_solution(simulation);
+  }
 }
 
 
@@ -662,7 +662,7 @@ int main(int argc, char *argv[])
     }
 
     // Initialize partitioned FSI coupling if configured
-    simulation->initialize_partitioned_fsi();
+    simulation->initialize_partitioned_fsi(file_name);
 
     #ifdef debug_main
     for (int iM = 0; iM < simulation->com_mod.nMsh; iM++) {

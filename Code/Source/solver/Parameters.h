@@ -1683,6 +1683,11 @@ class PartitionedCouplingParameters : public ParameterLists
     Parameter<std::string> fluid_interface_face;
     Parameter<std::string> solid_interface_face;
 
+    // Paths to standalone XML input files for each sub-field
+    Parameter<std::string> fluid_xml;
+    Parameter<std::string> solid_xml;
+    Parameter<std::string> mesh_xml;
+
     bool value_set = false;
 };
 

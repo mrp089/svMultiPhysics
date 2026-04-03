@@ -121,13 +121,21 @@ PartitionedFSI* Simulation::get_partitioned_fsi()
 }
 
 /// @brief Initialize partitioned FSI if configured in parameters
-void Simulation::initialize_partitioned_fsi()
+void Simulation::initialize_partitioned_fsi(const std::string& xml_file_path)
 {
   if (!parameters.partitioned_coupling_parameters.defined()) {
     return;
   }
 
+  // Only create PartitionedFSI when all 3 sub-field XML paths are specified.
+  // This allows standalone mesh equation testing with just Partitioned_coupling
+  // (which sets mvMsh) but without the full coupling machinery.
   auto& pcp = parameters.partitioned_coupling_parameters;
+  if (!pcp.fluid_xml.defined() || pcp.fluid_xml.value().empty() ||
+      !pcp.solid_xml.defined() || pcp.solid_xml.value().empty() ||
+      !pcp.mesh_xml.defined()  || pcp.mesh_xml.value().empty()) {
+    return;
+  }
   PartitionedFSIConfig config;
   config.max_coupling_iterations = pcp.max_coupling_iterations.value();
   config.coupling_tolerance = pcp.coupling_tolerance.value();
@@ -135,6 +143,9 @@ void Simulation::initialize_partitioned_fsi()
   config.use_aitken = pcp.use_aitken.value();
   config.fluid_interface_face = pcp.fluid_interface_face.value();
   config.solid_interface_face = pcp.solid_interface_face.value();
+  config.fluid_xml = pcp.fluid_xml.value();
+  config.solid_xml = pcp.solid_xml.value();
+  config.mesh_xml = pcp.mesh_xml.value();
 
-  partitioned_fsi_ = std::make_unique<PartitionedFSI>(this, &get_integrator(), config);
+  partitioned_fsi_ = std::make_unique<PartitionedFSI>(this, config, xml_file_path);
 }

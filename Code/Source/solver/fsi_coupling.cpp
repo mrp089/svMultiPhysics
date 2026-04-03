@@ -423,4 +423,48 @@ void enforce_dirichlet_on_face(ComMod& com_mod, const faceType& lFa, int nsd)
   }
 }
 
+//----------------------------------------------------------------------
+// enforce_dirichlet_dofs_on_face
+//----------------------------------------------------------------------
+// Selective DOF enforcement: only modifies DOFs in [dof_start, dof_start+num_dofs).
+// Used for fluid interface where velocity DOFs (0..nsd-1) should be fixed
+// but pressure DOF (nsd) should remain free.
+//
+void enforce_dirichlet_dofs_on_face(ComMod& com_mod, const faceType& lFa,
+                                    int dof_start, int num_dofs)
+{
+  const auto& eq = com_mod.eq[com_mod.cEq];
+  const int dof = eq.dof;
+  const auto& rowPtr = com_mod.rowPtr;
+  const auto& colPtr = com_mod.colPtr;
+  auto& R = com_mod.R;
+  auto& Val = com_mod.Val;
+
+  for (int a = 0; a < lFa.nNo; a++) {
+    int rowN = lFa.gN(a);
+
+    // Zero residual for specified DOFs only
+    for (int i = dof_start; i < dof_start + num_dofs; i++) {
+      R(i, rowN) = 0.0;
+    }
+
+    // Modify Val: zero specified DOF rows and set their diagonal to 1
+    for (int j = rowPtr(rowN); j <= rowPtr(rowN + 1) - 1; j++) {
+      int colN = colPtr(j);
+      // Zero the rows for specified DOFs
+      for (int i = dof_start; i < dof_start + num_dofs; i++) {
+        for (int k = 0; k < dof; k++) {
+          Val(i * dof + k, j) = 0.0;
+        }
+      }
+      // Set diagonal entries for specified DOFs
+      if (colN == rowN) {
+        for (int i = dof_start; i < dof_start + num_dofs; i++) {
+          Val(i * dof + i, j) = 1.0;
+        }
+      }
+    }
+  }
+}
+
 } // namespace fsi_coupling

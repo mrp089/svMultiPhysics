@@ -30,7 +30,7 @@ class Simulation {
     ComMod& get_com_mod() { return com_mod; };
     Integrator& get_integrator();
     PartitionedFSI* get_partitioned_fsi();
-    void initialize_partitioned_fsi();
+    void initialize_partitioned_fsi(const std::string& xml_file_path);
 
     // Initialize the Integrator object after simulation setup is complete
     // Takes ownership of solution states via move semantics

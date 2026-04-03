@@ -2786,6 +2786,10 @@ PartitionedCouplingParameters::PartitionedCouplingParameters()
   set_parameter("Use_Aitken", true, !required, use_aitken);
   set_parameter("Fluid_interface_face", "", required, fluid_interface_face);
   set_parameter("Solid_interface_face", "", required, solid_interface_face);
+
+  set_parameter("Fluid_xml", "", !required, fluid_xml);
+  set_parameter("Solid_xml", "", !required, solid_xml);
+  set_parameter("Mesh_xml", "", !required, mesh_xml);
 }
 
 void PartitionedCouplingParameters::set_values(tinyxml2::XMLElement* xml_elem)

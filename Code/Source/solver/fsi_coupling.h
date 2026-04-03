@@ -129,6 +129,14 @@ void regularize_unassembled_nodes(ComMod& com_mod, const mshType& active_mesh);
 /// Call this in a post_assembly callback for step_equation().
 void enforce_dirichlet_on_face(ComMod& com_mod, const faceType& lFa, int nsd);
 
+/// @brief Enforce Dirichlet BC for specific DOFs at face nodes.
+///
+/// Like enforce_dirichlet_on_face but only modifies DOFs in the range
+/// [dof_start, dof_start + num_dofs). Used for enforcing velocity Dirichlet
+/// on a fluid interface without freezing the pressure DOF.
+void enforce_dirichlet_dofs_on_face(ComMod& com_mod, const faceType& lFa,
+                                    int dof_start, int num_dofs);
+
 } // namespace fsi_coupling
 
 #endif // FSI_COUPLING_H
