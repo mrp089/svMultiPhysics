@@ -96,9 +96,10 @@ PartitionedFSI::PartitionedFSI(Simulation* main_simulation,
     // Open coupling log file
     std::string log_dir = fluid_sim_->get_chnl_mod().appPath;
     coupling_log_.open(log_dir + "coupling.dat");
-    coupling_log_ << std::scientific << std::setprecision(3);
-    coupling_log_ << "# Partitioned FSI coupling convergence history" << std::endl;
-    coupling_log_ << "# cTS  cp  time  dB  Ri/R1  Ri/R0  omega  |disp|" << std::endl;
+    char hdr[256];
+    snprintf(hdr, sizeof(hdr), "# %4s %3s %10s %5s %10s %10s %10s %10s",
+             "cTS", "cp", "time", "dB", "Ri/R1", "Ri/R0", "omega", "|disp|");
+    coupling_log_ << hdr << std::endl;
   }
 
   resolve_faces();
@@ -367,12 +368,8 @@ void PartitionedFSI::run()
     // Coupling loop
     bool converged = step();
 
-    if (cm.mas(cm_mod)) {
-      if (converged) {
-        std::cout << "  TIME STEP " << cTS << " CONVERGED" << std::endl;
-      } else {
-        std::cout << "  TIME STEP " << cTS << " FAILED (NaN or no convergence)" << std::endl;
-      }
+    if (!converged && cm.mas(cm_mod)) {
+      std::cout << "  TIME STEP " << cTS << " FAILED (NaN or no convergence)" << std::endl;
     }
 
     // Stop on failure
@@ -592,11 +589,11 @@ bool PartitionedFSI::step()
 
       // Write to coupling log file
       if (coupling_log_.is_open()) {
-        coupling_log_ << cTS << " " << cp + 1 << " "
-                      << main_sim_->com_mod.timer.get_elapsed_time() << " "
-                      << dB_val << " "
-                      << ri_r1 << " " << rel << " "
-                      << omega_ << " " << disp_norm << std::endl;
+        char log_buf[256];
+        snprintf(log_buf, sizeof(log_buf), "  %4d %3d %10.3e %5d %10.3e %10.3e %10.3e %10.3e",
+                 cTS, cp + 1, main_sim_->com_mod.timer.get_elapsed_time(),
+                 dB_val, ri_r1, rel, omega_, disp_norm);
+        coupling_log_ << log_buf << std::endl;
       }
     }
 
