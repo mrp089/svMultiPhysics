@@ -8,6 +8,7 @@
 #include "Integrator.h"
 #include "Array.h"
 
+#include <fstream>
 #include <memory>
 #include <vector>
 #include <string>
@@ -87,12 +88,14 @@ private:
   std::vector<int> fluid_to_solid_map_;   // lumen_wall (fluid) → wall_inner
   std::vector<int> solid_to_mesh_map_;    // wall_inner → lumen_wall (mesh)
 
-  // Aitken relaxation state (both displacement and velocity are relaxed
-  // to keep the interface kinematically consistent)
+  // Aitken relaxation state
   Array<double> disp_prev_;
-  Array<double> vel_prev_;
   Array<double> disp_residual_prev_;
   double omega_;
+  double first_res_norm_ = 0.0;
+
+  // Output file for coupling convergence history
+  std::ofstream coupling_log_;
 
   // Temp XML file paths (cleaned up in destructor)
   std::vector<std::string> temp_xml_paths_;

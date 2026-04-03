@@ -92,6 +92,13 @@ PartitionedFSI::PartitionedFSI(Simulation* main_simulation,
               << " eq1=" << fluid_sim_->com_mod.eq[1].dof << ")"
               << "  solid=" << solid_sim_->com_mod.tnNo << "n/" << solid_sim_->com_mod.eq[0].dof << "dof"
               << std::endl;
+
+    // Open coupling log file
+    std::string log_dir = fluid_sim_->get_chnl_mod().appPath;
+    coupling_log_.open(log_dir + "coupling.dat");
+    coupling_log_ << std::scientific << std::setprecision(3);
+    coupling_log_ << "# Partitioned FSI coupling convergence history" << std::endl;
+    coupling_log_ << "# cTS  cp  time  dB  Ri/R1  Ri/R0  omega  |disp|" << std::endl;
   }
 
   resolve_faces();
@@ -452,30 +459,16 @@ bool PartitionedFSI::step()
     restore_state(fluid_sol, fluid_pred);
     restore_state(solid_sol, solid_pred);
 
-    if (cm.mas(cm_mod)) {
-      std::cout << std::string(50, '-') << std::endl;
-      std::cout << "  COUPLING ITERATION " << cp + 1
-                << " (time step " << cTS << ")" << std::endl;
-      std::cout << std::string(50, '-') << std::endl;
+    if (cm.mas(cm_mod) && cp == 0) {
+      std::cout << std::string(69, '-') << std::endl;
+      std::cout << " Eq     N-i     T       dB  Ri/R1   Ri/R0    R/Ri     lsIt   dB  %t" << std::endl;
+      std::cout << std::string(69, '-') << std::endl;
     }
 
     // ---- Transfer relaxed displacement to mesh interface ----
     auto mesh_disp = transfer_data(solid_to_mesh_map_, disp_prev_, mesh_face_->nNo);
 
-    if (cm.mas(cm_mod)) {
-      double max_disp = 0;
-      for (int a = 0; a < mesh_disp.ncols(); a++)
-        for (int i = 0; i < nsd; i++)
-          max_disp = std::max(max_disp, std::abs(mesh_disp(i, a)));
-      std::cout << "    interface: max|disp|=" << max_disp << std::endl;
-    }
-
     // ---- MESH SOLVE (eq 1 in fluid sub-sim) ----
-    // Prescribe interface displacement, then solve mesh equation.
-    // This fills DOFs 4-6 with mesh displacement/velocity for ALE.
-    if (cm.mas(cm_mod)) {
-      std::cout << "    [mesh] solving..." << std::endl;
-    }
     set_bc::set_bc_dir(fluid_com, fluid_sol);
     fsi_coupling::apply_displacement_on_mesh(
         fluid_com, mesh_eq, *mesh_face_, mesh_disp, fluid_sol);
@@ -497,10 +490,9 @@ bool PartitionedFSI::step()
     // ---- FLUID SOLVE (eq 0 in fluid sub-sim) ----
     // ALE formulation: construct_fluid reads mesh velocity from DOFs 4-6
     // and subtracts it from the convective velocity (mvMsh=true).
-    if (cm.mas(cm_mod)) {
-      std::cout << "    [fluid] solving..." << std::endl;
-    }
-    set_bc::set_bc_dir(fluid_com, fluid_sol);
+    // Do NOT call set_bc_dir again here — it would zero out the mesh
+    // displacement at lumen_wall (mesh Dir BC = 0), undoing the mesh solve.
+    // Fluid BCs were already set by the set_bc_dir call before the mesh solve.
     fluid_int.step_equation(FLUID_EQ);
     if (has_nan(fluid_sol)) {
       if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in fluid solve" << std::endl;
@@ -524,13 +516,6 @@ bool PartitionedFSI::step()
         fluid_com.x(i, a) -= Dg(mesh_s + i, a);
 
     // ---- SOLID SOLVE ----
-    if (cm.mas(cm_mod)) {
-      double trac_max = 0.0;
-      for (int a = 0; a < solid_face_->nNo; a++)
-        for (int i = 0; i < nsd; i++)
-          trac_max = std::max(trac_max, std::abs(solid_traction(i, a)));
-      std::cout << "    [solid] solving (max traction=" << trac_max << ")..." << std::endl;
-    }
     // Re-apply XML BCs (inlet/outlet Dir) before solid solve
     set_bc::set_bc_dir(solid_com, solid_sol);
     solid_int.step_equation(0, [&]() {
@@ -571,21 +556,48 @@ bool PartitionedFSI::step()
     disp_norm = sqrt(disp_norm);
     double rel = (disp_norm > 1e-30) ? res_norm / disp_norm : res_norm;
 
-    if (cm.mas(cm_mod)) {
-      std::cout << "  COUPLING " << cTS << "-" << cp + 1
-                << "  rel_change=" << rel
-                << "  omega=" << omega_
-                << "  |disp|=" << disp_norm
-                << std::endl;
-    }
-
-    // Check for NaN — abort early
+    // Check for NaN
     if (std::isnan(rel) || std::isnan(disp_norm)) {
       if (cm.mas(cm_mod)) {
-        std::cout << "  COUPLING " << cTS << "-" << cp + 1
-                  << "  ABORT: NaN detected" << std::endl;
+        std::cout << " CP " << cTS << "-" << cp + 1 << "  ABORT: NaN detected" << std::endl;
       }
       return false;
+    }
+
+    // Compute convergence metrics matching solver output style
+    // dB = 20*log10(Ri/R0), Ri/R1 = rel_change / first_rel_change
+    int dB_val = 0;
+    double ri_r1 = 1.0;  // ratio to first iteration residual
+
+    if (cp == 0) {
+      first_res_norm_ = res_norm;
+    }
+
+    if (first_res_norm_ > 1e-30 && res_norm > 0) {
+      ri_r1 = res_norm / first_res_norm_;
+      dB_val = static_cast<int>(20.0 * log10(ri_r1));
+    }
+
+    // Format: CP  cTS-cp  time  [dB  Ri/R1  Ri/R0  omega]
+    // Matches: EQ  cTS-N  time  [dB  Ri/R1  Ri/R0  R/Ri]
+    if (cm.mas(cm_mod)) {
+      bool conv = rel < config_.coupling_tolerance;
+      char buf[256];
+      snprintf(buf, sizeof(buf),
+               " CP %d-%d%s %4.3e  [%d %4.3e %4.3e %4.3e]",
+               cTS, cp + 1, conv ? "s" : " ",
+               main_sim_->com_mod.timer.get_elapsed_time(),
+               dB_val, ri_r1, rel, omega_);
+      std::cout << buf << std::endl;
+
+      // Write to coupling log file
+      if (coupling_log_.is_open()) {
+        coupling_log_ << cTS << " " << cp + 1 << " "
+                      << main_sim_->com_mod.timer.get_elapsed_time() << " "
+                      << dB_val << " "
+                      << ri_r1 << " " << rel << " "
+                      << omega_ << " " << disp_norm << std::endl;
+      }
     }
 
     if (rel < config_.coupling_tolerance) { converged = true; break; }
