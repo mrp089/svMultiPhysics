@@ -180,7 +180,7 @@
 
 <!-- Partitioned coupling configuration -->
 <Partitioned_coupling>
-  <Max_coupling_iterations> 2 </Max_coupling_iterations>
+  <Max_coupling_iterations> 50 </Max_coupling_iterations>
   <Coupling_tolerance> 1e-10 </Coupling_tolerance>
   <Initial_relaxation> 1.0 </Initial_relaxation>
   <Use_Aitken> true </Use_Aitken>

@@ -112,6 +112,9 @@ private:
   /// Build coordinate-based node maps between interface faces of different sub-sims
   void build_node_maps();
 
+  /// Run sanity checks on node maps and data transfer
+  void verify_node_maps();
+
   /// Build a one-directional node map from face_a to face_b using coordinate matching
   static void build_face_node_map(const faceType& face_a, const ComMod& com_a,
                                   const faceType& face_b, const ComMod& com_b,

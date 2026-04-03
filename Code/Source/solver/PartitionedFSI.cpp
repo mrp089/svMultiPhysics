@@ -177,6 +177,130 @@ void PartitionedFSI::build_node_maps()
     std::cout << "[PartitionedFSI] Interface node maps: " << matched
               << "/" << solid_face_->nNo << " matched" << std::endl;
   }
+
+  // ---- Sanity checks ----
+  verify_node_maps();
+}
+
+//----------------------------------------------------------------------
+// verify_node_maps — sanity checks for interface coupling
+//----------------------------------------------------------------------
+void PartitionedFSI::verify_node_maps()
+{
+  auto& cm = main_sim_->com_mod.cm;
+  auto& cm_mod = main_sim_->cm_mod;
+  if (!cm.mas(cm_mod)) return;
+
+  const int nsd = main_sim_->com_mod.nsd;
+  auto& solid_com = solid_sim_->com_mod;
+  auto& fluid_com = fluid_sim_->com_mod;
+  auto& mesh_com  = mesh_sim_->com_mod;
+
+  std::cout << "[PartitionedFSI] Running interface sanity checks..." << std::endl;
+
+  // Check 1: Coordinate round-trip (solid → fluid → solid)
+  // Extract solid face coordinates, transfer to fluid face, compare with
+  // actual fluid face coordinates
+  {
+    Array<double> solid_coords(nsd, solid_face_->nNo);
+    for (int a = 0; a < solid_face_->nNo; a++) {
+      int Ac = solid_face_->gN(a);
+      for (int i = 0; i < nsd; i++)
+        solid_coords(i, a) = solid_com.x(i, Ac);
+    }
+
+    auto fluid_coords_transferred = transfer_data(solid_to_fluid_map_,
+                                                   solid_coords, fluid_face_->nNo);
+
+    double max_err = 0.0;
+    int n_checked = 0;
+    for (int b = 0; b < fluid_face_->nNo; b++) {
+      int Bc = fluid_face_->gN(b);
+      // Check if this node was mapped to
+      bool mapped = false;
+      for (int a = 0; a < solid_face_->nNo; a++) {
+        if (solid_to_fluid_map_[a] == b) { mapped = true; break; }
+      }
+      if (!mapped) continue;
+      n_checked++;
+      for (int i = 0; i < nsd; i++) {
+        double err = std::abs(fluid_coords_transferred(i, b) - fluid_com.x(i, Bc));
+        max_err = std::max(max_err, err);
+      }
+    }
+    std::cout << "  Check 1 (coord transfer solid→fluid): max_err=" << max_err
+              << " (" << n_checked << " nodes)" << std::endl;
+  }
+
+  // Check 2: Coordinate transfer (solid → mesh)
+  {
+    Array<double> solid_coords(nsd, solid_face_->nNo);
+    for (int a = 0; a < solid_face_->nNo; a++) {
+      int Ac = solid_face_->gN(a);
+      for (int i = 0; i < nsd; i++)
+        solid_coords(i, a) = solid_com.x(i, Ac);
+    }
+
+    auto mesh_coords_transferred = transfer_data(solid_to_mesh_map_,
+                                                  solid_coords, mesh_face_->nNo);
+
+    double max_err = 0.0;
+    int n_checked = 0;
+    for (int b = 0; b < mesh_face_->nNo; b++) {
+      int Bc = mesh_face_->gN(b);
+      bool mapped = false;
+      for (int a = 0; a < solid_face_->nNo; a++) {
+        if (solid_to_mesh_map_[a] == b) { mapped = true; break; }
+      }
+      if (!mapped) continue;
+      n_checked++;
+      for (int i = 0; i < nsd; i++) {
+        double err = std::abs(mesh_coords_transferred(i, b) - mesh_com.x(i, Bc));
+        max_err = std::max(max_err, err);
+      }
+    }
+    std::cout << "  Check 2 (coord transfer solid→mesh):  max_err=" << max_err
+              << " (" << n_checked << " nodes)" << std::endl;
+  }
+
+  // Check 3: Round-trip (solid → fluid → solid)
+  {
+    Array<double> ones(nsd, solid_face_->nNo);
+    for (int a = 0; a < solid_face_->nNo; a++)
+      for (int i = 0; i < nsd; i++)
+        ones(i, a) = 1.0 + 0.001 * a;  // Unique per node to detect scrambling
+
+    auto on_fluid = transfer_data(solid_to_fluid_map_, ones, fluid_face_->nNo);
+    auto back_on_solid = transfer_data(fluid_to_solid_map_, on_fluid, solid_face_->nNo);
+
+    double max_err = 0.0;
+    for (int a = 0; a < solid_face_->nNo; a++)
+      for (int i = 0; i < nsd; i++)
+        max_err = std::max(max_err, std::abs(back_on_solid(i, a) - ones(i, a)));
+    std::cout << "  Check 3 (round-trip solid→fluid→solid): max_err=" << max_err << std::endl;
+  }
+
+  // Check 4: Print a few sample node coordinates to eyeball
+  {
+    std::cout << "  Check 4 (sample nodes, first 3):" << std::endl;
+    for (int a = 0; a < std::min(3, solid_face_->nNo); a++) {
+      int Ac_s = solid_face_->gN(a);
+      int b = solid_to_fluid_map_[a];
+      int Ac_f = (b >= 0) ? fluid_face_->gN(b) : -1;
+      std::cout << "    solid[" << a << "] gN=" << Ac_s << " ("
+                << solid_com.x(0, Ac_s) << ", "
+                << solid_com.x(1, Ac_s) << ", "
+                << solid_com.x(2, Ac_s) << ") → fluid[" << b << "] gN=" << Ac_f;
+      if (Ac_f >= 0) {
+        std::cout << " (" << fluid_com.x(0, Ac_f) << ", "
+                  << fluid_com.x(1, Ac_f) << ", "
+                  << fluid_com.x(2, Ac_f) << ")";
+      }
+      std::cout << std::endl;
+    }
+  }
+
+  std::cout << "[PartitionedFSI] Sanity checks done." << std::endl;
 }
 
 //----------------------------------------------------------------------
@@ -345,13 +469,10 @@ bool PartitionedFSI::step()
   SavedState solid_pred = save_state(solid_sol);
   SavedState mesh_pred  = save_state(mesh_sol);
 
-  // Initial displacement and velocity from predictor
+  // Initial displacement from predictor
   auto disp_current = fsi_coupling::extract_solid_displacement(
       solid_com, solid_com.eq[0], *solid_face_, solid_sol);
-  auto vel_current = fsi_coupling::extract_solid_velocity(
-      solid_com, solid_com.eq[0], *solid_face_, solid_sol);
   disp_prev_ = disp_current;
-  vel_prev_ = vel_current;
 
   bool converged = false;
 
@@ -369,20 +490,20 @@ bool PartitionedFSI::step()
       std::cout << std::string(50, '-') << std::endl;
     }
 
-    // ---- Use relaxed displacement and velocity at interface ----
+    // ---- Use relaxed displacement at interface ----
+    // The fluid wall velocity is NOT prescribed from the solid. Instead, the
+    // mesh deformation matches the solid displacement, and the fluid wall BC
+    // stays at zero velocity (no-slip in the mesh/ALE frame). This avoids
+    // the pressure spike that occurs when prescribing a lab-frame velocity
+    // on a non-ALE fluid solver.
     auto mesh_disp = transfer_data(solid_to_mesh_map_, disp_prev_, mesh_face_->nNo);
-    auto fluid_vel = transfer_data(solid_to_fluid_map_, vel_prev_, fluid_face_->nNo);
 
-    // Debug: print max interface values
     if (cm.mas(cm_mod)) {
-      double max_disp = 0, max_vel = 0;
+      double max_disp = 0;
       for (int a = 0; a < mesh_disp.ncols(); a++)
-        for (int i = 0; i < nsd; i++) {
+        for (int i = 0; i < nsd; i++)
           max_disp = std::max(max_disp, std::abs(mesh_disp(i, a)));
-          max_vel  = std::max(max_vel,  std::abs(fluid_vel(i, a)));
-        }
-      std::cout << "    interface: max|disp|=" << max_disp
-                << "  max|vel|=" << max_vel << std::endl;
+      std::cout << "    interface: max|disp|=" << max_disp << std::endl;
     }
 
     // ---- MESH SOLVE ----
@@ -408,22 +529,39 @@ bool PartitionedFSI::step()
         fluid_com.x(i, a) += mesh_Dg(i, a);
 
     // ---- FLUID SOLVE ----
+    // The fluid XML has Dir BC on lumen_wall (zero velocity = no-slip in mesh frame).
+    // The mesh is already deformed to match the solid displacement, so zero velocity
+    // in the mesh frame corresponds to the wall moving with the solid in the lab frame.
+    // No need to prescribe solid velocity — the ALE mesh motion handles it.
     if (cm.mas(cm_mod)) {
       std::cout << "    [fluid] solving..." << std::endl;
     }
-    // Apply XML BCs first, then overwrite interface with coupling values
     set_bc::set_bc_dir(fluid_com, fluid_sol);
-    fsi_coupling::apply_velocity_on_fluid(
-        fluid_com, fluid_com.eq[0], *fluid_face_, fluid_vel, fluid_sol);
-    fluid_int.step_equation(0, [&]() {
-      fsi_coupling::enforce_dirichlet_dofs_on_face(fluid_com, *fluid_face_, 0, nsd);
-    });
+    fluid_int.step_equation(0);
     if (has_nan(fluid_sol)) {
       if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in fluid solve" << std::endl;
       for (int a = 0; a < fluid_com.tnNo; a++)
         for (int i = 0; i < nsd; i++)
           fluid_com.x(i, a) -= mesh_Dg(i, a);
       return false;
+    }
+
+    // Debug: check fluid solution at interface after solve
+    if (cm.mas(cm_mod)) {
+      auto& Yg = fluid_int.get_Yg();
+      auto& Yn = fluid_sol.current.get_velocity();
+      double max_p_Yg = 0, max_v_Yg = 0, max_p_Yn = 0, max_v_Yn = 0;
+      for (int a = 0; a < fluid_face_->nNo; a++) {
+        int Ac = fluid_face_->gN(a);
+        max_p_Yg = std::max(max_p_Yg, std::abs(Yg(nsd, Ac)));
+        max_p_Yn = std::max(max_p_Yn, std::abs(Yn(nsd, Ac)));
+        for (int i = 0; i < nsd; i++) {
+          max_v_Yg = std::max(max_v_Yg, std::abs(Yg(i, Ac)));
+          max_v_Yn = std::max(max_v_Yn, std::abs(Yn(i, Ac)));
+        }
+      }
+      std::cout << "    fluid@interface: Yg max|v|=" << max_v_Yg << " max|p|=" << max_p_Yg
+                << "  Yn max|v|=" << max_v_Yn << " max|p|=" << max_p_Yn << std::endl;
     }
 
     // ---- Extract traction ON DEFORMED MESH ----
@@ -461,13 +599,11 @@ bool PartitionedFSI::step()
       return false;
     }
 
-    // ---- Extract new solid displacement and velocity ----
+    // ---- Extract new solid displacement ----
     disp_current = fsi_coupling::extract_solid_displacement(
         solid_com, solid_com.eq[0], *solid_face_, solid_sol);
-    vel_current = fsi_coupling::extract_solid_velocity(
-        solid_com, solid_com.eq[0], *solid_face_, solid_sol);
 
-    // ---- Residual + Aitken relaxation (applied to both disp and vel) ----
+    // ---- Residual + Aitken relaxation on displacement ----
     Array<double> disp_residual(nsd, solid_face_->nNo);
     for (int a = 0; a < solid_face_->nNo; a++)
       for (int i = 0; i < nsd; i++)
@@ -476,12 +612,9 @@ bool PartitionedFSI::step()
     if (cp > 0 && config_.use_aitken)
       omega_ = compute_aitken_omega(disp_residual, disp_residual_prev_, omega_);
 
-    // Relax displacement and velocity with the same omega
     for (int a = 0; a < solid_face_->nNo; a++)
-      for (int i = 0; i < nsd; i++) {
+      for (int i = 0; i < nsd; i++)
         disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
-        vel_prev_(i, a)  += omega_ * (vel_current(i, a)  - vel_prev_(i, a));
-      }
     disp_residual_prev_ = disp_residual;
 
     // ---- Convergence check ----
