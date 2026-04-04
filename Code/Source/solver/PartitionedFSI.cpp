@@ -477,24 +477,39 @@ bool PartitionedFSI::step()
       return false;
     }
 
-    // ---- FLUID SOLVE (eq 0, type=FSI) ----
-    // Dir BC at lumen_wall (zero velocity = no-slip).
-    // construct_fsi deforms coordinates via dl(4-6).
-    // ALE subtracts mesh velocity from convection (mvMsh=true).
+    // ---- Deform fluid mesh to match wall displacement ----
+    // construct_fluid uses com_mod.x directly (no internal ALE deformation).
+    // Deform coordinates using mesh displacement from Dg DOFs 4-6.
+    auto& Dg = fluid_int.get_Dg();
+    int mesh_s = mesh_eq.s;
+    for (int a = 0; a < fluid_com.tnNo; a++)
+      for (int i = 0; i < nsd; i++)
+        fluid_com.x(i, a) += Dg(mesh_s + i, a);
+
+    // ---- FLUID SOLVE (eq 0, type=fluid) ----
+    // Dir BC at lumen_wall (zero velocity = no-slip on deformed mesh).
     fluid_int.step_equation(FLUID_EQ);
 
     if (has_nan(fluid_sol)) {
       if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in fluid solve" << std::endl;
+      for (int a = 0; a < fluid_com.tnNo; a++)
+        for (int i = 0; i < nsd; i++)
+          fluid_com.x(i, a) -= Dg(mesh_s + i, a);
       return false;
     }
 
-    // ---- Extract traction ----
+    // ---- Extract traction on deformed mesh ----
     auto fluid_traction = fsi_coupling::extract_fluid_traction(
         fluid_com, fluid_sim_->cm_mod,
         *fluid_mesh_, *fluid_face_, fluid_com.eq[FLUID_EQ],
         fluid_int.get_Yg(), fluid_int.get_Dg(), fluid_sol);
     auto solid_traction = transfer_data(fluid_to_solid_map_,
                                         fluid_traction, solid_face_->nNo);
+
+    // ---- Restore fluid mesh coordinates ----
+    for (int a = 0; a < fluid_com.tnNo; a++)
+      for (int i = 0; i < nsd; i++)
+        fluid_com.x(i, a) -= Dg(mesh_s + i, a);
 
     // ---- SOLID SOLVE ----
     // Re-apply XML BCs (inlet/outlet Dir) before solid solve

@@ -43,7 +43,7 @@
   <Solid_interface_face> lumen_wall </Solid_interface_face>
 </Partitioned_coupling>
 
-<Add_equation type="FSI" >
+<Add_equation type="fluid" >
    <Coupled> false </Coupled>
    <Min_iterations> 1 </Min_iterations>
    <Max_iterations> 10 </Max_iterations>
