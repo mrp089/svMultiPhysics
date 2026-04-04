@@ -423,7 +423,7 @@ bool PartitionedFSI::step()
   const int MESH_EQ = 1;
   auto& mesh_eq = fluid_com.eq[MESH_EQ];
 
-  omega_ = 0.5;
+  omega_ = config_.initial_relaxation;
 
   // Save predictor state. Each coupling iteration restores to this.
   struct SavedState {
@@ -477,50 +477,11 @@ bool PartitionedFSI::step()
       return false;
     }
 
-    // ---- FLUID SOLVE with Robin BC at wall ----
-    // Instead of a Dir BC (rigid wall) or free wall, use a Robin condition:
-    //   R -= alpha * (v_fluid - v_mesh) at wall nodes
-    // This penalizes deviation of the fluid velocity from the mesh velocity,
-    // approximating the structural impedance alpha ≈ rho_s * h_s / dt.
-    // The mesh velocity at DOFs 4-6 was computed by Newmark in apply_displacement_on_mesh.
-    int mesh_s = mesh_eq.s;
-    // Robin coefficient: approximate structural impedance.
-    // Too large → acts like Dir BC (rigid wall, flow suppressed)
-    // Too small → no structural resistance (wall unconstrained)
-    // Optimal ≈ rho_s * h_s / dt for thin walls
-    double robin_alpha = 100.0;
-
-    fluid_int.step_equation(FLUID_EQ, [&]() {
-      // Robin BC: add penalty term to residual and tangent at wall nodes
-      auto& Yg = fluid_int.get_Yg();
-      auto& R = fluid_com.R;
-      auto& Val = fluid_com.Val;
-      auto& eq = fluid_com.eq[FLUID_EQ];
-      int dof = eq.dof;
-      auto& rowPtr = fluid_com.rowPtr;
-      auto& colPtr = fluid_com.colPtr;
-
-      for (int a = 0; a < fluid_face_->nNo; a++) {
-        int Ac = fluid_face_->gN(a);
-        for (int i = 0; i < nsd; i++) {
-          double v_fluid = Yg(i, Ac);
-          double v_mesh  = Yg(mesh_s + i, Ac);
-          // Penalty force: pushes fluid velocity toward mesh velocity
-          R(i, Ac) -= robin_alpha * (v_fluid - v_mesh);
-        }
-
-        // Add penalty to tangent diagonal (dR/dYn = -alpha * af)
-        double tang = robin_alpha * eq.af;
-        for (int j = rowPtr(Ac); j <= rowPtr(Ac + 1) - 1; j++) {
-          if (colPtr(j) == Ac) {
-            for (int i = 0; i < nsd; i++) {
-              Val(i * dof + i, j) += tang;
-            }
-            break;
-          }
-        }
-      }
-    });
+    // ---- FLUID SOLVE (eq 0, type=FSI) ----
+    // Dir BC at lumen_wall (zero velocity = no-slip).
+    // construct_fsi deforms coordinates via dl(4-6).
+    // ALE subtracts mesh velocity from convection (mvMsh=true).
+    fluid_int.step_equation(FLUID_EQ);
 
     if (has_nan(fluid_sol)) {
       if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in fluid solve" << std::endl;

@@ -75,10 +75,12 @@ Array<double> extract_fluid_traction(
     if (cDmn == -1) continue;
 
     // Load volume element nodal data (following bpost lines 199-218)
+    // Use deformed coordinates (reference + mesh displacement from Dg DOFs 4-6)
+    // to match construct_fsi which deforms xl by dl(nsd+1..2*nsd).
     for (int a = 0; a < eNoN; a++) {
       int Ac = lM.IEN(a, Ec);
       for (int i = 0; i < nsd; i++) {
-        xl(i, a) = com_mod.x(i, Ac);
+        xl(i, a) = com_mod.x(i, Ac) + Dg(nsd + 1 + i, Ac);
         ul(i, a) = Yg(i, Ac);  // velocity DOFs 0..nsd-1
       }
     }
@@ -274,13 +276,13 @@ void apply_traction_on_solid(
     const faceType& lFa,
     const Array<double>& traction)
 {
-  // The traction array contains consistent nodal forces that are already
-  // integrated over the face. Add them directly to the residual R.
-  // R stores the RHS of the Newton system, indexed by (dof, global_node).
+  // The traction array contains consistent nodal forces (external force on solid).
+  // In svMultiPhysics, external forces are SUBTRACTED from R (see b_l_elas:
+  // lR -= w*N*h). So R -= traction.
   for (int a = 0; a < lFa.nNo; a++) {
     int Ac = lFa.gN(a);
     for (int i = 0; i < traction.nrows(); i++) {
-      com_mod.R(i, Ac) += traction(i, a);
+      com_mod.R(i, Ac) -= traction(i, a);
     }
   }
 }

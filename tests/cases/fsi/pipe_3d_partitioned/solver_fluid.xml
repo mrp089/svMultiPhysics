@@ -77,8 +77,10 @@
       <Value> 5.0e4 </Value>
    </Add_BC>
 
-   <!-- No Dir BC on lumen_wall. Wall velocity is enforced via Robin condition
-        in the coupling code (penalty term in post-assembly callback). -->
+   <Add_BC name="lumen_wall" >
+      <Type> Dir </Type>
+      <Value> 0.0 </Value>
+   </Add_BC>
 
 </Add_equation>
 
