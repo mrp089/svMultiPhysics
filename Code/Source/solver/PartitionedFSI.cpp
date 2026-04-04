@@ -433,7 +433,10 @@ bool PartitionedFSI::step()
   SavedState solid_pred = save(solid_sol);
   SavedState mesh_pred  = save(mesh_sol);
 
-  // Initial displacement/velocity from predictor
+  // Save reference mesh coordinates (restored each coupling iteration)
+  Array<double> x_ref(fluid_com.x);
+
+  // Initial displacement from predictor
   auto disp_current = fsi_coupling::extract_solid_displacement(
       solid_com, solid_com.eq[0], *solid_face_, solid_sol);
   disp_prev_ = disp_current;
@@ -442,10 +445,11 @@ bool PartitionedFSI::step()
 
   for (int cp = 0; cp < config_.max_coupling_iterations; cp++) {
 
-    // Restore all sub-sims to predictor state
+    // Restore all sub-sims to predictor state AND mesh coordinates
     restore(fluid_sol, fluid_pred);
     restore(solid_sol, solid_pred);
     restore(mesh_sol, mesh_pred);
+    fluid_com.x = x_ref;
 
     if (cm.mas(cm_mod) && cp == 0) {
       std::cout << std::string(69, '-') << std::endl;
@@ -453,11 +457,33 @@ bool PartitionedFSI::step()
       std::cout << std::string(69, '-') << std::endl;
     }
 
-    // ---- 1. FLUID SOLVE with solid velocity at wall ----
-    // Prescribe solid velocity at lumen_wall, overwriting the Dir BC (zero).
-    auto solid_vel = fsi_coupling::extract_solid_velocity(
-        solid_com, solid_com.eq[0], *solid_face_, solid_sol);
-    auto fluid_vel = transfer_data(solid_to_fluid_map_, solid_vel, fluid_face_->nNo);
+    // ---- 1. FLUID SOLVE with wall velocity from displacement ----
+    // Compute wall velocity from relaxed displacement using Newmark.
+    // Cannot extract from solid_sol because it was restored to predictor.
+    Array<double> wall_vel(nsd, solid_face_->nNo);
+    {
+      auto& solid_eq = solid_com.eq[0];
+      double dt = solid_com.dt;
+      double gam = solid_eq.gam;
+      double beta = solid_eq.beta;
+      auto& Do = solid_pred.Dn;  // old displacement (predictor = start of time step)
+      auto& Yo = solid_pred.Yn;
+      auto& Ao = solid_pred.An;
+      int s = solid_eq.s;
+      for (int a = 0; a < solid_face_->nNo; a++) {
+        int Ac = solid_face_->gN(a);
+        for (int i = 0; i < nsd; i++) {
+          double d_new = disp_prev_(i, a);
+          double d_old = Do(i + s, Ac);
+          double v_old = Yo(i + s, Ac);
+          double a_old = Ao(i + s, Ac);
+          double a_new = (d_new - d_old - dt * v_old) / (beta * dt * dt)
+                       - (0.5 - beta) / beta * a_old;
+          wall_vel(i, a) = v_old + dt * ((1.0 - gam) * a_old + gam * a_new);
+        }
+      }
+    }
+    auto fluid_vel = transfer_data(solid_to_fluid_map_, wall_vel, fluid_face_->nNo);
 
     set_bc::set_bc_dir(fluid_com, fluid_sol);
     fsi_coupling::apply_velocity_on_fluid(
@@ -490,15 +516,29 @@ bool PartitionedFSI::step()
       return false;
     }
 
-    // ---- 4. Extract displacement, relax ----
+    // ---- 4. Extract displacement ----
     disp_current = fsi_coupling::extract_solid_displacement(
         solid_com, solid_com.eq[0], *solid_face_, solid_sol);
 
+    // ---- Convergence check (BEFORE relaxation) ----
+    // r = x_tilde - x: mismatch between solid output and prescribed input
+    double res_norm = 0.0, disp_norm = 0.0;
+    for (int a = 0; a < solid_face_->nNo; a++)
+      for (int i = 0; i < nsd; i++) {
+        double res = disp_current(i, a) - disp_prev_(i, a);
+        res_norm  += res * res;
+        disp_norm += disp_current(i, a) * disp_current(i, a);
+      }
+    res_norm  = sqrt(res_norm);
+    disp_norm = sqrt(disp_norm);
+    double rel = (disp_norm > 1e-30) ? res_norm / disp_norm : res_norm;
+
+    // ---- 5. Relax ----
     for (int a = 0; a < solid_face_->nNo; a++)
       for (int i = 0; i < nsd; i++)
         disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
 
-    // ---- 5. MESH SOLVE with relaxed displacement ----
+    // ---- 6. MESH SOLVE with relaxed displacement ----
     auto mesh_disp = transfer_data(solid_to_mesh_map_, disp_prev_, mesh_face_->nNo);
     set_bc::set_bc_dir(mesh_com, mesh_sol);
     fsi_coupling::apply_displacement_on_mesh(
@@ -511,26 +551,11 @@ bool PartitionedFSI::step()
       return false;
     }
 
-    // ---- 6. Deform fluid mesh for next iteration ----
+    // ---- 7. Deform fluid mesh for next iteration ----
     auto& mesh_Dg = mesh_int.get_Dg();
     for (int a = 0; a < fluid_com.tnNo; a++)
       for (int i = 0; i < nsd; i++)
         fluid_com.x(i, a) += mesh_Dg(i, a);
-
-    // Store deformed state in fluid predictor for next iteration restore
-    fluid_pred = save(fluid_sol);
-
-    // ---- Convergence check ----
-    double res_norm = 0.0, disp_norm = 0.0;
-    for (int a = 0; a < solid_face_->nNo; a++)
-      for (int i = 0; i < nsd; i++) {
-        double res = disp_current(i, a) - disp_prev_(i, a);
-        res_norm  += res * res;
-        disp_norm += disp_current(i, a) * disp_current(i, a);
-      }
-    res_norm  = sqrt(res_norm);
-    disp_norm = sqrt(disp_norm);
-    double rel = (disp_norm > 1e-30) ? res_norm / disp_norm : res_norm;
 
     // Check for NaN
     if (std::isnan(rel) || std::isnan(disp_norm)) {

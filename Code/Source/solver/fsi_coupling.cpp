@@ -255,15 +255,27 @@ void apply_velocity_on_fluid(
 {
   const int nsd = com_mod.nsd;
   const int s = fluid_eq.s;
+  const double dt = com_mod.dt;
+  const double gam = fluid_eq.gam;
 
   auto& An = solutions.current.get_acceleration();
   auto& Yn = solutions.current.get_velocity();
+  const auto& Yo = solutions.old.get_velocity();
+  const auto& Ao = solutions.old.get_acceleration();
 
   for (int a = 0; a < lFa.nNo; a++) {
     int Ac = lFa.gN(a);
     for (int i = 0; i < nsd; i++) {
-      Yn(i + s, Ac) = velocity(i, a);
-      An(i + s, Ac) = 0.0;  // zero acceleration for prescribed velocity
+      double v_new = velocity(i, a);
+      double v_old = Yo(i + s, Ac);
+      double a_old = Ao(i + s, Ac);
+
+      Yn(i + s, Ac) = v_new;
+      // Consistent acceleration from generalized-alpha:
+      // Yn = Yo + dt*((1-gamma)*Ao + gamma*An)
+      // => An = (Yn - Yo) / (gamma*dt) - (1-gamma)/gamma * Ao
+      An(i + s, Ac) = (v_new - v_old) / (gam * dt)
+                    - (1.0 - gam) / gam * a_old;
     }
   }
 }
