@@ -418,6 +418,7 @@ bool PartitionedFSI::step()
   auto& mesh_sol  = mesh_int.get_solutions();
 
   omega_ = config_.initial_relaxation;
+  r_prev_.clear();
 
   // Save predictor state
   struct SavedState { Array<double> An, Yn, Dn; };
@@ -533,7 +534,31 @@ bool PartitionedFSI::step()
     disp_norm = sqrt(disp_norm);
     double rel = (disp_norm > 1e-30) ? res_norm / disp_norm : res_norm;
 
-    // ---- 5. Relax ----
+    // ---- 5. Aitken relaxation (Degroote Eq. 50) ----
+    {
+      // Residual vector r^k = disp_current - disp_prev_ (before relaxation)
+      int u = nsd * solid_face_->nNo;
+      std::vector<double> r(u);
+      for (int a = 0; a < solid_face_->nNo; a++)
+        for (int i = 0; i < nsd; i++)
+          r[a * nsd + i] = disp_current(i, a) - disp_prev_(i, a);
+
+      if (cp > 0 && !r_prev_.empty()) {
+        // omega^k = -omega^{k-1} * (r^{k-1})^T (r^k - r^{k-1}) / ||r^k - r^{k-1}||^2
+        double num = 0, den = 0;
+        for (int j = 0; j < u; j++) {
+          double dr = r[j] - r_prev_[j];
+          num += r_prev_[j] * dr;
+          den += dr * dr;
+        }
+        if (den > 1e-30)
+          omega_ = -omega_ * num / den;
+        omega_ = std::max(0.01, std::min(1.0, std::abs(omega_)));
+      }
+
+      r_prev_ = r;
+    }
+
     for (int a = 0; a < solid_face_->nNo; a++)
       for (int i = 0; i < nsd; i++)
         disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
