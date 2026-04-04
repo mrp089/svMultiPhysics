@@ -90,6 +90,7 @@ private:
 
   // Coupling state
   Array<double> disp_prev_;
+  Array<double> vel_prev_;
   double omega_;
   double first_res_norm_ = 0.0;
 

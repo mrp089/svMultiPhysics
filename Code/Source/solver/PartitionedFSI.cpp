@@ -437,10 +437,13 @@ bool PartitionedFSI::step()
   // Save reference mesh coordinates (restored each coupling iteration)
   Array<double> x_ref(fluid_com.x);
 
-  // Initial displacement from predictor
+  // Initial displacement and velocity from predictor
   auto disp_current = fsi_coupling::extract_solid_displacement(
       solid_com, solid_com.eq[0], *solid_face_, solid_sol);
+  auto vel_current = fsi_coupling::extract_solid_velocity(
+      solid_com, solid_com.eq[0], *solid_face_, solid_sol);
   disp_prev_ = disp_current;
+  vel_prev_ = vel_current;
 
   bool converged = false;
 
@@ -458,33 +461,9 @@ bool PartitionedFSI::step()
       std::cout << std::string(69, '-') << std::endl;
     }
 
-    // ---- 1. FLUID SOLVE with wall velocity from displacement ----
-    // Compute wall velocity from relaxed displacement using Newmark.
-    // Cannot extract from solid_sol because it was restored to predictor.
-    Array<double> wall_vel(nsd, solid_face_->nNo);
-    {
-      auto& solid_eq = solid_com.eq[0];
-      double dt = solid_com.dt;
-      double gam = solid_eq.gam;
-      double beta = solid_eq.beta;
-      auto& Do = solid_pred.Dn;  // old displacement (predictor = start of time step)
-      auto& Yo = solid_pred.Yn;
-      auto& Ao = solid_pred.An;
-      int s = solid_eq.s;
-      for (int a = 0; a < solid_face_->nNo; a++) {
-        int Ac = solid_face_->gN(a);
-        for (int i = 0; i < nsd; i++) {
-          double d_new = disp_prev_(i, a);
-          double d_old = Do(i + s, Ac);
-          double v_old = Yo(i + s, Ac);
-          double a_old = Ao(i + s, Ac);
-          double a_new = (d_new - d_old - dt * v_old) / (beta * dt * dt)
-                       - (0.5 - beta) / beta * a_old;
-          wall_vel(i, a) = v_old + dt * ((1.0 - gam) * a_old + gam * a_new);
-        }
-      }
-    }
-    auto fluid_vel = transfer_data(solid_to_fluid_map_, wall_vel, fluid_face_->nNo);
+    // ---- 1. FLUID SOLVE with relaxed wall velocity ----
+    // vel_prev_ comes directly from the solid solver (no Newmark recomputation).
+    auto fluid_vel = transfer_data(solid_to_fluid_map_, vel_prev_, fluid_face_->nNo);
 
     set_bc::set_bc_dir(fluid_com, fluid_sol);
     fsi_coupling::apply_velocity_on_fluid(
@@ -517,12 +496,13 @@ bool PartitionedFSI::step()
       return false;
     }
 
-    // ---- 4. Extract displacement ----
+    // ---- 4. Extract displacement AND velocity from solid ----
     disp_current = fsi_coupling::extract_solid_displacement(
+        solid_com, solid_com.eq[0], *solid_face_, solid_sol);
+    auto vel_current = fsi_coupling::extract_solid_velocity(
         solid_com, solid_com.eq[0], *solid_face_, solid_sol);
 
     // ---- Convergence check (BEFORE relaxation) ----
-    // r = x_tilde - x: mismatch between solid output and prescribed input
     double res_norm = 0.0, disp_norm = 0.0;
     for (int a = 0; a < solid_face_->nNo; a++)
       for (int i = 0; i < nsd; i++) {
@@ -534,9 +514,8 @@ bool PartitionedFSI::step()
     disp_norm = sqrt(disp_norm);
     double rel = (disp_norm > 1e-30) ? res_norm / disp_norm : res_norm;
 
-    // ---- 5. Aitken relaxation (Degroote Eq. 50) ----
+    // ---- 5. Aitken relaxation on displacement (Degroote Eq. 50) ----
     {
-      // Residual vector r^k = disp_current - disp_prev_ (before relaxation)
       int u = nsd * solid_face_->nNo;
       std::vector<double> r(u);
       for (int a = 0; a < solid_face_->nNo; a++)
@@ -544,7 +523,6 @@ bool PartitionedFSI::step()
           r[a * nsd + i] = disp_current(i, a) - disp_prev_(i, a);
 
       if (cp > 0 && !r_prev_.empty()) {
-        // omega^k = -omega^{k-1} * (r^{k-1})^T (r^k - r^{k-1}) / ||r^k - r^{k-1}||^2
         double num = 0, den = 0;
         for (int j = 0; j < u; j++) {
           double dr = r[j] - r_prev_[j];
@@ -555,13 +533,15 @@ bool PartitionedFSI::step()
           omega_ = -omega_ * num / den;
         omega_ = std::max(0.01, std::min(1.0, std::abs(omega_)));
       }
-
       r_prev_ = r;
     }
 
+    // Relax BOTH displacement and velocity with the same omega
     for (int a = 0; a < solid_face_->nNo; a++)
-      for (int i = 0; i < nsd; i++)
+      for (int i = 0; i < nsd; i++) {
         disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
+        vel_prev_(i, a)  += omega_ * (vel_current(i, a) - vel_prev_(i, a));
+      }
 
     // ---- 6. MESH SOLVE with relaxed displacement ----
     auto mesh_disp = transfer_data(solid_to_mesh_map_, disp_prev_, mesh_face_->nNo);
