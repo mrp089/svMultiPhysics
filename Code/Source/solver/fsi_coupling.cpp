@@ -271,11 +271,11 @@ void apply_velocity_on_fluid(
       double a_old = Ao(i + s, Ac);
 
       Yn(i + s, Ac) = v_new;
-      // Consistent acceleration from generalized-alpha:
-      // Yn = Yo + dt*((1-gamma)*Ao + gamma*An)
-      // => An = (Yn - Yo) / (gamma*dt) - (1-gamma)/gamma * Ao
-      An(i + s, Ac) = (v_new - v_old) / (gam * dt)
-                    - (1.0 - gam) / gam * a_old;
+      // Set An = 0: the enforce_dirichlet callback zeros the correction
+      // at wall nodes, so An doesn't affect the wall solution. Setting
+      // An = 0 avoids a huge temporal acceleration term in the assembly
+      // that would fight the prescribed velocity.
+      An(i + s, Ac) = 0.0;
     }
   }
 }
