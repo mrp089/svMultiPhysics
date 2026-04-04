@@ -173,8 +173,7 @@ TEST(PartitionedFSI, TractionSignAndMagnitude)
     for (int i = 0; i < nsd; i++)
       total_force[i] += traction(i, a);
 
-  // Total radial force: project total force onto radial direction
-  // For a cylindrical pipe centered at (0,0), radial = (x, y, 0)/r
+  // Total radial force: project each nodal force onto radial direction
   double total_radial = 0.0;
   for (int a = 0; a < wall_face->nNo; a++) {
     int Ac = wall_face->gN(a);
@@ -182,23 +181,37 @@ TEST(PartitionedFSI, TractionSignAndMagnitude)
     double y = com_mod.x(1, Ac);
     double r = sqrt(x*x + y*y);
     if (r < 1e-10) continue;
-    double radial_force = (x * traction(0, a) + y * traction(1, a)) / r;
-    total_radial += radial_force;
+    total_radial += (x * traction(0, a) + y * traction(1, a)) / r;
   }
 
-  // Traction should be radially outward (positive) for a pressurized pipe
+  // Compute mean pressure at wall from Yg
+  auto& Yg = integrator.get_Yg();
+  double sum_p = 0.0;
+  for (int a = 0; a < wall_face->nNo; a++) {
+    int Ac = wall_face->gN(a);
+    sum_p += Yg(nsd, Ac);  // pressure is DOF nsd
+  }
+  double mean_p = sum_p / wall_face->nNo;
+  double wall_area = wall_face->area;
+
+  // Expected radial force ≈ mean_pressure * wall_area
+  double expected_radial = mean_p * wall_area;
+
+  std::cout << "  Wall area:           " << wall_area << std::endl;
+  std::cout << "  Mean wall pressure:  " << mean_p << std::endl;
+  std::cout << "  Expected radial:     " << expected_radial << std::endl;
+  std::cout << "  Actual radial:       " << total_radial << std::endl;
+  std::cout << "  Ratio (act/exp):     " << total_radial / expected_radial << std::endl;
+  std::cout << "  Total axial force:   " << total_force[2] << std::endl;
+
+  // Traction should be radially outward (positive)
   EXPECT_GT(total_radial, 0.0)
       << "Traction should point radially outward for positive pressure";
 
-  // Total axial force should be near zero (symmetric inlet/outlet)
-  double force_mag = sqrt(total_force[0]*total_force[0] +
-                          total_force[1]*total_force[1] +
-                          total_force[2]*total_force[2]);
-  EXPECT_GT(force_mag, 0.0) << "Total traction force should be non-zero";
-
-  std::cout << "  Total force: (" << total_force[0] << ", " << total_force[1]
-            << ", " << total_force[2] << ")" << std::endl;
-  std::cout << "  Total radial force: " << total_radial << std::endl;
+  // Radial force should be within 50% of pressure*area estimate
+  // (viscous contribution and non-uniform pressure cause deviation)
+  EXPECT_NEAR(total_radial / expected_radial, 1.0, 0.5)
+      << "Total radial force should be ~pressure*area";
 }
 
 // ===========================================================================
@@ -231,34 +244,42 @@ TEST(PartitionedFSI, TractionMatchesNeumannBC)
   // Sum axial (z) component of traction at inlet
   double total_axial = 0.0;
   for (int a = 0; a < inlet_face->nNo; a++)
-    total_axial += traction(2, a);  // z-component
+    total_axial += traction(2, a);
 
-  // Compute inlet face area (approximately pi*r^2 for a circular inlet)
-  double inlet_area = 0.0;
+  // Get inlet area and mean pressure
+  double inlet_area = inlet_face->area;
+  auto& Yg = integrator.get_Yg();
+  double sum_p = 0.0;
   for (int a = 0; a < inlet_face->nNo; a++) {
-    // Simple: count nodes and estimate area
-    inlet_area += 1.0;  // Will compute properly below
+    int Ac = inlet_face->gN(a);
+    sum_p += Yg(nsd, Ac);
   }
-  // Use the face normal vectors to compute area
-  inlet_area = 0.0;
-  for (int a = 0; a < inlet_face->nNo; a++) {
-    // The face normal nV includes the area weighting
-    double nz = inlet_face->nV(2, a);
-    inlet_area += std::abs(nz);
-  }
+  double mean_p = sum_p / inlet_face->nNo;
 
   // The Neumann BC is pressure = 5e4
   double applied_pressure = 5.0e4;
+  double expected_force = mean_p * inlet_area;
 
-  // Total axial force should be approximately pressure * area
-  // (positive z = into the pipe)
-  std::cout << "  Total axial traction at inlet: " << total_axial << std::endl;
-  std::cout << "  Inlet area (from nV): " << inlet_area << std::endl;
-  std::cout << "  Expected force: " << applied_pressure * inlet_area << std::endl;
-  std::cout << "  Note: values depend on viscous contribution and flow pattern" << std::endl;
+  std::cout << "  Inlet area:          " << inlet_area << std::endl;
+  std::cout << "  Mean inlet pressure: " << mean_p << std::endl;
+  std::cout << "  Applied Neumann BC:  " << applied_pressure << std::endl;
+  std::cout << "  Total axial traction:" << total_axial << std::endl;
+  std::cout << "  Expected (p*A):      " << expected_force << std::endl;
+  std::cout << "  Ratio (act/exp):     " << total_axial / expected_force << std::endl;
 
-  // Force should be positive (into the pipe) and on the order of pressure*area
+  // Axial traction at inlet should be on the order of p*A
+  // Sign: extract_fluid_traction returns force ON THE SOLID.
+  // At the inlet, the normal points inward (into the pipe, -z direction
+  // for a pipe from z=0 to z=L). So the traction should push in +z direction
+  // if the inlet normal is -z (sigma.n with n=-z gives +p in +z).
+  // Actually the sign depends on whether the face normal points in or out.
   EXPECT_NE(total_axial, 0.0) << "Inlet traction should be non-zero";
+
+  // The ratio should be close to -1 or +1 depending on normal convention
+  double ratio = total_axial / expected_force;
+  std::cout << "  |Ratio|:             " << std::abs(ratio) << std::endl;
+  EXPECT_NEAR(std::abs(ratio), 1.0, 0.5)
+      << "Total axial traction should be ~pressure*area";
 }
 
 // ===========================================================================
