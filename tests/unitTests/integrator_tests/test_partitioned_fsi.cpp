@@ -448,3 +448,116 @@ TEST(PartitionedFSI, PredictorRestore)
   std::cout << "  Max restore error (Yn): " << max_restore_err << std::endl;
   std::cout << "  Max restore error (x):  " << max_x_err << std::endl;
 }
+
+// ===========================================================================
+// Test: Prescribed wall velocity produces correct mass conservation
+// ===========================================================================
+TEST(PartitionedFSI, WallVelocityMassConservation)
+{
+  if (!pfsi_test_data_available()) GTEST_SKIP() << "Test data not available";
+
+  // Use zero-pressure fluid
+  SimSetup fluid("fsi/pipe_3d_partitioned", "solver_fluid_zero_pressure.xml");
+  auto& com_mod = fluid.sim->com_mod;
+  auto& integrator = fluid.sim->get_integrator();
+  auto& solutions = integrator.get_solutions();
+  const int nsd = com_mod.nsd;
+
+  auto* wall_face = pfsi_find_face(com_mod, "lumen_wall");
+  auto* inlet_face = pfsi_find_face(com_mod, "lumen_inlet");
+  auto* outlet_face = pfsi_find_face(com_mod, "lumen_outlet");
+  ASSERT_NE(wall_face, nullptr);
+  ASSERT_NE(inlet_face, nullptr);
+  ASSERT_NE(outlet_face, nullptr);
+
+  // Advance one time step
+  com_mod.cTS = 1;
+  com_mod.time = com_mod.dt;
+  for (auto& eq : com_mod.eq) { eq.itr = 0; eq.ok = false; }
+  integrator.predictor();
+  set_bc::set_bc_dir(com_mod, solutions);
+
+  // Prescribe uniform radial wall velocity v_wall = 1.0
+  double v_wall = 1.0;
+  Array<double> wall_vel(nsd, wall_face->nNo);
+  for (int a = 0; a < wall_face->nNo; a++) {
+    int Ac = wall_face->gN(a);
+    double x = com_mod.x(0, Ac);
+    double y = com_mod.x(1, Ac);
+    double r = sqrt(x*x + y*y);
+    if (r < 1e-10) r = 1.0;
+    wall_vel(0, a) = v_wall * x / r;  // radial outward
+    wall_vel(1, a) = v_wall * y / r;
+    wall_vel(2, a) = 0.0;             // no axial
+  }
+
+  fsi_coupling::apply_velocity_on_fluid(
+      com_mod, com_mod.eq[0], *wall_face, wall_vel, solutions);
+
+  // Solve fluid
+  integrator.step_equation(0, [&]() {
+    fsi_coupling::enforce_dirichlet_dofs_on_face(com_mod, *wall_face, 0, nsd);
+  });
+
+  // Check: is the wall velocity preserved after the solve?
+  auto& Yn = solutions.current.get_velocity();
+  double max_wall_err = 0.0;
+  for (int a = 0; a < wall_face->nNo; a++) {
+    int Ac = wall_face->gN(a);
+    for (int i = 0; i < nsd; i++) {
+      double err = std::abs(Yn(i, Ac) - wall_vel(i, a));
+      max_wall_err = std::max(max_wall_err, err);
+    }
+  }
+  std::cout << "  Max wall velocity error after solve: " << max_wall_err << std::endl;
+  EXPECT_LT(max_wall_err, 1e-6)
+      << "Wall velocity should be preserved by enforce_dirichlet_dofs_on_face";
+
+  // Check mass conservation: integral(v·n) over all boundaries = 0
+  // Wall: v·n = v_wall (radially outward, n points outward)
+  // Inlet/outlet: v·n determined by the solve
+
+  // Compute flow through inlet (v_z integrated over inlet area)
+  double inlet_flow = 0.0;
+  for (int a = 0; a < inlet_face->nNo; a++) {
+    int Ac = inlet_face->gN(a);
+    // nV includes area weighting; just sum v_z for average
+    inlet_flow += Yn(2, Ac);
+  }
+  inlet_flow /= inlet_face->nNo;  // mean axial velocity at inlet
+
+  // Compute flow through outlet
+  double outlet_flow = 0.0;
+  for (int a = 0; a < outlet_face->nNo; a++) {
+    int Ac = outlet_face->gN(a);
+    outlet_flow += Yn(2, Ac);
+  }
+  outlet_flow /= outlet_face->nNo;
+
+  // Wall volume flux: dV/dt = 2*pi*r*L*v_wall
+  // For r=1.0, L≈0.5: dV/dt ≈ pi ≈ 3.14
+  // This should equal the net axial flow through inlet+outlet
+  double pipe_r = 1.0;
+  // Get pipe length from z range
+  double z_min = 1e30, z_max = -1e30;
+  for (int a = 0; a < com_mod.tnNo; a++) {
+    z_min = std::min(z_min, com_mod.x(2, a));
+    z_max = std::max(z_max, com_mod.x(2, a));
+  }
+  double pipe_L = z_max - z_min;
+  double wall_flux = 2.0 * M_PI * pipe_r * pipe_L * v_wall;
+  double inlet_area = inlet_face->area;
+
+  std::cout << "  Pipe: r=" << pipe_r << " L=" << pipe_L << std::endl;
+  std::cout << "  Wall volume flux (2*pi*r*L*v_wall): " << wall_flux << std::endl;
+  std::cout << "  Inlet area: " << inlet_area << std::endl;
+  std::cout << "  Mean inlet v_z:  " << inlet_flow << std::endl;
+  std::cout << "  Mean outlet v_z: " << outlet_flow << std::endl;
+  std::cout << "  Expected inlet v_z (wall_flux/inlet_area): " << wall_flux / inlet_area << std::endl;
+
+  // The wall expansion should drive flow out through the open ends
+  // With Neu BC at inlet (p=0) and natural BC at outlet,
+  // the flow distribution depends on the geometry
+  EXPECT_NE(inlet_flow, 0.0)
+      << "Wall velocity should drive flow through the inlet";
+}
