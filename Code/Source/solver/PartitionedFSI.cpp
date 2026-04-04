@@ -69,28 +69,26 @@ PartitionedFSI::PartitionedFSI(Simulation* main_simulation,
 
   std::string fluid_xml = dir + config_.fluid_xml;
   std::string solid_xml = dir + config_.solid_xml;
+  std::string mesh_xml  = dir + config_.mesh_xml;
 
-  // Fluid sub-sim includes both fluid (eq 0) and mesh (eq 1) equations.
-  // They share solution arrays (tDof=7): fluid DOFs 0-3, mesh DOFs 4-6.
-  // The mesh equation provides ALE mesh velocity to construct_fluid.
-  if (cm.mas(cm_mod)) {
-    std::cout << "[PartitionedFSI] Initializing fluid+mesh sub-sim: " << fluid_xml << std::endl;
-  }
+  // 3 separate sub-sims: fluid, solid, mesh
+  if (cm.mas(cm_mod)) std::cout << "[PartitionedFSI] Initializing fluid: " << fluid_xml << std::endl;
   fluid_sim_ = std::make_unique<Simulation>();
   init_sub_sim(fluid_sim_.get(), fluid_xml);
 
-  if (cm.mas(cm_mod)) {
-    std::cout << "[PartitionedFSI] Initializing solid sub-sim: " << solid_xml << std::endl;
-  }
+  if (cm.mas(cm_mod)) std::cout << "[PartitionedFSI] Initializing solid: " << solid_xml << std::endl;
   solid_sim_ = std::make_unique<Simulation>();
   init_sub_sim(solid_sim_.get(), solid_xml);
 
+  if (cm.mas(cm_mod)) std::cout << "[PartitionedFSI] Initializing mesh:  " << mesh_xml << std::endl;
+  mesh_sim_ = std::make_unique<Simulation>();
+  init_sub_sim(mesh_sim_.get(), mesh_xml);
+
   if (cm.mas(cm_mod)) {
     std::cout << "[PartitionedFSI] Sub-sims ready:"
-              << "  fluid+mesh=" << fluid_sim_->com_mod.tnNo << "n/"
-              << fluid_sim_->com_mod.tDof << "tDof (eq0=" << fluid_sim_->com_mod.eq[0].dof
-              << " eq1=" << fluid_sim_->com_mod.eq[1].dof << ")"
+              << "  fluid=" << fluid_sim_->com_mod.tnNo << "n/" << fluid_sim_->com_mod.tDof << "tDof"
               << "  solid=" << solid_sim_->com_mod.tnNo << "n/" << solid_sim_->com_mod.eq[0].dof << "dof"
+              << "  mesh=" << mesh_sim_->com_mod.tnNo << "n/" << mesh_sim_->com_mod.eq[0].dof << "dof"
               << std::endl;
 
     // Open coupling log file
@@ -130,9 +128,7 @@ void PartitionedFSI::resolve_faces()
 
   find_face(fluid_sim_.get(), config_.fluid_interface_face, fluid_face_, fluid_mesh_);
   find_face(solid_sim_.get(), config_.solid_interface_face, solid_face_, solid_mesh_);
-  // Mesh face is in the fluid sub-sim (same lumen mesh)
-  mesh_face_ = fluid_face_;
-  mesh_mesh_ = fluid_mesh_;
+  find_face(mesh_sim_.get(),  config_.fluid_interface_face, mesh_face_,  mesh_mesh_);
 }
 
 //----------------------------------------------------------------------
@@ -173,8 +169,8 @@ void PartitionedFSI::build_node_maps()
                       *fluid_face_, fluid_sim_->com_mod, solid_to_fluid_map_);
   build_face_node_map(*fluid_face_, fluid_sim_->com_mod,
                       *solid_face_, solid_sim_->com_mod, fluid_to_solid_map_);
-  // Mesh face = fluid face (same sub-sim), so reuse the same map
-  solid_to_mesh_map_ = solid_to_fluid_map_;
+  build_face_node_map(*solid_face_, solid_sim_->com_mod,
+                      *mesh_face_,  mesh_sim_->com_mod,  solid_to_mesh_map_);
 
   auto& cm = main_sim_->com_mod.cm;
   auto& cm_mod = main_sim_->cm_mod;
@@ -338,7 +334,7 @@ void PartitionedFSI::run()
 
   if (cTS <= nITs) dt = dt / 10.0;
 
-  Simulation* sims[2] = {fluid_sim_.get(), solid_sim_.get()};
+  Simulation* sims[3] = {fluid_sim_.get(), solid_sim_.get(), mesh_sim_.get()};
 
   while (true) {
     if (cTS == nITs) dt = 10.0 * dt;
@@ -408,6 +404,7 @@ bool PartitionedFSI::step()
 {
   auto& fluid_com = fluid_sim_->com_mod;
   auto& solid_com = solid_sim_->com_mod;
+  auto& mesh_com  = mesh_sim_->com_mod;
   auto& cm_mod = main_sim_->cm_mod;
   auto& cm = main_sim_->com_mod.cm;
   const int nsd = main_sim_->com_mod.nsd;
@@ -415,35 +412,28 @@ bool PartitionedFSI::step()
 
   auto& fluid_int = fluid_sim_->get_integrator();
   auto& solid_int = solid_sim_->get_integrator();
+  auto& mesh_int  = mesh_sim_->get_integrator();
   auto& fluid_sol = fluid_int.get_solutions();
   auto& solid_sol = solid_int.get_solutions();
-
-  // Mesh equation is index 1 in the fluid sub-sim
-  const int FLUID_EQ = 0;
-  const int MESH_EQ = 1;
-  auto& mesh_eq = fluid_com.eq[MESH_EQ];
+  auto& mesh_sol  = mesh_int.get_solutions();
 
   omega_ = config_.initial_relaxation;
 
-  // Save predictor state. Each coupling iteration restores to this.
-  struct SavedState {
-    Array<double> An, Yn, Dn;
+  // Save predictor state
+  struct SavedState { Array<double> An, Yn, Dn; };
+  auto save = [](SolutionStates& s) -> SavedState {
+    return {s.current.get_acceleration(), s.current.get_velocity(), s.current.get_displacement()};
   };
-  auto save_state = [](SolutionStates& sol) -> SavedState {
-    return {sol.current.get_acceleration(),
-            sol.current.get_velocity(),
-            sol.current.get_displacement()};
+  auto restore = [](SolutionStates& s, const SavedState& st) {
+    s.current.get_acceleration() = st.An;
+    s.current.get_velocity() = st.Yn;
+    s.current.get_displacement() = st.Dn;
   };
-  auto restore_state = [](SolutionStates& sol, const SavedState& s) {
-    sol.current.get_acceleration() = s.An;
-    sol.current.get_velocity() = s.Yn;
-    sol.current.get_displacement() = s.Dn;
-  };
+  SavedState fluid_pred = save(fluid_sol);
+  SavedState solid_pred = save(solid_sol);
+  SavedState mesh_pred  = save(mesh_sol);
 
-  SavedState fluid_pred = save_state(fluid_sol);
-  SavedState solid_pred = save_state(solid_sol);
-
-  // Initial displacement from predictor
+  // Initial displacement/velocity from predictor
   auto disp_current = fsi_coupling::extract_solid_displacement(
       solid_com, solid_com.eq[0], *solid_face_, solid_sol);
   disp_prev_ = disp_current;
@@ -452,9 +442,10 @@ bool PartitionedFSI::step()
 
   for (int cp = 0; cp < config_.max_coupling_iterations; cp++) {
 
-    // Restore sub-sims to predictor state
-    restore_state(fluid_sol, fluid_pred);
-    restore_state(solid_sol, solid_pred);
+    // Restore all sub-sims to predictor state
+    restore(fluid_sol, fluid_pred);
+    restore(solid_sol, solid_pred);
+    restore(mesh_sol, mesh_pred);
 
     if (cm.mas(cm_mod) && cp == 0) {
       std::cout << std::string(69, '-') << std::endl;
@@ -462,57 +453,33 @@ bool PartitionedFSI::step()
       std::cout << std::string(69, '-') << std::endl;
     }
 
-    // ---- Transfer relaxed displacement to mesh interface ----
-    auto mesh_disp = transfer_data(solid_to_mesh_map_, disp_prev_, mesh_face_->nNo);
+    // ---- 1. FLUID SOLVE with solid velocity at wall ----
+    // Prescribe solid velocity at lumen_wall, overwriting the Dir BC (zero).
+    auto solid_vel = fsi_coupling::extract_solid_velocity(
+        solid_com, solid_com.eq[0], *solid_face_, solid_sol);
+    auto fluid_vel = transfer_data(solid_to_fluid_map_, solid_vel, fluid_face_->nNo);
 
-    // ---- MESH SOLVE (eq 1 in fluid sub-sim) ----
     set_bc::set_bc_dir(fluid_com, fluid_sol);
-    fsi_coupling::apply_displacement_on_mesh(
-        fluid_com, mesh_eq, *mesh_face_, mesh_disp, fluid_sol);
-    fluid_int.step_equation(MESH_EQ, [&]() {
-      fsi_coupling::enforce_dirichlet_on_face(fluid_com, *mesh_face_, nsd);
+    fsi_coupling::apply_velocity_on_fluid(
+        fluid_com, fluid_com.eq[0], *fluid_face_, fluid_vel, fluid_sol);
+
+    fluid_int.step_equation(0, [&]() {
+      fsi_coupling::enforce_dirichlet_dofs_on_face(fluid_com, *fluid_face_, 0, nsd);
     });
     if (has_nan(fluid_sol)) {
-      if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in mesh solve" << std::endl;
-      return false;
-    }
-
-    // ---- Deform fluid mesh to match wall displacement ----
-    // construct_fluid uses com_mod.x directly (no internal ALE deformation).
-    // Deform coordinates using mesh displacement from Dg DOFs 4-6.
-    auto& Dg = fluid_int.get_Dg();
-    int mesh_s = mesh_eq.s;
-    for (int a = 0; a < fluid_com.tnNo; a++)
-      for (int i = 0; i < nsd; i++)
-        fluid_com.x(i, a) += Dg(mesh_s + i, a);
-
-    // ---- FLUID SOLVE (eq 0, type=fluid) ----
-    // Dir BC at lumen_wall (zero velocity = no-slip on deformed mesh).
-    fluid_int.step_equation(FLUID_EQ);
-
-    if (has_nan(fluid_sol)) {
       if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in fluid solve" << std::endl;
-      for (int a = 0; a < fluid_com.tnNo; a++)
-        for (int i = 0; i < nsd; i++)
-          fluid_com.x(i, a) -= Dg(mesh_s + i, a);
       return false;
     }
 
-    // ---- Extract traction on deformed mesh ----
+    // ---- 2. Extract traction ----
     auto fluid_traction = fsi_coupling::extract_fluid_traction(
         fluid_com, fluid_sim_->cm_mod,
-        *fluid_mesh_, *fluid_face_, fluid_com.eq[FLUID_EQ],
+        *fluid_mesh_, *fluid_face_, fluid_com.eq[0],
         fluid_int.get_Yg(), fluid_int.get_Dg(), fluid_sol);
     auto solid_traction = transfer_data(fluid_to_solid_map_,
                                         fluid_traction, solid_face_->nNo);
 
-    // ---- Restore fluid mesh coordinates ----
-    for (int a = 0; a < fluid_com.tnNo; a++)
-      for (int i = 0; i < nsd; i++)
-        fluid_com.x(i, a) -= Dg(mesh_s + i, a);
-
-    // ---- SOLID SOLVE ----
-    // Re-apply XML BCs (inlet/outlet Dir) before solid solve
+    // ---- 3. SOLID SOLVE with traction ----
     set_bc::set_bc_dir(solid_com, solid_sol);
     solid_int.step_equation(0, [&]() {
       fsi_coupling::apply_traction_on_solid(
@@ -523,14 +490,35 @@ bool PartitionedFSI::step()
       return false;
     }
 
-    // ---- Extract new solid displacement ----
+    // ---- 4. Extract displacement, relax ----
     disp_current = fsi_coupling::extract_solid_displacement(
         solid_com, solid_com.eq[0], *solid_face_, solid_sol);
 
-    // ---- Static relaxation ----
     for (int a = 0; a < solid_face_->nNo; a++)
       for (int i = 0; i < nsd; i++)
         disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
+
+    // ---- 5. MESH SOLVE with relaxed displacement ----
+    auto mesh_disp = transfer_data(solid_to_mesh_map_, disp_prev_, mesh_face_->nNo);
+    set_bc::set_bc_dir(mesh_com, mesh_sol);
+    fsi_coupling::apply_displacement_on_mesh(
+        mesh_com, mesh_com.eq[0], *mesh_face_, mesh_disp, mesh_sol);
+    mesh_int.step_equation(0, [&]() {
+      fsi_coupling::enforce_dirichlet_on_face(mesh_com, *mesh_face_, nsd);
+    });
+    if (has_nan(mesh_sol)) {
+      if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in mesh solve" << std::endl;
+      return false;
+    }
+
+    // ---- 6. Deform fluid mesh for next iteration ----
+    auto& mesh_Dg = mesh_int.get_Dg();
+    for (int a = 0; a < fluid_com.tnNo; a++)
+      for (int i = 0; i < nsd; i++)
+        fluid_com.x(i, a) += mesh_Dg(i, a);
+
+    // Store deformed state in fluid predictor for next iteration restore
+    fluid_pred = save(fluid_sol);
 
     // ---- Convergence check ----
     double res_norm = 0.0, disp_norm = 0.0;
@@ -599,7 +587,7 @@ bool PartitionedFSI::step()
 void PartitionedFSI::save_results()
 {
   int cTS = main_sim_->com_mod.cTS;
-  Simulation* sims[2] = {fluid_sim_.get(), solid_sim_.get()};
+  Simulation* sims[3] = {fluid_sim_.get(), solid_sim_.get(), mesh_sim_.get()};
 
   for (auto* sim : sims) {
     auto& com = sim->com_mod;

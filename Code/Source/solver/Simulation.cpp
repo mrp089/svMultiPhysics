@@ -144,6 +144,7 @@ void Simulation::initialize_partitioned_fsi(const std::string& xml_file_path)
   config.solid_interface_face = pcp.solid_interface_face.value();
   config.fluid_xml = pcp.fluid_xml.value();
   config.solid_xml = pcp.solid_xml.value();
+  if (pcp.mesh_xml.defined()) config.mesh_xml = pcp.mesh_xml.value();
 
   partitioned_fsi_ = std::make_unique<PartitionedFSI>(this, config, xml_file_path);
 }
