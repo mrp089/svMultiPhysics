@@ -305,13 +305,15 @@ void PartitionedFSI::relax_interface(int cp, int nsd,
 {
   const int u = nsd * solid_face_->nNo;
 
-  // Build residual vector r = x_tilde - x
+  // Build residual vector r = x_tilde - x (Küttler Eq. 33)
   std::vector<double> r(u);
   for (int a = 0; a < solid_face_->nNo; a++)
     for (int i = 0; i < nsd; i++)
       r[a * nsd + i] = disp_current(i, a) - disp_prev_(i, a);
 
-  // --- Aitken relaxation (Degroote Eq. 50) ---
+  // Aitken Delta^2 relaxation (Küttler & Wall 2008, Eq. 44)
+  // omega_{i+1} = -omega_i * (r_{i+1})^T (r_{i+2} - r_{i+1}) / |r_{i+2} - r_{i+1}|^2
+  // Note: NO absolute value on omega — negative omega corrects overshoot
   if (cp > 0 && !r_prev_.empty()) {
     double num = 0, den = 0;
     for (int j = 0; j < u; j++) {
@@ -321,20 +323,19 @@ void PartitionedFSI::relax_interface(int cp, int nsd,
     }
     if (den > 1e-30) {
       omega_ = -omega_ * num / den;
-      omega_ = std::max(0.01, std::min(1.0, std::abs(omega_)));
+      // Clamp magnitude (Küttler uses omega_max = 0.1 for initial,
+      // but allows larger values during iteration)
+      if (std::abs(omega_) > 1.0) omega_ = (omega_ > 0) ? 1.0 : -1.0;
     }
   }
   r_prev_ = r;
 
-  // Apply relaxation to displacement
+  // Apply relaxation: d_{i+1} = d_i + omega * r (Küttler Eq. 35)
   for (int a = 0; a < solid_face_->nNo; a++)
-    for (int i = 0; i < nsd; i++)
+    for (int i = 0; i < nsd; i++) {
       disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
-
-  // Scale velocity consistently with displacement
-  for (int a = 0; a < solid_face_->nNo; a++)
-    for (int i = 0; i < nsd; i++)
-      vel_prev_(i, a) += omega_ * (vel_current(i, a) - vel_prev_(i, a));
+      vel_prev_(i, a)  += omega_ * (vel_current(i, a) - vel_prev_(i, a));
+    }
 }
 
 //----------------------------------------------------------------------
