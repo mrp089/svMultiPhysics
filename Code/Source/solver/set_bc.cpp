@@ -1195,8 +1195,12 @@ void set_bc_dir_wl(ComMod& com_mod, const bcType& lBc, const mshType& lM, const 
     }
   }
 
-  Vector<int> ptr(eNoN); 
-  Array<double> xl(nsd,eNoN), yl(tDof,eNoN), lR(dof,eNoN);
+  // For ALE partitioned FSI, extend yl to hold mesh velocity
+  const bool has_ale = (com_mod.ale_mesh_velocity.size() > 0);
+  const int yl_nrows = has_ale ? tDof + nsd : tDof;
+
+  Vector<int> ptr(eNoN);
+  Array<double> xl(nsd,eNoN), yl(yl_nrows,eNoN), lR(dof,eNoN);
   Array3<double> lK(dof*dof,eNoN,eNoN);
   Array<double> xbl(nsd,eNoNb), ubl(nsd,eNoNb);
 
@@ -1224,6 +1228,11 @@ void set_bc_dir_wl(ComMod& com_mod, const bcType& lBc, const mshType& lM, const 
 
       for (int i = 0; i < tDof; i++) {
         yl(i,a) = Yg(i,Ac);
+      }
+      if (has_ale) {
+        for (int i = 0; i < nsd; i++) {
+          yl(nsd+1+i, a) = com_mod.ale_mesh_velocity(i, Ac);
+        }
       }
 
       for (int i = 0; i < nsd; i++) {

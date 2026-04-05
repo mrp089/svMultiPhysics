@@ -41,15 +41,14 @@ def read_mesh(filename):
     return meshio.read(filename)
 
 
-def compute_flow_rate(mesh, face_name=None):
-    """Integrate velocity dot normal over inlet face.
-    For simplicity, sum axial velocity * nodal area at z=0."""
+def compute_centerline_velocity_at_inlet(mesh):
+    """Axial velocity at the centerline (r ≈ 0) at the inlet face (z ≈ z_min)."""
     pts = mesh.points
     vel = mesh.point_data.get("Velocity", None)
     if vel is None:
         return 0.0
 
-    # Find inlet nodes (z ≈ 0)
+    # Find inlet nodes (z ≈ z_min)
     z = pts[:, 2]
     z_min = z.min()
     inlet_mask = np.abs(z - z_min) < 1e-6 * (z.max() - z.min() + 1e-30)
@@ -57,8 +56,23 @@ def compute_flow_rate(mesh, face_name=None):
     if inlet_mask.sum() == 0:
         return 0.0
 
-    # Axial velocity (z-component) at inlet, averaged
-    v_axial = vel[inlet_mask, 2]
+    # Exclude solid nodes using Domain_ID if available
+    domain_id = mesh.point_data.get("Domain_ID", None)
+    if domain_id is not None:
+        fluid_mask = domain_id[inlet_mask].flatten() == 1
+    else:
+        fluid_mask = np.ones(inlet_mask.sum(), dtype=bool)
+
+    # Find centerline nodes (r ≈ 0) among fluid inlet nodes
+    inlet_pts = pts[inlet_mask][fluid_mask]
+    inlet_vel = vel[inlet_mask][fluid_mask]
+    r = np.sqrt(inlet_pts[:, 0]**2 + inlet_pts[:, 1]**2)
+    r_max = r.max() if len(r) > 0 else 1.0
+    cl_mask = r < 0.1 * r_max
+
+    v_axial = inlet_vel[cl_mask, 2]
+    if len(v_axial) == 0:
+        return 0.0
     return np.mean(v_axial)
 
 
@@ -77,9 +91,19 @@ def compute_radial_disp_at_inlet(mesh, disp_key="Displacement"):
     if inlet_mask.sum() == 0:
         return 0.0
 
-    # Find the outermost ring: nodes at the maximum radius on the inlet face
+    # Find the outermost solid ring at the inlet face
+    domain_id = mesh.point_data.get("Domain_ID", None)
     r = np.sqrt(pts[inlet_mask, 0]**2 + pts[inlet_mask, 1]**2)
-    r_max = r.max()
+    if domain_id is not None:
+        # Use Domain_ID to select solid nodes (2), then take outermost ring
+        solid_mask = domain_id[inlet_mask].flatten() == 2
+        if solid_mask.sum() == 0:
+            return 0.0
+        r_solid = r.copy()
+        r_solid[~solid_mask] = 0.0
+        r_max = r_solid.max()
+    else:
+        r_max = r.max()
     outer_ring = r > 0.9 * r_max  # outermost 10% of radial range
 
     x = pts[inlet_mask, 0][outer_ring]
@@ -100,8 +124,16 @@ def extract_centerline(mesh, field_name, nsd=3):
         return np.array([]), np.array([])
 
     r = np.sqrt(pts[:, 0]**2 + pts[:, 1]**2)
-    r_max = r.max()
-    cl_mask = r < 0.1 * r_max  # within 10% of center
+    # For monolithic: only use fluid nodes for centerline
+    domain_id = mesh.point_data.get("Domain_ID", None)
+    if domain_id is not None:
+        fluid_r = r.copy()
+        fluid_r[domain_id.flatten() != 1] = np.inf
+        r_max = r[domain_id.flatten() == 1].max() if (domain_id.flatten() == 1).any() else r.max()
+        cl_mask = (fluid_r < 0.1 * r_max)
+    else:
+        r_max = r.max()
+        cl_mask = r < 0.1 * r_max  # within 10% of center
 
     if cl_mask.sum() == 0:
         return np.array([]), np.array([])
@@ -119,9 +151,16 @@ def extract_solid_radial_disp_along_z(mesh, disp_key="Displacement"):
     if disp is None:
         return np.array([]), np.array([])
 
-    # Find outermost nodes (largest radius in the mesh)
+    # Find outermost solid nodes
+    domain_id = mesh.point_data.get("Domain_ID", None)
     r = np.sqrt(pts[:, 0]**2 + pts[:, 1]**2)
-    r_max = r.max()
+    if domain_id is not None:
+        solid_mask = domain_id.flatten() == 2
+        r_solid = r.copy()
+        r_solid[~solid_mask] = 0.0
+        r_max = r_solid.max()
+    else:
+        r_max = r.max()
     inner_mask = r > 0.9 * r_max
 
     if inner_mask.sum() == 0:
@@ -174,7 +213,7 @@ def main():
     # ---- Time history plots ----
     n_steps = min(len(mono_files), len(part_fluid_files))
     steps = []
-    mono_flow, part_flow = [], []
+    mono_vel, part_vel = [], []
     mono_disp_inlet, part_disp_inlet = [], []
 
     for i in range(n_steps):
@@ -182,11 +221,11 @@ def main():
         steps.append(step)
 
         m = read_mesh(mono_files[i])
-        mono_flow.append(compute_flow_rate(m))
+        mono_vel.append(compute_centerline_velocity_at_inlet(m))
         mono_disp_inlet.append(compute_radial_disp_at_inlet(m, "FS_Displacement"))
 
         pf = read_mesh(part_fluid_files[i])
-        part_flow.append(compute_flow_rate(pf))
+        part_vel.append(compute_centerline_velocity_at_inlet(pf))
 
         if i < len(part_solid_files):
             ps = read_mesh(part_solid_files[i])
@@ -196,13 +235,13 @@ def main():
 
     time = np.array(steps) * args.dt
 
-    # Plot 1: Flow rate at inlet
+    # Plot 1: Centerline axial velocity at inlet
     fig, ax = plt.subplots()
-    ax.plot(time * 1e3, mono_flow, "b-o", ms=3, label="Monolithic")
-    ax.plot(time * 1e3, part_flow, "r-s", ms=3, label="Partitioned")
+    ax.plot(time * 1e3, mono_vel, "b-o", ms=3, label="Monolithic")
+    ax.plot(time * 1e3, part_vel, "r-s", ms=3, label="Partitioned")
     ax.set_xlabel("Time [ms]")
-    ax.set_ylabel("Mean axial velocity at inlet")
-    ax.set_title("Inlet flow rate")
+    ax.set_ylabel("Centerline axial velocity")
+    ax.set_title("Centerline axial velocity at inlet")
     ax.legend()
     ax.grid(True, alpha=0.3)
     fig.tight_layout()

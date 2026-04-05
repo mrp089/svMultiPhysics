@@ -50,7 +50,7 @@ void b_fluid(ComMod& com_mod, const int eNoN, const double w, const Vector<doubl
 
   Vector<double> u(nsd);
 
-  if (com_mod.mvMsh) {
+  if (com_mod.mvMsh || com_mod.ale_mesh_velocity.size() > 0) {
     for (int i = 0; i < nsd; i++) {
       int j = i + nsd + 1;
       u(i) = y(i) - y(j);
@@ -162,7 +162,7 @@ void bw_fluid_2d(ComMod& com_mod, const int eNoNw, const int eNoNq, const double
 
   Vector<double> uh(2); 
 
-  if (com_mod.mvMsh) {
+  if (com_mod.mvMsh || com_mod.ale_mesh_velocity.size() > 0) {
     for (int a = 0; a < eNoNw; a++) {
       uh(0) = uh(0) + Nw(a)*yl(3,a);
       uh(1) = uh(1) + Nw(a)*yl(4,a);
@@ -318,7 +318,7 @@ void bw_fluid_3d(ComMod& com_mod, const int eNoNw, const int eNoNq, const double
 
   Vector<double> uh(3); 
 
-  if (com_mod.mvMsh) {
+  if (com_mod.mvMsh || com_mod.ale_mesh_velocity.size() > 0) {
     for (int a = 0; a < eNoNw; a++) {
       uh(0) = uh(0) + Nw(a)*yl(4,a);
       uh(1) = uh(1) + Nw(a)*yl(5,a);
@@ -519,14 +519,18 @@ void construct_fluid(ComMod& com_mod, const mshType& lM, const Array<double>& Ag
   #endif
 
   // FLUID: dof = nsd+1
-  Vector<int> ptr(eNoN); 
-  Array<double> xl(nsd,eNoN); 
-  
+  // For ALE partitioned FSI, extend yl to hold mesh velocity at DOFs nsd+1..2*nsd
+  const bool has_ale = (com_mod.ale_mesh_velocity.size() > 0);
+  const int yl_nrows = has_ale ? tDof + nsd : tDof;
+
+  Vector<int> ptr(eNoN);
+  Array<double> xl(nsd,eNoN);
+
   // local acceleration vector (for a single element)
-  Array<double> al(tDof,eNoN);
-  
+  Array<double> al(yl_nrows,eNoN);
+
   // local velocity vector (for a single element)
-  Array<double> yl(tDof,eNoN);
+  Array<double> yl(yl_nrows,eNoN);
   Array<double> bfl(nsd,eNoN);
   
   // local (weak form) residual vector (for a single element) 
@@ -568,9 +572,15 @@ void construct_fluid(ComMod& com_mod, const mshType& lM, const Array<double>& Ag
         xl(i,a) = com_mod.x(i,Ac);
         bfl(i,a) = com_mod.Bf(i,Ac);
      }
-      for (int i = 0; i < al.nrows(); i++) {
+      for (int i = 0; i < tDof; i++) {
         al(i,a) = Ag(i,Ac);
         yl(i,a) = Yg(i,Ac);
+      }
+      // Append ALE mesh velocity at DOFs nsd+1..2*nsd (same layout as mvMsh)
+      if (has_ale) {
+        for (int i = 0; i < nsd; i++) {
+          yl(nsd+1+i, a) = com_mod.ale_mesh_velocity(i, Ac);
+        }
       }
     }
 
@@ -893,7 +903,7 @@ void fluid_2d_c(ComMod& com_mod, const int vmsFlag, const int eNoNw, const int e
   }
 
   //  Update convection velocity relative to mesh velocity
-  if (com_mod.mvMsh) {
+  if (com_mod.mvMsh || com_mod.ale_mesh_velocity.size() > 0) {
     for (int a = 0; a < eNoNw; a++) {
       u(0) = u(0) - Nw(a)*yl(3,a);
       u(1) = u(1) - Nw(a)*yl(4,a);
@@ -1210,7 +1220,7 @@ void fluid_2d_m(ComMod& com_mod, const int vmsFlag, const int eNoNw, const int e
   }
 
   //  Update convection velocity relative to mesh velocity
-  if (com_mod.mvMsh) {
+  if (com_mod.mvMsh || com_mod.ale_mesh_velocity.size() > 0) {
     for (int a = 0; a < eNoNw; a++) {
       u(0) = u(0) - Nw(a)*yl(3,a);
       u(1) = u(1) - Nw(a)*yl(4,a);
@@ -1567,7 +1577,7 @@ void fluid_3d_c(ComMod& com_mod, const int vmsFlag, const int eNoNw, const int e
 
   // Update convection velocity relative to mesh velocity
   //
-  if (com_mod.mvMsh) {
+  if (com_mod.mvMsh || com_mod.ale_mesh_velocity.size() > 0) {
     for (int a = 0; a < eNoNw; a++) {
       u[0] = u[0] - Nw(a)*yl(4,a);
       u[1] = u[1] - Nw(a)*yl(5,a);
@@ -1918,7 +1928,7 @@ void fluid_3d_m(ComMod& com_mod, const int vmsFlag, const int eNoNw, const int e
 
   // Update convection velocity relative to mesh velocity
   //
-  if (com_mod.mvMsh) {
+  if (com_mod.mvMsh || com_mod.ale_mesh_velocity.size() > 0) {
     for (int a = 0; a < eNoNw; a++) {
       u[0] = u[0] - Nw(a)*yl(4,a);
       u[1] = u[1] - Nw(a)*yl(5,a);

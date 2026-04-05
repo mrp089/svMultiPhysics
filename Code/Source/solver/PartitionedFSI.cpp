@@ -34,6 +34,7 @@ static bool has_nan(const SolutionStates& sol) {
   return false;
 }
 
+
 //----------------------------------------------------------------------
 // Helper: initialize one sub-simulation through the standard pipeline
 //----------------------------------------------------------------------
@@ -483,6 +484,22 @@ bool PartitionedFSI::step()
   // Save reference mesh coordinates (restored each coupling iteration)
   Array<double> x_ref(fluid_com.x);
 
+  // ALE mesh velocity: save predictor mesh velocity for injection into fluid.
+  // mesh_vel_Yn is updated after each mesh solve so the next coupling
+  // iteration's fluid sees the latest mesh motion.
+  const int mesh_s = mesh_com.eq[0].s;  // mesh DOF offset (should be 0)
+  Array<double> mesh_vel_Yn(nsd, mesh_com.tnNo);
+  Array<double> mesh_vel_Yo(nsd, mesh_com.tnNo);
+  {
+    auto& mYn = mesh_sol.current.get_velocity();
+    auto& mYo = mesh_sol.old.get_velocity();
+    for (int a = 0; a < mesh_com.tnNo; a++)
+      for (int i = 0; i < nsd; i++) {
+        mesh_vel_Yn(i, a) = mYn(mesh_s + i, a);
+        mesh_vel_Yo(i, a) = mYo(mesh_s + i, a);
+      }
+  }
+
   // Initial displacement and velocity from predictor
   auto disp_current = fsi_coupling::extract_solid_displacement(
       solid_com, solid_com.eq[0], *solid_face_, solid_sol);
@@ -514,6 +531,18 @@ bool PartitionedFSI::step()
     set_bc::set_bc_dir(fluid_com, fluid_sol);
     fsi_coupling::apply_velocity_on_fluid(
         fluid_com, fluid_com.eq[0], *fluid_face_, fluid_vel, fluid_sol);
+
+    // Set ALE mesh velocity for the fluid assembly.
+    // construct_fluid and b_assem_neu_bc check this array and extend the local
+    // element velocity array yl with mesh velocity at DOFs nsd+1..2*nsd.
+    {
+      double af = fluid_com.eq[0].af;
+      fluid_com.ale_mesh_velocity.resize(nsd, fluid_com.tnNo);
+      for (int a = 0; a < fluid_com.tnNo; a++)
+        for (int i = 0; i < nsd; i++)
+          fluid_com.ale_mesh_velocity(i, a) = (1.0 - af) * mesh_vel_Yo(i, a)
+                                             + af * mesh_vel_Yn(i, a);
+    }
 
     fluid_int.step_equation(0, [&]() {
       fsi_coupling::enforce_dirichlet_dofs_on_face(fluid_com, *fluid_face_, 0, nsd);
@@ -574,6 +603,14 @@ bool PartitionedFSI::step()
     if (has_nan(mesh_sol)) {
       if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in mesh solve" << std::endl;
       return false;
+    }
+
+    // Update ALE mesh velocity for next coupling iteration's fluid solve
+    {
+      auto& mYn = mesh_sol.current.get_velocity();
+      for (int a = 0; a < mesh_com.tnNo; a++)
+        for (int i = 0; i < nsd; i++)
+          mesh_vel_Yn(i, a) = mYn(mesh_s + i, a);
     }
 
     // ---- 7. Deform fluid mesh for next iteration ----
