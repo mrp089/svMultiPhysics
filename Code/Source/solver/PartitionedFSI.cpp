@@ -96,8 +96,12 @@ PartitionedFSI::PartitionedFSI(Simulation* main_simulation,
               << "  fluid=" << fluid_sim_->com_mod.tnNo << "n/" << fluid_sim_->com_mod.tDof << "tDof"
               << "  solid=" << solid_sim_->com_mod.tnNo << "n/" << solid_sim_->com_mod.eq[0].dof << "dof"
               << "  mesh=" << mesh_sim_->com_mod.tnNo << "n/" << mesh_sim_->com_mod.eq[0].dof << "dof"
-              << "  coupling=" << method_name
-              << std::endl;
+              << "  coupling=" << method_name;
+    if (config_.coupling_method == CouplingMethod::iqn_ils)
+      std::cout << " (q=" << config_.iqn_ils_q
+                << ", eps=" << config_.iqn_ils_eps
+                << ", warmup=" << config_.iqn_ils_warmup << ")";
+    std::cout << std::endl;
 
     // Open coupling log file
     std::string log_dir = fluid_sim_->get_chnl_mod().appPath;
@@ -421,15 +425,14 @@ void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
     V_cols_.push_back(dv);
   }
 
-  // Use Aitken during warm-up: first time step, or first 5 iterations of 2nd
-  bool use_aitken = (cTS <= 1) || (cTS == 2 && cp < 5) || V_cols_.empty();
-  if (use_aitken) {
+  // Use Aitken until we have enough V/W columns
+  if (static_cast<int>(V_cols_.size()) < config_.iqn_ils_warmup) {
     relax_aitken(cp, nsd, disp_current, vel_current);
     return;
   }
 
   // Trim to max columns
-  const int nq = 20;  // max columns kept
+  const int nq = config_.iqn_ils_q;
   while (static_cast<int>(V_cols_.size()) > nq) {
     V_cols_.erase(V_cols_.begin());
     W_cols_.erase(W_cols_.begin());
@@ -439,7 +442,7 @@ void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
 
   // QR decomposition with filtering (modified Gram-Schmidt)
   // Removes columns where ||v_orth|| < eps * ||v_orig||
-  const double eps = 0.1;
+  const double eps = config_.iqn_ils_eps;
   // Work on copies so we can remove columns
   auto V_work = V_cols_;
   auto W_work = W_cols_;

@@ -23,6 +23,9 @@ struct PartitionedFSIConfig {
   double initial_relaxation = 1.0;
   double omega_max = 1.0;
   CouplingMethod coupling_method = CouplingMethod::aitken;
+  int iqn_ils_q = 10;        // max columns in IQN-ILS
+  double iqn_ils_eps = 1e-2;  // QR filtering tolerance
+  int iqn_ils_warmup = 5;    // Aitken warm-up iterations before IQN-ILS
 
   // Face names for the FSI interface
   std::string fluid_interface_face;

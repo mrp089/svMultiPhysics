@@ -152,6 +152,9 @@ void Simulation::initialize_partitioned_fsi(const std::string& xml_file_path)
     config.coupling_method = CouplingMethod::constant;
   }
 
+  config.iqn_ils_q = pcp.iqn_ils_q.value();
+  config.iqn_ils_eps = pcp.iqn_ils_eps.value();
+  config.iqn_ils_warmup = pcp.iqn_ils_warmup.value();
   config.fluid_interface_face = pcp.fluid_interface_face.value();
   config.solid_interface_face = pcp.solid_interface_face.value();
   config.fluid_xml = pcp.fluid_xml.value();

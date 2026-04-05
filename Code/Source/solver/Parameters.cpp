@@ -2786,6 +2786,9 @@ PartitionedCouplingParameters::PartitionedCouplingParameters()
   set_parameter("Omega_max", 1.0, !required, omega_max);
   set_parameter("Use_Aitken", true, !required, use_aitken);
   set_parameter("Coupling_method", "aitken", !required, coupling_method);
+  set_parameter("IQN_ILS_q", 10, !required, iqn_ils_q);
+  set_parameter("IQN_ILS_eps", 1e-2, !required, iqn_ils_eps);
+  set_parameter("IQN_ILS_warmup", 5, !required, iqn_ils_warmup);
   set_parameter("Fluid_interface_face", "", required, fluid_interface_face);
   set_parameter("Solid_interface_face", "", required, solid_interface_face);
 
