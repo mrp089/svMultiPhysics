@@ -297,6 +297,47 @@ Array<double> PartitionedFSI::transfer_data(
 }
 
 //----------------------------------------------------------------------
+// relax_interface — updates disp_prev_ and vel_prev_
+//----------------------------------------------------------------------
+void PartitionedFSI::relax_interface(int cp, int nsd,
+                                     const Array<double>& disp_current,
+                                     const Array<double>& vel_current)
+{
+  const int u = nsd * solid_face_->nNo;
+
+  // Build residual vector r = x_tilde - x
+  std::vector<double> r(u);
+  for (int a = 0; a < solid_face_->nNo; a++)
+    for (int i = 0; i < nsd; i++)
+      r[a * nsd + i] = disp_current(i, a) - disp_prev_(i, a);
+
+  // --- Aitken relaxation (Degroote Eq. 50) ---
+  if (cp > 0 && !r_prev_.empty()) {
+    double num = 0, den = 0;
+    for (int j = 0; j < u; j++) {
+      double dr = r[j] - r_prev_[j];
+      num += r_prev_[j] * dr;
+      den += dr * dr;
+    }
+    if (den > 1e-30) {
+      omega_ = -omega_ * num / den;
+      omega_ = std::max(0.01, std::min(1.0, std::abs(omega_)));
+    }
+  }
+  r_prev_ = r;
+
+  // Apply relaxation to displacement
+  for (int a = 0; a < solid_face_->nNo; a++)
+    for (int i = 0; i < nsd; i++)
+      disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
+
+  // Scale velocity consistently with displacement
+  for (int a = 0; a < solid_face_->nNo; a++)
+    for (int i = 0; i < nsd; i++)
+      vel_prev_(i, a) += omega_ * (vel_current(i, a) - vel_prev_(i, a));
+}
+
+//----------------------------------------------------------------------
 // compute_aitken_omega
 //----------------------------------------------------------------------
 double PartitionedFSI::compute_aitken_omega(
@@ -517,169 +558,8 @@ bool PartitionedFSI::step()
     disp_norm = sqrt(disp_norm);
     double rel = (disp_norm > 1e-30) ? res_norm / disp_norm : res_norm;
 
-    // ---- 5. IQN-ILS update (Degroote 2013, Algorithm 10) ----
-    {
-      const int u = nsd * solid_face_->nNo;
-
-      // Flatten residual r^k and x_tilde^k into vectors
-      std::vector<double> r(u), xt(u);
-      for (int a = 0; a < solid_face_->nNo; a++)
-        for (int i = 0; i < nsd; i++) {
-          int j = a * nsd + i;
-          r[j]  = disp_current(i, a) - disp_prev_(i, a);  // r^k = x_tilde^k - x^k
-          xt[j] = disp_current(i, a);                       // x_tilde^k
-        }
-
-      // Use Aitken relaxation (IQN-ILS diverges for this problem)
-      if (true) {
-        // First 2 iterations: simple relaxation to build V/W history
-        // Aitken update for iterations 1+
-        if (cp > 0 && !r_prev_.empty()) {
-          double num = 0, den = 0;
-          for (int j = 0; j < u; j++) {
-            double dr = r[j] - r_prev_[j];
-            num += r_prev_[j] * dr;
-            den += dr * dr;
-          }
-          if (den > 1e-30) {
-            omega_ = -omega_ * num / den;
-            omega_ = std::max(0.01, std::min(1.0, std::abs(omega_)));
-          }
-        }
-        for (int j = 0; j < u; j++)
-          disp_prev_(j / nsd, j % nsd) += omega_ * r[j];
-
-        // Build V/W columns during warmup too
-        if (cp > 0 && !r_prev_.empty()) {
-          std::vector<double> dr(u), dxt(u);
-          for (int j = 0; j < u; j++) {
-            dr[j]  = r[j] - r_prev_[j];
-            dxt[j] = xt[j] - x_tilde_prev_[j];
-          }
-          V_cols_.insert(V_cols_.begin(), dr);
-          W_cols_.insert(W_cols_.begin(), dxt);
-        }
-      } else {
-        // Lines 8-11: IQN-ILS quasi-Newton update
-
-        // Construct difference vectors (Eqs. 125a, 125b)
-        std::vector<double> dr(u), dxt(u);
-        for (int j = 0; j < u; j++) {
-          dr[j]  = r[j]  - r_prev_[j];       // Δr^{k-1} = r^k - r^{k-1}
-          dxt[j] = xt[j] - x_tilde_prev_[j]; // Δx_tilde^{k-1}
-        }
-
-        // Add to FRONT of V and W (most recent first, Eq. 127a,b)
-        V_cols_.insert(V_cols_.begin(), dr);
-        W_cols_.insert(W_cols_.begin(), dxt);
-
-        int v = static_cast<int>(V_cols_.size());
-
-        // QR decomposition via modified Gram-Schmidt (line 9)
-        std::vector<std::vector<double>> Q(v, std::vector<double>(u));
-        std::vector<std::vector<double>> R(v, std::vector<double>(v, 0.0));
-
-        int v_valid = 0;
-        for (int col = 0; col < v; col++) {
-          Q[v_valid] = V_cols_[col];
-
-          // Orthogonalize against previous columns
-          for (int prev = 0; prev < v_valid; prev++) {
-            double dot = 0;
-            for (int j = 0; j < u; j++) dot += Q[prev][j] * Q[v_valid][j];
-            R[prev][v_valid] = dot;
-            for (int j = 0; j < u; j++) Q[v_valid][j] -= dot * Q[prev][j];
-          }
-
-          double norm = 0;
-          for (int j = 0; j < u; j++) norm += Q[v_valid][j] * Q[v_valid][j];
-          norm = sqrt(norm);
-
-          // Drop linearly dependent columns
-          if (norm < 1e-10 * sqrt(static_cast<double>(u))) {
-            V_cols_.erase(V_cols_.begin() + col);
-            W_cols_.erase(W_cols_.begin() + col);
-            v--;
-            col--;
-            continue;
-          }
-
-          R[v_valid][v_valid] = norm;
-          for (int j = 0; j < u; j++) Q[v_valid][j] /= norm;
-          v_valid++;
-        }
-
-        if (v_valid > 0) {
-          // Solve R^k c^k = -Q^{kT} r^k (line 10)
-          std::vector<double> qt_r(v_valid);
-          for (int col = 0; col < v_valid; col++) {
-            double dot = 0;
-            for (int j = 0; j < u; j++) dot += Q[col][j] * r[j];
-            qt_r[col] = dot;
-          }
-
-          std::vector<double> c(v_valid, 0.0);
-          for (int col = v_valid - 1; col >= 0; col--) {
-            c[col] = -qt_r[col];
-            for (int row = col + 1; row < v_valid; row++)
-              c[col] -= R[col][row] * c[row];
-            c[col] /= R[col][col];
-          }
-
-          // Line 11: x^{k+1} = x^k + W^k c^k + r^k
-          // Compute the full update dx
-          std::vector<double> dx(u);
-          for (int j = 0; j < u; j++) {
-            dx[j] = r[j];
-            for (int col = 0; col < v_valid; col++)
-              dx[j] += W_cols_[col][j] * c[col];
-          }
-
-          // Safety: limit update magnitude to prevent divergence
-          double dx_norm = 0, r_norm = 0;
-          for (int j = 0; j < u; j++) {
-            dx_norm += dx[j] * dx[j];
-            r_norm += r[j] * r[j];
-          }
-          dx_norm = sqrt(dx_norm);
-          r_norm = sqrt(r_norm);
-          if (dx_norm > 2.0 * r_norm && r_norm > 1e-30) {
-            double scale = 2.0 * r_norm / dx_norm;
-            for (int j = 0; j < u; j++) dx[j] *= scale;
-          }
-
-          for (int j = 0; j < u; j++)
-            disp_prev_(j / nsd, j % nsd) += dx[j];
-        } else {
-          // All columns dropped — fall back to relaxation
-          for (int j = 0; j < u; j++)
-            disp_prev_(j / nsd, j % nsd) += omega_ * r[j];
-        }
-      }
-
-      // Store for next iteration
-      r_prev_ = r;
-      x_tilde_prev_ = xt;
-    }
-
-    // Derive velocity from updated displacement using the solid's
-    // time integration (vel_current is from the solid solve, scale
-    // the same way as displacement was updated)
-    {
-      // Compute velocity consistent with the displacement update
-      // vel_prev = vel at x^{k+1}, approximated by linear interpolation
-      // between the predictor velocity and the solid's velocity
-      double disp_scale = 0.0, vel_scale = 0.0;
-      for (int a = 0; a < solid_face_->nNo; a++)
-        for (int i = 0; i < nsd; i++) {
-          disp_scale += disp_prev_(i, a) * disp_prev_(i, a);
-          vel_scale += disp_current(i, a) * disp_current(i, a);
-        }
-      double alpha = (vel_scale > 1e-30) ? sqrt(disp_scale / vel_scale) : 0.0;
-      for (int a = 0; a < solid_face_->nNo; a++)
-        for (int i = 0; i < nsd; i++)
-          vel_prev_(i, a) = alpha * vel_current(i, a);
-    }
+    // ---- 5. Relaxation (updates disp_prev_ and vel_prev_) ----
+    relax_interface(cp, nsd, disp_current, vel_current);
 
     // ---- 6. MESH SOLVE with relaxed displacement ----
     auto mesh_disp = transfer_data(solid_to_mesh_map_, disp_prev_, mesh_face_->nNo);

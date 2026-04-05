@@ -124,6 +124,12 @@ private:
   /// Run sanity checks on node maps and data transfer
   void verify_node_maps();
 
+  /// Relax interface displacement and velocity after solid solve.
+  /// Updates disp_prev_ and vel_prev_ using the configured method.
+  void relax_interface(int cp, int nsd,
+                       const Array<double>& disp_current,
+                       const Array<double>& vel_current);
+
   /// Build a one-directional node map from face_a to face_b using coordinate matching
   static void build_face_node_map(const faceType& face_a, const ComMod& com_a,
                                   const faceType& face_b, const ComMod& com_b,
