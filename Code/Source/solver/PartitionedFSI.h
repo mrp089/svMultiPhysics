@@ -98,11 +98,16 @@ private:
   double omega_;
   double first_res_norm_ = 0.0;
 
-  // IQN-ILS state (Degroote 2013, Algorithm 10)
+  // IQN-ILS state (persists across time steps, trimmed to max columns)
   std::vector<std::vector<double>> V_cols_;  // residual differences
   std::vector<std::vector<double>> W_cols_;  // displacement differences
+
+  // Per-time-step history for building V/W difference vectors
+  std::vector<std::vector<double>> x_tilde_hist_;  // unrelaxed displacements
+  std::vector<std::vector<double>> r_hist_;         // residuals
+
+  // Aitken state
   std::vector<double> r_prev_;               // previous residual
-  std::vector<double> x_tilde_prev_;         // previous S(F(x))
 
   // Output file for coupling convergence history
   std::ofstream coupling_log_;

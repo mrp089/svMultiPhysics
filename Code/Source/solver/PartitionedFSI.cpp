@@ -380,180 +380,174 @@ void PartitionedFSI::relax_aitken(int cp, int nsd,
 }
 
 //----------------------------------------------------------------------
-// relax_iqn_ils — IQN-ILS (Degroote et al. 2009, Algorithm 1)
+// relax_iqn_ils — IQN-ILS following StanfordCBCL/svFSGe implementation
 //
-// Interface Quasi-Newton with Inverse Least Squares approximation of
-// the inverse Jacobian. Builds a low-rank approximation from residual
-// and displacement differences across coupling iterations.
+// Columns persist across time steps (trimmed to iqn_ils_q max).
+// First time step uses Aitken. QR filtering with eps threshold
+// removes linearly dependent columns.
 //----------------------------------------------------------------------
 void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
                                     const Array<double>& disp_current,
                                     const Array<double>& vel_current)
 {
   const int n = nsd * solid_face_->nNo;
+  const int cTS = main_sim_->com_mod.cTS;
 
-  // Current residual r = S(F(x)) - x = x_tilde - x
-  std::vector<double> r(n);
+  // Current x_tilde (unrelaxed solver output) and residual
+  std::vector<double> x_tilde(n), r(n);
   for (int a = 0; a < solid_face_->nNo; a++)
-    for (int i = 0; i < nsd; i++)
-      r[a * nsd + i] = disp_current(i, a) - disp_prev_(i, a);
+    for (int i = 0; i < nsd; i++) {
+      int idx = a * nsd + i;
+      x_tilde[idx] = disp_current(i, a);
+      r[idx] = disp_current(i, a) - disp_prev_(i, a);
+    }
 
-  // Current x_tilde (= disp_current as flat vector)
-  std::vector<double> x_tilde(n);
-  for (int a = 0; a < solid_face_->nNo; a++)
-    for (int i = 0; i < nsd; i++)
-      x_tilde[a * nsd + i] = disp_current(i, a);
+  // Store history for difference vectors
+  x_tilde_hist_.push_back(x_tilde);
+  r_hist_.push_back(r);
 
-  if (cp < 2) {
-    // First two iterations: use Aitken to build initial data
-    // IQN-ILS needs at least 2 difference columns to be effective
-    r_prev_ = r;
-    x_tilde_prev_ = x_tilde;
+  // Append difference vectors (need at least 2 history entries)
+  if (x_tilde_hist_.size() >= 2) {
+    auto& xt1 = x_tilde_hist_[x_tilde_hist_.size() - 1];
+    auto& xt0 = x_tilde_hist_[x_tilde_hist_.size() - 2];
+    auto& r1 = r_hist_[r_hist_.size() - 1];
+    auto& r0 = r_hist_[r_hist_.size() - 2];
+    std::vector<double> dw(n), dv(n);
+    for (int j = 0; j < n; j++) {
+      dw[j] = xt1[j] - xt0[j];
+      dv[j] = r1[j] - r0[j];
+    }
+    W_cols_.push_back(dw);
+    V_cols_.push_back(dv);
+  }
+
+  // Use Aitken during warm-up: first time step, or first 5 iterations of 2nd
+  bool use_aitken = (cTS <= 1) || (cTS == 2 && cp < 5) || V_cols_.empty();
+  if (use_aitken) {
     relax_aitken(cp, nsd, disp_current, vel_current);
     return;
   }
 
-  // Build difference vectors: V = delta_r, W = delta_x_tilde
-  // V_cols_[k] = r_{k+1} - r_k, W_cols_[k] = x_tilde_{k+1} - x_tilde_k
-  {
-    std::vector<double> dv(n), dw(n);
-    for (int j = 0; j < n; j++) {
-      dv[j] = r[j] - r_prev_[j];
-      dw[j] = x_tilde[j] - x_tilde_prev_[j];
-    }
-    // Prepend (most recent first, as in Degroote)
-    V_cols_.insert(V_cols_.begin(), dv);
-    W_cols_.insert(W_cols_.begin(), dw);
+  // Trim to max columns
+  const int nq = 20;  // max columns kept
+  while (static_cast<int>(V_cols_.size()) > nq) {
+    V_cols_.erase(V_cols_.begin());
+    W_cols_.erase(W_cols_.begin());
   }
 
-  r_prev_ = r;
-  x_tilde_prev_ = x_tilde;
+  int q = static_cast<int>(V_cols_.size());
 
-  const int q = static_cast<int>(V_cols_.size());
+  // QR decomposition with filtering (modified Gram-Schmidt)
+  // Removes columns where ||v_orth|| < eps * ||v_orig||
+  const double eps = 0.1;
+  // Work on copies so we can remove columns
+  auto V_work = V_cols_;
+  auto W_work = W_cols_;
 
-  // QR decomposition of V via modified Gram-Schmidt
-  // V = Q * R, then solve R * c = Q^T * r for c
-  // x_{k+1} = x_tilde + W * c - V * c = x_tilde + (W - V) * c
-  // But actually: x_{k+1} = x_tilde - (W + V) * (R^{-1} * Q^T * r)
-  // Following Degroote: x_{k+1} = x_tilde + (W - V) * c where V*c ≈ -r
+  // Iterative QR with column removal (matching svFSGe QRfiltering_mod)
+  std::vector<std::vector<double>> Q;
+  std::vector<std::vector<double>> R_mat;
+  bool restart;
 
-  // Build Q, R from V columns via modified Gram-Schmidt
-  std::vector<std::vector<double>> Q(q, std::vector<double>(n, 0.0));
-  std::vector<std::vector<double>> R(q, std::vector<double>(q, 0.0));
+  do {
+    restart = false;
+    q = static_cast<int>(V_work.size());
+    Q.assign(q, std::vector<double>(n, 0.0));
+    R_mat.assign(q, std::vector<double>(q, 0.0));
 
-  for (int j = 0; j < q; j++) {
-    Q[j] = V_cols_[j];
-    for (int i = 0; i < j; i++) {
-      double dot = 0;
-      for (int k = 0; k < n; k++) dot += Q[i][k] * Q[j][k];
-      R[i][j] = dot;
-      for (int k = 0; k < n; k++) Q[j][k] -= dot * Q[i][k];
-    }
-    double norm = 0;
-    for (int k = 0; k < n; k++) norm += Q[j][k] * Q[j][k];
-    norm = sqrt(norm);
-    if (norm < 1e-14 * n) {
-      // Near-linearly-dependent column: drop it and all subsequent
-      V_cols_.resize(j);
-      W_cols_.resize(j);
-      Q.resize(j);
-      R.resize(j);
-      break;
-    }
-    R[j][j] = norm;
-    for (int k = 0; k < n; k++) Q[j][k] /= norm;
-  }
+    // First column
+    double norm0 = 0;
+    for (int k = 0; k < n; k++) norm0 += V_work[0][k] * V_work[0][k];
+    norm0 = sqrt(norm0);
+    if (norm0 < 1e-30) { V_work.erase(V_work.begin()); W_work.erase(W_work.begin()); restart = true; continue; }
+    R_mat[0][0] = norm0;
+    for (int k = 0; k < n; k++) Q[0][k] = V_work[0][k] / norm0;
 
-  const int q_eff = static_cast<int>(Q.size());
+    for (int j = 1; j < q; j++) {
+      auto vbar = V_work[j];
+      double orig_norm = 0;
+      for (int k = 0; k < n; k++) orig_norm += vbar[k] * vbar[k];
+      orig_norm = sqrt(orig_norm);
 
-  if (q_eff == 0) {
-    // No valid columns: fall back to constant relaxation
-    omega_ = config_.initial_relaxation;
-    for (int a = 0; a < solid_face_->nNo; a++)
-      for (int i = 0; i < nsd; i++) {
-        disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
-        vel_prev_(i, a)  += omega_ * (vel_current(i, a) - vel_prev_(i, a));
+      for (int i = 0; i < j; i++) {
+        double dot = 0;
+        for (int k = 0; k < n; k++) dot += Q[i][k] * vbar[k];
+        R_mat[i][j] = dot;
+        for (int k = 0; k < n; k++) vbar[k] -= dot * Q[i][k];
       }
+
+      double norm = 0;
+      for (int k = 0; k < n; k++) norm += vbar[k] * vbar[k];
+      norm = sqrt(norm);
+
+      if (norm < eps * orig_norm) {
+        // Linearly dependent: remove and restart QR
+        V_work.erase(V_work.begin() + j);
+        W_work.erase(W_work.begin() + j);
+        restart = true;
+        break;
+      }
+      R_mat[j][j] = norm;
+      for (int k = 0; k < n; k++) Q[j][k] = vbar[k] / norm;
+    }
+  } while (restart && !V_work.empty());
+
+  // Update stored matrices after filtering
+  V_cols_ = V_work;
+  W_cols_ = W_work;
+  q = static_cast<int>(V_cols_.size());
+
+  if (q == 0) {
+    relax_aitken(cp, nsd, disp_current, vel_current);
     return;
   }
 
-  // Solve R * c = Q^T * (-r) via back-substitution
-  // (we want V*c ≈ -r, so Q*R*c = -r, R*c = -Q^T*r)
-  std::vector<double> rhs(q_eff);
-  for (int j = 0; j < q_eff; j++) {
+  // Solve R * c = Q^T * (-r)
+  std::vector<double> rhs(q);
+  for (int j = 0; j < q; j++) {
     double dot = 0;
     for (int k = 0; k < n; k++) dot += Q[j][k] * (-r[k]);
     rhs[j] = dot;
   }
 
-  std::vector<double> c(q_eff, 0.0);
-  for (int j = q_eff - 1; j >= 0; j--) {
+  std::vector<double> c(q, 0.0);
+  for (int j = q - 1; j >= 0; j--) {
     c[j] = rhs[j];
-    for (int k = j + 1; k < q_eff; k++) c[j] -= R[j][k] * c[k];
-    c[j] /= R[j][j];
+    for (int k = j + 1; k < q; k++) c[j] -= R_mat[j][k] * c[k];
+    c[j] /= R_mat[j][j];
   }
 
-  // Check for NaN/Inf in coefficients — fall back to Aitken if unstable
-  bool c_ok = true;
-  for (int j = 0; j < q_eff; j++)
-    if (std::isnan(c[j]) || std::isinf(c[j])) { c_ok = false; break; }
-  if (!c_ok) {
-    V_cols_.clear();
-    W_cols_.clear();
-    relax_aitken(cp, nsd, disp_current, vel_current);
-    return;
-  }
-
-  // Compute displacement update: x_{k+1} = x_tilde + (W - V) * c
-  // i.e., x_{k+1} = x_tilde + W*c + (V*c ≈ -r cancels the residual)
-  for (int a = 0; a < solid_face_->nNo; a++)
-    for (int i = 0; i < nsd; i++) {
-      double correction = 0;
-      int idx = a * nsd + i;
-      for (int j = 0; j < q_eff; j++)
-        correction += (W_cols_[j][idx] - V_cols_[j][idx]) * c[j];
-      disp_prev_(i, a) = disp_current(i, a) + correction;
-    }
-
-  // Check for NaN in updated displacement — fall back to Aitken
-  {
-    bool has_nan_disp = false;
-    for (int a = 0; a < solid_face_->nNo && !has_nan_disp; a++)
-      for (int i = 0; i < nsd; i++)
-        if (std::isnan(disp_prev_(i, a))) { has_nan_disp = true; break; }
-    if (has_nan_disp) {
-      // Restore disp_prev_ and fall back
-      for (int a = 0; a < solid_face_->nNo; a++)
-        for (int i = 0; i < nsd; i++)
-          disp_prev_(i, a) = x_tilde[a * nsd + i] - r[a * nsd + i];
-      V_cols_.clear();
-      W_cols_.clear();
+  // Check for NaN/Inf
+  for (int j = 0; j < q; j++) {
+    if (std::isnan(c[j]) || std::isinf(c[j])) {
+      V_cols_.clear(); W_cols_.clear();
       relax_aitken(cp, nsd, disp_current, vel_current);
       return;
     }
   }
 
-  // Velocity: apply same IQN-ILS coefficients c to velocity differences.
-  // We need V_vel and W_vel columns, but building those separately doubles
-  // storage. Instead, compute effective omega per node from displacement ratio.
-  // If disp changed from disp_prev_old to disp_prev_new, the effective omega is:
-  //   omega_eff = (disp_new - disp_old) / (disp_tilde - disp_old) where disp_old
-  // was the pre-relaxation value. We saved disp_old implicitly as (disp_tilde - r).
-  // Simpler: just set vel_prev = vel_current (full step) since the displacement
-  // IQN-ILS already handles the coupling; velocity follows displacement via Newmark.
+  // Update: x_{k+1} = x_tilde + W * c  (svFSGe formula)
+  for (int a = 0; a < solid_face_->nNo; a++)
+    for (int i = 0; i < nsd; i++) {
+      int idx = a * nsd + i;
+      double correction = 0;
+      for (int j = 0; j < q; j++)
+        correction += W_cols_[j][idx] * c[j];
+      disp_prev_(i, a) = disp_current(i, a) + correction;
+    }
+
+  // Velocity: full step (follows displacement via Newmark)
   vel_prev_ = vel_current;
 
-  // omega_ for logging: estimate from ||correction|| / ||residual||
-  double corr_norm = 0, res_norm = 0;
-  for (int j = 0; j < n; j++) {
-    res_norm += r[j] * r[j];
-  }
+  // omega_ for logging
+  double corr2 = 0, res2 = 0;
+  for (int j = 0; j < n; j++) res2 += r[j] * r[j];
   for (int a = 0; a < solid_face_->nNo; a++)
     for (int i = 0; i < nsd; i++) {
       double d = disp_prev_(i, a) - disp_current(i, a);
-      corr_norm += d * d;
+      corr2 += d * d;
     }
-  omega_ = (res_norm > 1e-30) ? sqrt(corr_norm / res_norm) : 1.0;
+  omega_ = (res2 > 1e-30) ? sqrt(corr2 / res2) : 1.0;
 }
 
 //======================================================================
@@ -658,9 +652,10 @@ bool PartitionedFSI::step()
 
   omega_ = config_.initial_relaxation;
   r_prev_.clear();
-  x_tilde_prev_.clear();
-  V_cols_.clear();
-  W_cols_.clear();
+
+  // Clear per-time-step history (V/W persist across time steps for IQN-ILS)
+  x_tilde_hist_.clear();
+  r_hist_.clear();
 
   // Save predictor state
   struct SavedState { Array<double> An, Yn, Dn; };
