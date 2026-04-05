@@ -1680,7 +1680,8 @@ class PartitionedCouplingParameters : public ParameterLists
     Parameter<double> coupling_tolerance;
     Parameter<double> initial_relaxation;
     Parameter<double> omega_max;
-    Parameter<bool> use_aitken;
+    Parameter<bool> use_aitken;              // legacy, overridden by coupling_method
+    Parameter<std::string> coupling_method;  // "constant", "aitken", "iqn-ils"
     Parameter<std::string> fluid_interface_face;
     Parameter<std::string> solid_interface_face;
 

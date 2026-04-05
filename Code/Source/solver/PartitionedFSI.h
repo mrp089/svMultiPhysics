@@ -13,13 +13,16 @@
 #include <vector>
 #include <string>
 
+/// @brief Coupling method for interface relaxation
+enum class CouplingMethod { constant, aitken, iqn_ils };
+
 /// @brief Configuration for partitioned FSI coupling, read from XML input.
 struct PartitionedFSIConfig {
   int max_coupling_iterations = 50;
   double coupling_tolerance = 1e-6;
   double initial_relaxation = 1.0;
   double omega_max = 1.0;
-  bool use_aitken = true;
+  CouplingMethod coupling_method = CouplingMethod::aitken;
 
   // Face names for the FSI interface
   std::string fluid_interface_face;
@@ -126,10 +129,25 @@ private:
   void verify_node_maps();
 
   /// Relax interface displacement and velocity after solid solve.
-  /// Updates disp_prev_ and vel_prev_ using the configured method.
+  /// Dispatches to the configured coupling method.
   void relax_interface(int cp, int nsd,
                        const Array<double>& disp_current,
                        const Array<double>& vel_current);
+
+  /// Fixed relaxation with omega = initial_relaxation
+  void relax_constant(int cp, int nsd,
+                      const Array<double>& disp_current,
+                      const Array<double>& vel_current);
+
+  /// Aitken Delta^2 relaxation (Küttler & Wall 2008)
+  void relax_aitken(int cp, int nsd,
+                    const Array<double>& disp_current,
+                    const Array<double>& vel_current);
+
+  /// IQN-ILS (Degroote et al. 2009)
+  void relax_iqn_ils(int cp, int nsd,
+                     const Array<double>& disp_current,
+                     const Array<double>& vel_current);
 
   /// Build a one-directional node map from face_a to face_b using coordinate matching
   static void build_face_node_map(const faceType& face_a, const ComMod& com_a,
@@ -139,11 +157,6 @@ private:
   /// Transfer data from source face to target face using pre-built node map
   static Array<double> transfer_data(const std::vector<int>& src_to_tgt_map,
                                      const Array<double>& src_data, int tgt_nNo);
-
-  /// Compute Aitken relaxation factor
-  static double compute_aitken_omega(const Array<double>& residual,
-                                     const Array<double>& residual_prev,
-                                     double omega_prev);
 
   /// Save VTK and restart output for all sub-simulations
   void save_results();

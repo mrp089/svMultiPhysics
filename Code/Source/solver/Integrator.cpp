@@ -17,6 +17,7 @@
 #include "utils.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <set>
 
@@ -247,6 +248,11 @@ bool Integrator::step_equation(int iEq, std::function<void()> post_assembly) {
 
     if (eq.ok) {
       return true;
+    }
+
+    // Abort on NaN in solution norms (indicates divergence)
+    if (std::isnan(eq.FSILS.RI.iNorm) || std::isnan(eq.pNorm)) {
+      return false;
     }
 
     output::output_result(simulation_, com_mod.timeP, 2, iEq);

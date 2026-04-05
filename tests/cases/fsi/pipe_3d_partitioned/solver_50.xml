@@ -184,7 +184,7 @@
   <Coupling_tolerance> 1e-6 </Coupling_tolerance>
   <Initial_relaxation> 0.1 </Initial_relaxation>
   <Omega_max> 2.0 </Omega_max>
-  <Use_Aitken> true </Use_Aitken>
+  <Coupling_method> aitken </Coupling_method>
   <Fluid_interface_face> lumen_wall </Fluid_interface_face>
   <Solid_interface_face> wall_inner </Solid_interface_face>
   <Fluid_xml> solver_fluid.xml </Fluid_xml>

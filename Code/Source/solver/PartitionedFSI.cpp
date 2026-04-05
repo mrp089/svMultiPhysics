@@ -86,10 +86,17 @@ PartitionedFSI::PartitionedFSI(Simulation* main_simulation,
   init_sub_sim(mesh_sim_.get(), mesh_xml);
 
   if (cm.mas(cm_mod)) {
+    const char* method_name = "unknown";
+    switch (config_.coupling_method) {
+      case CouplingMethod::constant: method_name = "constant"; break;
+      case CouplingMethod::aitken:   method_name = "aitken"; break;
+      case CouplingMethod::iqn_ils:  method_name = "iqn-ils"; break;
+    }
     std::cout << "[PartitionedFSI] Sub-sims ready:"
               << "  fluid=" << fluid_sim_->com_mod.tnNo << "n/" << fluid_sim_->com_mod.tDof << "tDof"
               << "  solid=" << solid_sim_->com_mod.tnNo << "n/" << solid_sim_->com_mod.eq[0].dof << "dof"
               << "  mesh=" << mesh_sim_->com_mod.tnNo << "n/" << mesh_sim_->com_mod.eq[0].dof << "dof"
+              << "  coupling=" << method_name
               << std::endl;
 
     // Open coupling log file
@@ -304,17 +311,51 @@ void PartitionedFSI::relax_interface(int cp, int nsd,
                                      const Array<double>& disp_current,
                                      const Array<double>& vel_current)
 {
+  switch (config_.coupling_method) {
+    case CouplingMethod::constant:
+      relax_constant(cp, nsd, disp_current, vel_current);
+      break;
+    case CouplingMethod::aitken:
+      relax_aitken(cp, nsd, disp_current, vel_current);
+      break;
+    case CouplingMethod::iqn_ils:
+      relax_iqn_ils(cp, nsd, disp_current, vel_current);
+      break;
+  }
+}
+
+//----------------------------------------------------------------------
+// relax_constant — fixed relaxation
+//----------------------------------------------------------------------
+void PartitionedFSI::relax_constant(int cp, int nsd,
+                                     const Array<double>& disp_current,
+                                     const Array<double>& vel_current)
+{
+  omega_ = config_.initial_relaxation;
+  for (int a = 0; a < solid_face_->nNo; a++)
+    for (int i = 0; i < nsd; i++) {
+      disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
+      vel_prev_(i, a)  += omega_ * (vel_current(i, a) - vel_prev_(i, a));
+    }
+}
+
+//----------------------------------------------------------------------
+// relax_aitken — Aitken Delta^2 (Küttler & Wall 2008, Eq. 44)
+//----------------------------------------------------------------------
+void PartitionedFSI::relax_aitken(int cp, int nsd,
+                                   const Array<double>& disp_current,
+                                   const Array<double>& vel_current)
+{
   const int u = nsd * solid_face_->nNo;
 
-  // Build residual vector r = x_tilde - x (Küttler Eq. 33)
+  // Build residual r = x_tilde - x
   std::vector<double> r(u);
   for (int a = 0; a < solid_face_->nNo; a++)
     for (int i = 0; i < nsd; i++)
       r[a * nsd + i] = disp_current(i, a) - disp_prev_(i, a);
 
-  // Aitken Delta^2 relaxation (Küttler & Wall 2008, Eq. 44)
-  // omega_{i+1} = -omega_i * (r_{i+1})^T (r_{i+2} - r_{i+1}) / |r_{i+2} - r_{i+1}|^2
-  // Note: NO absolute value on omega — negative omega corrects overshoot
+  // Aitken update: omega = -omega * r^T (r_new - r_old) / |r_new - r_old|^2
+  // Negative omega allowed (corrects overshoot)
   if (cp > 0 && !r_prev_.empty()) {
     double num = 0, den = 0;
     for (int j = 0; j < u; j++) {
@@ -324,15 +365,13 @@ void PartitionedFSI::relax_interface(int cp, int nsd,
     }
     if (den > 1e-30) {
       omega_ = -omega_ * num / den;
-      // Clamp magnitude (Küttler uses omega_max = 0.1 for initial,
-      // but allows larger values during iteration)
       if (std::abs(omega_) > config_.omega_max)
         omega_ = (omega_ > 0) ? config_.omega_max : -config_.omega_max;
     }
   }
   r_prev_ = r;
 
-  // Apply relaxation: d_{i+1} = d_i + omega * r (Küttler Eq. 35)
+  // Apply: x_{k+1} = x_k + omega * r
   for (int a = 0; a < solid_face_->nNo; a++)
     for (int i = 0; i < nsd; i++) {
       disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
@@ -341,24 +380,180 @@ void PartitionedFSI::relax_interface(int cp, int nsd,
 }
 
 //----------------------------------------------------------------------
-// compute_aitken_omega
+// relax_iqn_ils — IQN-ILS (Degroote et al. 2009, Algorithm 1)
+//
+// Interface Quasi-Newton with Inverse Least Squares approximation of
+// the inverse Jacobian. Builds a low-rank approximation from residual
+// and displacement differences across coupling iterations.
 //----------------------------------------------------------------------
-double PartitionedFSI::compute_aitken_omega(
-    const Array<double>& residual,
-    const Array<double>& residual_prev,
-    double omega_prev)
+void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
+                                    const Array<double>& disp_current,
+                                    const Array<double>& vel_current)
 {
-  double num = 0.0, den = 0.0;
-  for (int a = 0; a < residual.ncols(); a++) {
-    for (int i = 0; i < residual.nrows(); i++) {
-      double dr = residual(i, a) - residual_prev(i, a);
-      num += residual_prev(i, a) * dr;
-      den += dr * dr;
+  const int n = nsd * solid_face_->nNo;
+
+  // Current residual r = S(F(x)) - x = x_tilde - x
+  std::vector<double> r(n);
+  for (int a = 0; a < solid_face_->nNo; a++)
+    for (int i = 0; i < nsd; i++)
+      r[a * nsd + i] = disp_current(i, a) - disp_prev_(i, a);
+
+  // Current x_tilde (= disp_current as flat vector)
+  std::vector<double> x_tilde(n);
+  for (int a = 0; a < solid_face_->nNo; a++)
+    for (int i = 0; i < nsd; i++)
+      x_tilde[a * nsd + i] = disp_current(i, a);
+
+  if (cp < 2) {
+    // First two iterations: use Aitken to build initial data
+    // IQN-ILS needs at least 2 difference columns to be effective
+    r_prev_ = r;
+    x_tilde_prev_ = x_tilde;
+    relax_aitken(cp, nsd, disp_current, vel_current);
+    return;
+  }
+
+  // Build difference vectors: V = delta_r, W = delta_x_tilde
+  // V_cols_[k] = r_{k+1} - r_k, W_cols_[k] = x_tilde_{k+1} - x_tilde_k
+  {
+    std::vector<double> dv(n), dw(n);
+    for (int j = 0; j < n; j++) {
+      dv[j] = r[j] - r_prev_[j];
+      dw[j] = x_tilde[j] - x_tilde_prev_[j];
+    }
+    // Prepend (most recent first, as in Degroote)
+    V_cols_.insert(V_cols_.begin(), dv);
+    W_cols_.insert(W_cols_.begin(), dw);
+  }
+
+  r_prev_ = r;
+  x_tilde_prev_ = x_tilde;
+
+  const int q = static_cast<int>(V_cols_.size());
+
+  // QR decomposition of V via modified Gram-Schmidt
+  // V = Q * R, then solve R * c = Q^T * r for c
+  // x_{k+1} = x_tilde + W * c - V * c = x_tilde + (W - V) * c
+  // But actually: x_{k+1} = x_tilde - (W + V) * (R^{-1} * Q^T * r)
+  // Following Degroote: x_{k+1} = x_tilde + (W - V) * c where V*c ≈ -r
+
+  // Build Q, R from V columns via modified Gram-Schmidt
+  std::vector<std::vector<double>> Q(q, std::vector<double>(n, 0.0));
+  std::vector<std::vector<double>> R(q, std::vector<double>(q, 0.0));
+
+  for (int j = 0; j < q; j++) {
+    Q[j] = V_cols_[j];
+    for (int i = 0; i < j; i++) {
+      double dot = 0;
+      for (int k = 0; k < n; k++) dot += Q[i][k] * Q[j][k];
+      R[i][j] = dot;
+      for (int k = 0; k < n; k++) Q[j][k] -= dot * Q[i][k];
+    }
+    double norm = 0;
+    for (int k = 0; k < n; k++) norm += Q[j][k] * Q[j][k];
+    norm = sqrt(norm);
+    if (norm < 1e-14 * n) {
+      // Near-linearly-dependent column: drop it and all subsequent
+      V_cols_.resize(j);
+      W_cols_.resize(j);
+      Q.resize(j);
+      R.resize(j);
+      break;
+    }
+    R[j][j] = norm;
+    for (int k = 0; k < n; k++) Q[j][k] /= norm;
+  }
+
+  const int q_eff = static_cast<int>(Q.size());
+
+  if (q_eff == 0) {
+    // No valid columns: fall back to constant relaxation
+    omega_ = config_.initial_relaxation;
+    for (int a = 0; a < solid_face_->nNo; a++)
+      for (int i = 0; i < nsd; i++) {
+        disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
+        vel_prev_(i, a)  += omega_ * (vel_current(i, a) - vel_prev_(i, a));
+      }
+    return;
+  }
+
+  // Solve R * c = Q^T * (-r) via back-substitution
+  // (we want V*c ≈ -r, so Q*R*c = -r, R*c = -Q^T*r)
+  std::vector<double> rhs(q_eff);
+  for (int j = 0; j < q_eff; j++) {
+    double dot = 0;
+    for (int k = 0; k < n; k++) dot += Q[j][k] * (-r[k]);
+    rhs[j] = dot;
+  }
+
+  std::vector<double> c(q_eff, 0.0);
+  for (int j = q_eff - 1; j >= 0; j--) {
+    c[j] = rhs[j];
+    for (int k = j + 1; k < q_eff; k++) c[j] -= R[j][k] * c[k];
+    c[j] /= R[j][j];
+  }
+
+  // Check for NaN/Inf in coefficients — fall back to Aitken if unstable
+  bool c_ok = true;
+  for (int j = 0; j < q_eff; j++)
+    if (std::isnan(c[j]) || std::isinf(c[j])) { c_ok = false; break; }
+  if (!c_ok) {
+    V_cols_.clear();
+    W_cols_.clear();
+    relax_aitken(cp, nsd, disp_current, vel_current);
+    return;
+  }
+
+  // Compute displacement update: x_{k+1} = x_tilde + (W - V) * c
+  // i.e., x_{k+1} = x_tilde + W*c + (V*c ≈ -r cancels the residual)
+  for (int a = 0; a < solid_face_->nNo; a++)
+    for (int i = 0; i < nsd; i++) {
+      double correction = 0;
+      int idx = a * nsd + i;
+      for (int j = 0; j < q_eff; j++)
+        correction += (W_cols_[j][idx] - V_cols_[j][idx]) * c[j];
+      disp_prev_(i, a) = disp_current(i, a) + correction;
+    }
+
+  // Check for NaN in updated displacement — fall back to Aitken
+  {
+    bool has_nan_disp = false;
+    for (int a = 0; a < solid_face_->nNo && !has_nan_disp; a++)
+      for (int i = 0; i < nsd; i++)
+        if (std::isnan(disp_prev_(i, a))) { has_nan_disp = true; break; }
+    if (has_nan_disp) {
+      // Restore disp_prev_ and fall back
+      for (int a = 0; a < solid_face_->nNo; a++)
+        for (int i = 0; i < nsd; i++)
+          disp_prev_(i, a) = x_tilde[a * nsd + i] - r[a * nsd + i];
+      V_cols_.clear();
+      W_cols_.clear();
+      relax_aitken(cp, nsd, disp_current, vel_current);
+      return;
     }
   }
-  if (den < 1e-30) return omega_prev;
-  double omega = -omega_prev * num / den;
-  return std::max(0.01, std::min(1.0, std::abs(omega)));
+
+  // Velocity: apply same IQN-ILS coefficients c to velocity differences.
+  // We need V_vel and W_vel columns, but building those separately doubles
+  // storage. Instead, compute effective omega per node from displacement ratio.
+  // If disp changed from disp_prev_old to disp_prev_new, the effective omega is:
+  //   omega_eff = (disp_new - disp_old) / (disp_tilde - disp_old) where disp_old
+  // was the pre-relaxation value. We saved disp_old implicitly as (disp_tilde - r).
+  // Simpler: just set vel_prev = vel_current (full step) since the displacement
+  // IQN-ILS already handles the coupling; velocity follows displacement via Newmark.
+  vel_prev_ = vel_current;
+
+  // omega_ for logging: estimate from ||correction|| / ||residual||
+  double corr_norm = 0, res_norm = 0;
+  for (int j = 0; j < n; j++) {
+    res_norm += r[j] * r[j];
+  }
+  for (int a = 0; a < solid_face_->nNo; a++)
+    for (int i = 0; i < nsd; i++) {
+      double d = disp_prev_(i, a) - disp_current(i, a);
+      corr_norm += d * d;
+    }
+  omega_ = (res_norm > 1e-30) ? sqrt(corr_norm / res_norm) : 1.0;
 }
 
 //======================================================================
@@ -591,6 +786,22 @@ bool PartitionedFSI::step()
 
     // ---- 5. Relaxation (updates disp_prev_ and vel_prev_) ----
     relax_interface(cp, nsd, disp_current, vel_current);
+
+    // Check for NaN/large values in relaxed displacement
+    {
+      bool has_nan_relax = false;
+      double max_disp = 0;
+      for (int a = 0; a < solid_face_->nNo && !has_nan_relax; a++)
+        for (int i = 0; i < nsd; i++) {
+          if (std::isnan(disp_prev_(i, a)) || std::isinf(disp_prev_(i, a)))
+            { has_nan_relax = true; break; }
+          max_disp = std::max(max_disp, std::abs(disp_prev_(i, a)));
+        }
+      if (has_nan_relax || max_disp > 1e10) {
+        if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN/divergence after relaxation (max_disp=" << max_disp << ")" << std::endl;
+        return false;
+      }
+    }
 
     // ---- 6. MESH SOLVE with relaxed displacement ----
     auto mesh_disp = transfer_data(solid_to_mesh_map_, disp_prev_, mesh_face_->nNo);
