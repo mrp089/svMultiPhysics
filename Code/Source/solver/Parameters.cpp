@@ -2783,6 +2783,7 @@ PartitionedCouplingParameters::PartitionedCouplingParameters()
   set_parameter("Max_coupling_iterations", 50, !required, max_coupling_iterations);
   set_parameter("Coupling_tolerance", 1e-6, !required, coupling_tolerance);
   set_parameter("Initial_relaxation", 1.0, !required, initial_relaxation);
+  set_parameter("Omega_max", 1.0, !required, omega_max);
   set_parameter("Use_Aitken", true, !required, use_aitken);
   set_parameter("Fluid_interface_face", "", required, fluid_interface_face);
   set_parameter("Solid_interface_face", "", required, solid_interface_face);

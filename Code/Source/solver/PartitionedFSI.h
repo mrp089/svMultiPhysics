@@ -18,6 +18,7 @@ struct PartitionedFSIConfig {
   int max_coupling_iterations = 50;
   double coupling_tolerance = 1e-6;
   double initial_relaxation = 1.0;
+  double omega_max = 1.0;
   bool use_aitken = true;
 
   // Face names for the FSI interface

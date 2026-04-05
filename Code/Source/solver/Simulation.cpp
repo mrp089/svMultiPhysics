@@ -139,6 +139,7 @@ void Simulation::initialize_partitioned_fsi(const std::string& xml_file_path)
   config.max_coupling_iterations = pcp.max_coupling_iterations.value();
   config.coupling_tolerance = pcp.coupling_tolerance.value();
   config.initial_relaxation = pcp.initial_relaxation.value();
+  config.omega_max = pcp.omega_max.value();
   config.use_aitken = pcp.use_aitken.value();
   config.fluid_interface_face = pcp.fluid_interface_face.value();
   config.solid_interface_face = pcp.solid_interface_face.value();
