@@ -63,7 +63,7 @@ def compute_flow_rate(mesh, face_name=None):
 
 
 def compute_radial_disp_at_inlet(mesh, disp_key="Displacement"):
-    """Mean radial displacement at solid inlet face."""
+    """Mean radial displacement of the outermost ring at the inlet face."""
     pts = mesh.points
     disp = mesh.point_data.get(disp_key, None)
     if disp is None:
@@ -71,17 +71,24 @@ def compute_radial_disp_at_inlet(mesh, disp_key="Displacement"):
 
     z = pts[:, 2]
     z_min = z.min()
-    inlet_mask = np.abs(z - z_min) < 1e-6 * (z.max() - z.min() + 1e-30)
+    z_tol = 1e-6 * (z.max() - z.min() + 1e-30)
+    inlet_mask = np.abs(z - z_min) < z_tol
 
     if inlet_mask.sum() == 0:
         return 0.0
 
-    # Radial direction = sqrt(dx^2 + dy^2), radial displacement = (x*dx + y*dy) / r
-    x, y = pts[inlet_mask, 0], pts[inlet_mask, 1]
-    dx, dy = disp[inlet_mask, 0], disp[inlet_mask, 1]
-    r = np.sqrt(x**2 + y**2)
-    r[r < 1e-30] = 1e-30
-    radial = (x * dx + y * dy) / r
+    # Find the outermost ring: nodes at the maximum radius on the inlet face
+    r = np.sqrt(pts[inlet_mask, 0]**2 + pts[inlet_mask, 1]**2)
+    r_max = r.max()
+    outer_ring = r > 0.9 * r_max  # outermost 10% of radial range
+
+    x = pts[inlet_mask, 0][outer_ring]
+    y = pts[inlet_mask, 1][outer_ring]
+    dx = disp[inlet_mask, 0][outer_ring]
+    dy = disp[inlet_mask, 1][outer_ring]
+    rr = np.sqrt(x**2 + y**2)
+    rr[rr < 1e-30] = 1e-30
+    radial = (x * dx + y * dy) / rr
     return np.mean(radial)
 
 
@@ -106,17 +113,16 @@ def extract_centerline(mesh, field_name, nsd=3):
 
 
 def extract_solid_radial_disp_along_z(mesh, disp_key="Displacement"):
-    """Extract radial displacement along z at the inner wall."""
+    """Extract radial displacement along z at the outer wall ring."""
     pts = mesh.points
     disp = mesh.point_data.get(disp_key, None)
     if disp is None:
         return np.array([]), np.array([])
 
-    # Find inner wall nodes (smallest radius in the solid mesh)
+    # Find outermost nodes (largest radius in the mesh)
     r = np.sqrt(pts[:, 0]**2 + pts[:, 1]**2)
-    r_min = r.min()
     r_max = r.max()
-    inner_mask = r < r_min + 0.3 * (r_max - r_min)
+    inner_mask = r > 0.9 * r_max
 
     if inner_mask.sum() == 0:
         return np.array([]), np.array([])

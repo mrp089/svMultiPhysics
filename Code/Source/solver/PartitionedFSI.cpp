@@ -325,7 +325,8 @@ void PartitionedFSI::relax_interface(int cp, int nsd,
       omega_ = -omega_ * num / den;
       // Clamp magnitude (Küttler uses omega_max = 0.1 for initial,
       // but allows larger values during iteration)
-      if (std::abs(omega_) > 1.0) omega_ = (omega_ > 0) ? 1.0 : -1.0;
+      double omega_max = 1.0;
+      if (std::abs(omega_) > omega_max) omega_ = (omega_ > 0) ? omega_max : -omega_max;
     }
   }
   r_prev_ = r;
