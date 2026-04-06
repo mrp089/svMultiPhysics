@@ -134,9 +134,6 @@ private:
   /// Build coordinate-based node maps between interface faces of different sub-sims
   void build_node_maps();
 
-  /// Run sanity checks on node maps and data transfer
-  void verify_node_maps();
-
   /// Relax interface displacement and velocity after solid solve.
   /// Dispatches to the configured coupling method.
   void relax_interface(int cp, int nsd,
