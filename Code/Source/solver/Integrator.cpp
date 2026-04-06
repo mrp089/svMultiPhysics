@@ -251,7 +251,6 @@ bool Integrator::step_equation(int iEq, std::function<void()> post_assembly) {
     }
 
     // Abort on NaN in residual norm (indicates divergence).
-    // Check iNorm which is set every iteration; pNorm can be 0 initially.
     if (newton_count_ > 1 && std::isnan(eq.FSILS.RI.iNorm)) {
       return false;
     }
