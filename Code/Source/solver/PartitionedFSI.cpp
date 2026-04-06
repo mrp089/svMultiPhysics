@@ -41,6 +41,7 @@ static bool has_nan(const SolutionStates& sol) {
 static void init_sub_sim(Simulation* sim, const std::string& xml_path)
 {
   read_files_ns::read_files(sim, xml_path);
+  sim->logger.set_cout_write(false);
   distribute(sim);
   Vector<double> init_time(3);
   initialize(sim, init_time);
@@ -73,36 +74,17 @@ PartitionedFSI::PartitionedFSI(Simulation* main_simulation,
   std::string mesh_xml  = dir + config_.mesh_xml;
 
   // 3 separate sub-sims: fluid, solid, mesh
-  if (cm.mas(cm_mod)) std::cout << "[PartitionedFSI] Initializing fluid: " << fluid_xml << std::endl;
   fluid_sim_ = std::make_unique<Simulation>();
   init_sub_sim(fluid_sim_.get(), fluid_xml);
 
-  if (cm.mas(cm_mod)) std::cout << "[PartitionedFSI] Initializing solid: " << solid_xml << std::endl;
   solid_sim_ = std::make_unique<Simulation>();
   init_sub_sim(solid_sim_.get(), solid_xml);
 
-  if (cm.mas(cm_mod)) std::cout << "[PartitionedFSI] Initializing mesh:  " << mesh_xml << std::endl;
   mesh_sim_ = std::make_unique<Simulation>();
   init_sub_sim(mesh_sim_.get(), mesh_xml);
 
-  if (cm.mas(cm_mod)) {
-    const char* method_name = "unknown";
-    switch (config_.coupling_method) {
-      case CouplingMethod::constant: method_name = "constant"; break;
-      case CouplingMethod::aitken:   method_name = "aitken"; break;
-      case CouplingMethod::iqn_ils:  method_name = "iqn-ils"; break;
-    }
-    std::cout << "[PartitionedFSI] Sub-sims ready:"
-              << "  fluid=" << fluid_sim_->com_mod.tnNo << "n/" << fluid_sim_->com_mod.tDof << "tDof"
-              << "  solid=" << solid_sim_->com_mod.tnNo << "n/" << solid_sim_->com_mod.eq[0].dof << "dof"
-              << "  mesh=" << mesh_sim_->com_mod.tnNo << "n/" << mesh_sim_->com_mod.eq[0].dof << "dof"
-              << "  coupling=" << method_name;
-    if (config_.coupling_method == CouplingMethod::iqn_ils)
-      std::cout << " (q=" << config_.iqn_ils_q
-                << ", eps=" << config_.iqn_ils_eps
-                << ", warmup=" << config_.iqn_ils_warmup << ")";
-    std::cout << std::endl;
 
+  if (cm.mas(cm_mod)) {
     // Open log files
     std::string log_dir = fluid_sim_->get_chnl_mod().appPath;
     coupling_log_.open(log_dir + "coupling.dat");
@@ -188,13 +170,6 @@ void PartitionedFSI::build_node_maps()
 
   auto& cm = main_sim_->com_mod.cm;
   auto& cm_mod = main_sim_->cm_mod;
-  if (cm.mas(cm_mod)) {
-    int matched = 0;
-    for (int v : solid_to_fluid_map_) if (v >= 0) matched++;
-    std::cout << "[PartitionedFSI] Interface node maps: " << matched
-              << "/" << solid_face_->nNo << " matched" << std::endl;
-  }
-
 }
 
 //----------------------------------------------------------------------
