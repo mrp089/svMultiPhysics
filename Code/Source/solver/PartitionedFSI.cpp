@@ -199,9 +199,6 @@ void PartitionedFSI::relax_interface(int cp, int nsd,
     case CouplingMethod::aitken:
       relax_aitken(cp, nsd, disp_current);
       break;
-    case CouplingMethod::iqn_ils:
-      relax_iqn_ils(cp, nsd, disp_current);
-      break;
   }
 }
 
@@ -252,172 +249,6 @@ void PartitionedFSI::relax_aitken(int cp, int nsd,
   for (int a = 0; a < solid_face_->nNo; a++)
     for (int i = 0; i < nsd; i++)
       disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
-}
-
-//----------------------------------------------------------------------
-// relax_iqn_ils — IQN-ILS following StanfordCBCL/svFSGe implementation
-//
-// Columns persist across time steps (trimmed to iqn_ils_q max).
-// First time step uses Aitken. QR filtering with eps threshold
-// removes linearly dependent columns.
-//----------------------------------------------------------------------
-void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
-                                    const Array<double>& disp_current)
-{
-  const int n = nsd * solid_face_->nNo;
-  const int cTS = main_sim_->com_mod.cTS;
-
-  // Current x_tilde (unrelaxed solver output) and residual
-  std::vector<double> x_tilde(n), r(n);
-  for (int a = 0; a < solid_face_->nNo; a++)
-    for (int i = 0; i < nsd; i++) {
-      int idx = a * nsd + i;
-      x_tilde[idx] = disp_current(i, a);
-      r[idx] = disp_current(i, a) - disp_prev_(i, a);
-    }
-
-  // Store history for difference vectors
-  x_tilde_hist_.push_back(x_tilde);
-  r_hist_.push_back(r);
-
-  // Append difference vectors (need at least 2 history entries)
-  if (x_tilde_hist_.size() >= 2) {
-    auto& xt1 = x_tilde_hist_[x_tilde_hist_.size() - 1];
-    auto& xt0 = x_tilde_hist_[x_tilde_hist_.size() - 2];
-    auto& r1 = r_hist_[r_hist_.size() - 1];
-    auto& r0 = r_hist_[r_hist_.size() - 2];
-    std::vector<double> dw(n), dv(n);
-    for (int j = 0; j < n; j++) {
-      dw[j] = xt1[j] - xt0[j];
-      dv[j] = r1[j] - r0[j];
-    }
-    // Prepend: newest columns first so QR prioritizes recent information
-    V_cols_.insert(V_cols_.begin(), dv);
-    W_cols_.insert(W_cols_.begin(), dw);
-  }
-
-  // Use constant relaxation until we have enough V/W columns
-  if (static_cast<int>(V_cols_.size()) < config_.iqn_ils_warmup) {
-    relax_constant(cp, nsd, disp_current);
-    return;
-  }
-
-  // Trim oldest columns (at the end) to max
-  const int nq = config_.iqn_ils_q;
-  while (static_cast<int>(V_cols_.size()) > nq) {
-    V_cols_.pop_back();
-    W_cols_.pop_back();
-  }
-
-  int q = static_cast<int>(V_cols_.size());
-  const double eps = config_.iqn_ils_eps;
-
-  // Work on copies so we can remove columns during filtering
-  auto V_work = V_cols_;
-  auto W_work = W_cols_;
-
-  // QR decomposition with column filtering (svFSGe QRfiltering)
-  // Filter criterion: |R[i,i]| < eps * ||R||_2
-  // Approximation: use max(|R[i,i]|) for ||R||_2
-  std::vector<std::vector<double>> Q;
-  std::vector<std::vector<double>> R_mat;
-  bool restart;
-
-  do {
-    restart = false;
-    q = static_cast<int>(V_work.size());
-    Q.assign(q, std::vector<double>(n, 0.0));
-    R_mat.assign(q, std::vector<double>(q, 0.0));
-
-    // Modified Gram-Schmidt
-    for (int j = 0; j < q; j++) {
-      auto vbar = V_work[j];
-      for (int i = 0; i < j; i++) {
-        double dot = 0;
-        for (int k = 0; k < n; k++) dot += Q[i][k] * vbar[k];
-        R_mat[i][j] = dot;
-        for (int k = 0; k < n; k++) vbar[k] -= dot * Q[i][k];
-      }
-      double norm = 0;
-      for (int k = 0; k < n; k++) norm += vbar[k] * vbar[k];
-      norm = sqrt(norm);
-      if (norm < 1e-30) {
-        V_work.erase(V_work.begin() + j);
-        W_work.erase(W_work.begin() + j);
-        restart = true;
-        break;
-      }
-      R_mat[j][j] = norm;
-      for (int k = 0; k < n; k++) Q[j][k] = vbar[k] / norm;
-    }
-
-    if (restart) continue;
-
-    // Filter: remove columns where |R[i,i]| < eps * ||R||_F
-    // (svFSGe uses eps * ||R||_2; Frobenius norm is a practical upper bound)
-    double R_norm = 0;
-    for (int i = 0; i < q; i++)
-      for (int j = i; j < q; j++)
-        R_norm += R_mat[i][j] * R_mat[i][j];
-    R_norm = sqrt(R_norm);
-
-    for (int j = 0; j < q; j++) {
-      if (std::abs(R_mat[j][j]) < eps * R_norm) {
-        V_work.erase(V_work.begin() + j);
-        W_work.erase(W_work.begin() + j);
-        restart = true;
-        break;
-      }
-    }
-  } while (restart && !V_work.empty());
-
-  // Update stored matrices after filtering
-  V_cols_ = V_work;
-  W_cols_ = W_work;
-  q = static_cast<int>(V_cols_.size());
-
-  if (q == 0) {
-    relax_constant(cp, nsd, disp_current);
-    return;
-  }
-
-  // Solve R * c = Q^T * (-r) with modified back-substitution
-  // (svFSGe solve_upper_triangular_mod: set c[i]=0 if |R[i,i]| too small)
-  std::vector<double> rhs(q);
-  for (int j = 0; j < q; j++) {
-    double dot = 0;
-    for (int k = 0; k < n; k++) dot += Q[j][k] * (-r[k]);
-    rhs[j] = dot;
-  }
-
-  double R_norm_solve = 0;
-  for (int i = 0; i < q; i++)
-    for (int j = i; j < q; j++)
-      R_norm_solve += R_mat[i][j] * R_mat[i][j];
-  R_norm_solve = sqrt(R_norm_solve);
-  double solve_tol = eps * R_norm_solve;
-
-  std::vector<double> c(q, 0.0);
-  for (int j = q - 1; j >= 0; j--) {
-    if (std::abs(R_mat[j][j]) <= solve_tol) {
-      c[j] = 0.0;
-    } else {
-      c[j] = rhs[j];
-      for (int k = j + 1; k < q; k++) c[j] -= R_mat[j][k] * c[k];
-      c[j] /= R_mat[j][j];
-    }
-  }
-
-  // Update: x_{k+1} = x̃ + (W - V) * c
-  for (int a = 0; a < solid_face_->nNo; a++)
-    for (int i = 0; i < nsd; i++) {
-      int idx = a * nsd + i;
-      double correction = 0;
-      for (int j = 0; j < q; j++)
-        correction += (W_cols_[j][idx] - V_cols_[j][idx]) * c[j];
-      disp_prev_(i, a) = disp_current(i, a) + correction;
-    }
-
 }
 
 //======================================================================
@@ -526,10 +357,6 @@ bool PartitionedFSI::step()
 
   omega_ = config_.initial_relaxation;
   r_prev_.clear();
-
-  // Clear per-time-step history (V/W persist across time steps for IQN-ILS)
-  x_tilde_hist_.clear();
-  r_hist_.clear();
 
   // Save predictor state
   struct SavedState { Array<double> An, Yn, Dn; };

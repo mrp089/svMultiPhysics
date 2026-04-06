@@ -141,16 +141,12 @@ void Simulation::initialize_partitioned_fsi(const std::string& xml_file_path)
   config.initial_relaxation = pcp.initial_relaxation.value();
   config.omega_max = pcp.omega_max.value();
 
-  // Parse coupling method: "constant", "aitken" (default), "iqn-ils"
+  // Parse coupling method: "constant" or "aitken" (default)
   std::string method = pcp.coupling_method.value();
   if (method == "constant")      config.coupling_method = CouplingMethod::constant;
   else if (method == "aitken")   config.coupling_method = CouplingMethod::aitken;
-  else if (method == "iqn-ils")  config.coupling_method = CouplingMethod::iqn_ils;
   else throw std::runtime_error("[PartitionedFSI] Unknown Coupling_method: " + method);
 
-  config.iqn_ils_q = pcp.iqn_ils_q.value();
-  config.iqn_ils_eps = pcp.iqn_ils_eps.value();
-  config.iqn_ils_warmup = pcp.iqn_ils_warmup.value();
   config.fluid_interface_face = pcp.fluid_interface_face.value();
   config.solid_interface_face = pcp.solid_interface_face.value();
   config.fluid_xml = pcp.fluid_xml.value();
