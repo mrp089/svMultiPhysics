@@ -1960,6 +1960,71 @@ void set_bc_undef_neu_l(ComMod& com_mod, const bcType& lBc, const faceType& lFa)
   }
 }
 
+//----------------------------------------------------------------------
+// enforce_dirichlet_on_face
+//----------------------------------------------------------------------
+void enforce_dirichlet_on_face(ComMod& com_mod, const faceType& lFa, int nsd)
+{
+  const auto& eq = com_mod.eq[com_mod.cEq];
+  const int dof = eq.dof;
+  const auto& rowPtr = com_mod.rowPtr;
+  const auto& colPtr = com_mod.colPtr;
+  auto& R = com_mod.R;
+  auto& Val = com_mod.Val;
+
+  for (int a = 0; a < lFa.nNo; a++) {
+    int rowN = lFa.gN(a);
+    for (int i = 0; i < dof; i++) {
+      R(i, rowN) = 0.0;
+    }
+    for (int j = rowPtr(rowN); j <= rowPtr(rowN + 1) - 1; j++) {
+      int colN = colPtr(j);
+      for (int iDof = 0; iDof < dof * dof; iDof++) {
+        Val(iDof, j) = 0.0;
+      }
+      if (colN == rowN) {
+        for (int i = 0; i < dof; i++) {
+          Val(i * dof + i, j) = 1.0;
+        }
+      }
+    }
+  }
+}
+
+//----------------------------------------------------------------------
+// enforce_dirichlet_dofs_on_face
+//----------------------------------------------------------------------
+void enforce_dirichlet_dofs_on_face(ComMod& com_mod, const faceType& lFa,
+                                    int dof_start, int num_dofs)
+{
+  const auto& eq = com_mod.eq[com_mod.cEq];
+  const int dof = eq.dof;
+  const auto& rowPtr = com_mod.rowPtr;
+  const auto& colPtr = com_mod.colPtr;
+  auto& R = com_mod.R;
+  auto& Val = com_mod.Val;
+
+  for (int a = 0; a < lFa.nNo; a++) {
+    int rowN = lFa.gN(a);
+    for (int i = dof_start; i < dof_start + num_dofs; i++) {
+      R(i, rowN) = 0.0;
+    }
+    for (int j = rowPtr(rowN); j <= rowPtr(rowN + 1) - 1; j++) {
+      int colN = colPtr(j);
+      for (int i = dof_start; i < dof_start + num_dofs; i++) {
+        for (int k = 0; k < dof; k++) {
+          Val(i * dof + k, j) = 0.0;
+        }
+      }
+      if (colN == rowN) {
+        for (int i = dof_start; i < dof_start + num_dofs; i++) {
+          Val(i * dof + i, j) = 1.0;
+        }
+      }
+    }
+  }
+}
+
 };
 
 

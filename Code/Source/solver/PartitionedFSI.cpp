@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "PartitionedFSI.h"
+#include "Integrator.h"
 #include "fsi_coupling.h"
+#include "post.h"
 #include "set_bc.h"
 #include "distribute.h"
 #include "initialize.h"
@@ -579,10 +581,11 @@ bool PartitionedFSI::step()
     for (int a = 0; a < solid_face_->nNo; a++) {
       int Ac = solid_face_->gN(a);
       for (int i = 0; i < nsd; i++) {
-        double a_new = (disp_prev_(i, a) - Do(i + s, Ac) - dt_s * Yo(i + s, Ac))
-                     / (eq.beta * dt_s * dt_s)
-                     - (0.5 - eq.beta) / eq.beta * Ao(i + s, Ac);
-        vel_prev_(i, a) = Yo(i + s, Ac) + dt_s * ((1.0 - eq.gam) * Ao(i + s, Ac) + eq.gam * a_new);
+        double a_new, v_new;
+        newmark::state_from_displacement(
+            disp_prev_(i, a), Do(i + s, Ac), Yo(i + s, Ac), Ao(i + s, Ac),
+            dt_s, eq.beta, eq.gam, a_new, v_new);
+        vel_prev_(i, a) = v_new;
       }
     }
   }
@@ -625,7 +628,7 @@ bool PartitionedFSI::step()
     }
 
     fluid_int.step_equation(0, [&]() {
-      fsi_coupling::enforce_dirichlet_dofs_on_face(fluid_com, *fluid_face_, 0, nsd);
+      set_bc::enforce_dirichlet_dofs_on_face(fluid_com, *fluid_face_, 0, nsd);
     });
     if (has_nan(fluid_sol)) {
       if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in fluid solve" << std::endl;
@@ -633,7 +636,7 @@ bool PartitionedFSI::step()
     }
 
     // ---- 2. Extract traction ----
-    auto fluid_traction = fsi_coupling::extract_fluid_traction(
+    auto fluid_traction = post::compute_face_traction(
         fluid_com, fluid_sim_->cm_mod,
         *fluid_mesh_, *fluid_face_, fluid_com.eq[0],
         fluid_int.get_Yg(), fluid_int.get_Dg(), fluid_sol);
@@ -674,23 +677,18 @@ bool PartitionedFSI::step()
     {
       const auto& eq = solid_com.eq[0];
       const int s = eq.s;
-      const double dt = solid_com.dt;
-      const double gam = eq.gam;
-      const double beta = eq.beta;
+      const double dt_s = solid_com.dt;
       const auto& Do = solid_sol.old.get_displacement();
       const auto& Yo = solid_sol.old.get_velocity();
       const auto& Ao = solid_sol.old.get_acceleration();
-
       for (int a = 0; a < solid_face_->nNo; a++) {
         int Ac = solid_face_->gN(a);
         for (int i = 0; i < nsd; i++) {
-          double d_new = disp_prev_(i, a);
-          double d_old = Do(i + s, Ac);
-          double v_old = Yo(i + s, Ac);
-          double a_old = Ao(i + s, Ac);
-          double a_new = (d_new - d_old - dt * v_old) / (beta * dt * dt)
-                       - (0.5 - beta) / beta * a_old;
-          vel_prev_(i, a) = v_old + dt * ((1.0 - gam) * a_old + gam * a_new);
+          double a_new, v_new;
+          newmark::state_from_displacement(
+              disp_prev_(i, a), Do(i + s, Ac), Yo(i + s, Ac), Ao(i + s, Ac),
+              dt_s, eq.beta, eq.gam, a_new, v_new);
+          vel_prev_(i, a) = v_new;
         }
       }
     }
@@ -717,7 +715,7 @@ bool PartitionedFSI::step()
     fsi_coupling::apply_displacement_on_mesh(
         mesh_com, mesh_com.eq[0], *mesh_face_, mesh_disp, mesh_sol);
     mesh_int.step_equation(0, [&]() {
-      fsi_coupling::enforce_dirichlet_on_face(mesh_com, *mesh_face_, nsd);
+      set_bc::enforce_dirichlet_on_face(mesh_com, *mesh_face_, nsd);
     });
     if (has_nan(mesh_sol)) {
       if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in mesh solve" << std::endl;

@@ -11,6 +11,7 @@
 #include "gtest/gtest.h"
 
 #include "fsi_coupling.h"
+#include "post.h"
 #include "Integrator.h"
 #include "Simulation.h"
 #include "distribute.h"
@@ -163,7 +164,7 @@ TEST(PartitionedFSI, TractionSignAndMagnitude)
   ASSERT_NE(fluid_mesh, nullptr);
 
   // Extract traction at lumen_wall
-  auto traction = fsi_coupling::extract_fluid_traction(
+  auto traction = post::compute_face_traction(
       com_mod, cm_mod, *fluid_mesh, *wall_face, com_mod.eq[0],
       integrator.get_Yg(), integrator.get_Dg(), integrator.get_solutions());
 
@@ -237,7 +238,7 @@ TEST(PartitionedFSI, TractionMatchesNeumannBC)
   ASSERT_NE(lumen_mesh, nullptr);
 
   // Extract traction at inlet
-  auto traction = fsi_coupling::extract_fluid_traction(
+  auto traction = post::compute_face_traction(
       com_mod, cm_mod, *lumen_mesh, *inlet_face, com_mod.eq[0],
       integrator.get_Yg(), integrator.get_Dg(), integrator.get_solutions());
 
@@ -496,7 +497,7 @@ TEST(PartitionedFSI, WallVelocityMassConservation)
 
   // Solve fluid
   integrator.step_equation(0, [&]() {
-    fsi_coupling::enforce_dirichlet_dofs_on_face(com_mod, *wall_face, 0, nsd);
+    set_bc::enforce_dirichlet_dofs_on_face(com_mod, *wall_face, 0, nsd);
   });
 
   // Check: is the wall velocity preserved after the solve?

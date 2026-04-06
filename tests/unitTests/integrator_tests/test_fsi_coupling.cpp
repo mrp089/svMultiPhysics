@@ -13,6 +13,7 @@
 #include "gtest/gtest.h"
 
 #include "fsi_coupling.h"
+#include "post.h"
 #include "Integrator.h"
 #include "Simulation.h"
 #include "distribute.h"
@@ -232,7 +233,7 @@ TEST(FSICoupling, ExtractFluidTraction)
 
   // Extract consistent nodal traction forces
   com_mod.cEq = 0;  // ensure correct equation is active
-  auto traction = fsi_coupling::extract_fluid_traction(
+  auto traction = post::compute_face_traction(
       com_mod, sim->cm_mod, *fluid_mesh, *fluid_face, eq,
       integrator.get_Yg(), integrator.get_Dg(), solutions);
 
