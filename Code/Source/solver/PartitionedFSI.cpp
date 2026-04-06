@@ -103,13 +103,15 @@ PartitionedFSI::PartitionedFSI(Simulation* main_simulation,
                 << ", warmup=" << config_.iqn_ils_warmup << ")";
     std::cout << std::endl;
 
-    // Open coupling log file
+    // Open log files
     std::string log_dir = fluid_sim_->get_chnl_mod().appPath;
     coupling_log_.open(log_dir + "coupling.dat");
     char hdr[256];
     snprintf(hdr, sizeof(hdr), "# %4s %3s %10s %5s %10s %10s %10s %10s",
              "cTS", "cp", "time", "dB", "Ri/R1", "Ri/R0", "omega", "|disp|");
     coupling_log_ << hdr << std::endl;
+
+    histor_log_.open(log_dir + "histor.dat");
   }
 
   resolve_faces();
@@ -586,9 +588,11 @@ void PartitionedFSI::run()
     }
 
     if (cm.mas(cm_mod)) {
-      std::cout << std::string(70, '=') << std::endl;
-      std::cout << "  TIME STEP " << cTS << "  t=" << time << "  dt=" << dt << std::endl;
-      std::cout << std::string(70, '=') << std::endl;
+      if (histor_log_.is_open()) {
+        histor_log_ << std::string(70, '=') << std::endl;
+        histor_log_ << "  TIME STEP " << cTS << "  t=" << time << "  dt=" << dt << std::endl;
+        histor_log_ << std::string(70, '=') << std::endl;
+      }
     }
 
     // Predictor + Dirichlet BCs for each sub-sim
@@ -602,6 +606,8 @@ void PartitionedFSI::run()
 
     if (!converged && cm.mas(cm_mod)) {
       std::cout << "  TIME STEP " << cTS << " FAILED (NaN or no convergence)" << std::endl;
+      if (histor_log_.is_open())
+        histor_log_ << "  TIME STEP " << cTS << " FAILED (NaN or no convergence)" << std::endl;
     }
 
     // Stop on failure
@@ -712,9 +718,11 @@ bool PartitionedFSI::step()
     fluid_com.x = x_ref;
 
     if (cm.mas(cm_mod) && cp == 0) {
-      std::cout << std::string(69, '-') << std::endl;
-      std::cout << " Eq     N-i     T       dB  Ri/R1   Ri/R0    R/Ri     lsIt   dB  %t" << std::endl;
-      std::cout << std::string(69, '-') << std::endl;
+      if (histor_log_.is_open()) {
+        histor_log_ << std::string(69, '-') << std::endl;
+        histor_log_ << " Eq     N-i     T       dB  Ri/R1   Ri/R0    R/Ri     lsIt   dB  %t" << std::endl;
+        histor_log_ << std::string(69, '-') << std::endl;
+      }
     }
 
     // ---- 1. FLUID SOLVE with relaxed wall velocity ----
@@ -850,25 +858,31 @@ bool PartitionedFSI::step()
       dB_val = static_cast<int>(20.0 * log10(ri_r1));
     }
 
-    // Format: CP  cTS-cp  time  [dB  Ri/R1  Ri/R0  omega]
-    // Matches: EQ  cTS-N  time  [dB  Ri/R1  Ri/R0  R/Ri]
     if (cm.mas(cm_mod)) {
       bool conv = rel < config_.coupling_tolerance;
+      double time_elapsed = main_sim_->com_mod.timer.get_elapsed_time();
+
+      // Screen: tabular format (same as coupling.dat) for easy logging
       char buf[256];
-      snprintf(buf, sizeof(buf),
-               " CP %d-%d%s %4.3e  [%d %4.3e %4.3e %4.3e]",
-               cTS, cp + 1, conv ? "s" : " ",
-               main_sim_->com_mod.timer.get_elapsed_time(),
-               dB_val, ri_r1, rel, omega_);
+      snprintf(buf, sizeof(buf), "  %4d %3d %10.3e %5d %10.3e %10.3e %10.3e %10.3e",
+               cTS, cp + 1, time_elapsed,
+               dB_val, ri_r1, rel, omega_, disp_norm);
       std::cout << buf << std::endl;
 
-      // Write to coupling log file
+      // coupling.dat: same tabular format
       if (coupling_log_.is_open()) {
-        char log_buf[256];
-        snprintf(log_buf, sizeof(log_buf), "  %4d %3d %10.3e %5d %10.3e %10.3e %10.3e %10.3e",
-                 cTS, cp + 1, main_sim_->com_mod.timer.get_elapsed_time(),
-                 dB_val, ri_r1, rel, omega_, disp_norm);
-        coupling_log_ << log_buf << std::endl;
+        coupling_log_ << buf << std::endl;
+      }
+
+      // histor.dat: compact solver-style format
+      if (histor_log_.is_open()) {
+        char hbuf[256];
+        snprintf(hbuf, sizeof(hbuf),
+                 " CP %d-%d%s %4.3e  [%d %4.3e %4.3e %4.3e]",
+                 cTS, cp + 1, conv ? "s" : " ",
+                 time_elapsed,
+                 dB_val, ri_r1, rel, omega_);
+        histor_log_ << hbuf << std::endl;
       }
     }
 

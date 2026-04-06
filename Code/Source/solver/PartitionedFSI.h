@@ -112,8 +112,9 @@ private:
   // Aitken state
   std::vector<double> r_prev_;               // previous residual
 
-  // Output file for coupling convergence history
+  // Output files for coupling convergence history
   std::ofstream coupling_log_;
+  std::ofstream histor_log_;
 
   // Temp XML file paths (cleaned up in destructor)
   std::vector<std::string> temp_xml_paths_;
