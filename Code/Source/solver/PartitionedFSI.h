@@ -102,6 +102,18 @@ private:
   void resolve_faces();
   void build_node_maps();
 
+  /// Solve fluid equation with current interface velocity and ALE mesh velocity
+  bool solve_fluid(const Array<double>& mesh_vel_Yo, const Array<double>& mesh_vel_Yn);
+
+  /// Extract fluid traction, transfer to solid, solve solid equation
+  bool solve_solid();
+
+  /// Solve mesh equation with relaxed displacement, deform fluid mesh
+  bool solve_mesh(const Array<double>& x_ref, int mesh_s);
+
+  /// Compute vel_prev_ from disp_prev_ using Newmark relationship
+  void compute_interface_velocity();
+
   void relax_interface(int cp, int nsd, const Array<double>& disp_current);
   void relax_constant(int cp, int nsd, const Array<double>& disp_current);
   void relax_aitken(int cp, int nsd, const Array<double>& disp_current);
