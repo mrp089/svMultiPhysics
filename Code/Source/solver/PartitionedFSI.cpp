@@ -831,10 +831,18 @@ bool PartitionedFSI::step()
     }
 
     // ---- 7. Deform fluid mesh for next iteration ----
-    auto& mesh_Dg = mesh_int.get_Dg();
-    for (int a = 0; a < fluid_com.tnNo; a++)
-      for (int i = 0; i < nsd; i++)
-        fluid_com.x(i, a) += mesh_Dg(i, a);
+    // The mesh equation solves for TOTAL displacement from the original
+    // reference.  x_ref already contains the old displacement (x_original + Do),
+    // so we must apply only the INCREMENT (Dn - Do) to avoid accumulating
+    // total displacements across time steps.
+    {
+      auto& mesh_Dn = mesh_sol.current.get_displacement();
+      auto& mesh_Do = mesh_sol.old.get_displacement();
+      for (int a = 0; a < fluid_com.tnNo; a++)
+        for (int i = 0; i < nsd; i++)
+          fluid_com.x(i, a) = x_ref(i, a)
+                             + mesh_Dn(i + mesh_s, a) - mesh_Do(i + mesh_s, a);
+    }
 
     // Check for NaN
     if (std::isnan(rel) || std::isnan(disp_norm)) {
