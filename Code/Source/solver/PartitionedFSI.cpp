@@ -219,10 +219,8 @@ void PartitionedFSI::relax_constant(int cp, int nsd,
 {
   omega_ = config_.initial_relaxation;
   for (int a = 0; a < solid_face_->nNo; a++)
-    for (int i = 0; i < nsd; i++) {
+    for (int i = 0; i < nsd; i++)
       disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
-      vel_prev_(i, a)  += omega_ * (vel_current(i, a) - vel_prev_(i, a));
-    }
 }
 
 //----------------------------------------------------------------------
@@ -259,10 +257,8 @@ void PartitionedFSI::relax_aitken(int cp, int nsd,
 
   // Apply: x_{k+1} = x_k + omega * r
   for (int a = 0; a < solid_face_->nNo; a++)
-    for (int i = 0; i < nsd; i++) {
+    for (int i = 0; i < nsd; i++)
       disp_prev_(i, a) += omega_ * (disp_current(i, a) - disp_prev_(i, a));
-      vel_prev_(i, a)  += omega_ * (vel_current(i, a) - vel_prev_(i, a));
-    }
 }
 
 //----------------------------------------------------------------------
@@ -307,9 +303,9 @@ void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
     V_cols_.push_back(dv);
   }
 
-  // Use Aitken until we have enough V/W columns
+  // Use constant relaxation until we have enough V/W columns
   if (static_cast<int>(V_cols_.size()) < config_.iqn_ils_warmup) {
-    relax_aitken(cp, nsd, disp_current, vel_current);
+    relax_constant(cp, nsd, disp_current, vel_current);
     return;
   }
 
@@ -411,28 +407,18 @@ void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
     }
   }
 
-  // Update: x_{k+1} = x_tilde + W * c  (svFSGe formula)
+  // Update: x_{k+1} = x_k + ΔX * c  where ΔX = W - V (iterate differences)
+  // Equivalently: x_{k+1} = x̃ + (W - V) * c  since x_k = x̃ - r
+  // (The simplified x̃ + W*c only holds when V*c = -r exactly)
   for (int a = 0; a < solid_face_->nNo; a++)
     for (int i = 0; i < nsd; i++) {
       int idx = a * nsd + i;
       double correction = 0;
       for (int j = 0; j < q; j++)
-        correction += W_cols_[j][idx] * c[j];
+        correction += (W_cols_[j][idx] - V_cols_[j][idx]) * c[j];
       disp_prev_(i, a) = disp_current(i, a) + correction;
     }
 
-  // Velocity: full step (follows displacement via Newmark)
-  vel_prev_ = vel_current;
-
-  // omega_ for logging
-  double corr2 = 0, res2 = 0;
-  for (int j = 0; j < n; j++) res2 += r[j] * r[j];
-  for (int a = 0; a < solid_face_->nNo; a++)
-    for (int i = 0; i < nsd; i++) {
-      double d = disp_prev_(i, a) - disp_current(i, a);
-      corr2 += d * d;
-    }
-  omega_ = (res2 > 1e-30) ? sqrt(corr2 / res2) : 1.0;
 }
 
 //======================================================================
@@ -670,8 +656,33 @@ bool PartitionedFSI::step()
     disp_norm = sqrt(disp_norm);
     double rel = (disp_norm > 1e-30) ? res_norm / disp_norm : res_norm;
 
-    // ---- 5. Relaxation (updates disp_prev_ and vel_prev_) ----
+    // ---- 5. Relaxation (updates disp_prev_) ----
     relax_interface(cp, nsd, disp_current, vel_current);
+
+    // Compute vel_prev_ consistent with relaxed disp_prev_ via Newmark
+    {
+      const auto& eq = solid_com.eq[0];
+      const int s = eq.s;
+      const double dt = solid_com.dt;
+      const double gam = eq.gam;
+      const double beta = eq.beta;
+      const auto& Do = solid_sol.old.get_displacement();
+      const auto& Yo = solid_sol.old.get_velocity();
+      const auto& Ao = solid_sol.old.get_acceleration();
+
+      for (int a = 0; a < solid_face_->nNo; a++) {
+        int Ac = solid_face_->gN(a);
+        for (int i = 0; i < nsd; i++) {
+          double d_new = disp_prev_(i, a);
+          double d_old = Do(i + s, Ac);
+          double v_old = Yo(i + s, Ac);
+          double a_old = Ao(i + s, Ac);
+          double a_new = (d_new - d_old - dt * v_old) / (beta * dt * dt)
+                       - (0.5 - beta) / beta * a_old;
+          vel_prev_(i, a) = v_old + dt * ((1.0 - gam) * a_old + gam * a_new);
+        }
+      }
+    }
 
     // Check for NaN/large values in relaxed displacement
     {
