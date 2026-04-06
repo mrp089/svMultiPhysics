@@ -748,29 +748,24 @@ bool PartitionedFSI::step()
 
     if (cm.mas(cm_mod)) {
       bool conv = rel < config_.coupling_tolerance;
+      bool saved = conv
+                && (cTS % fluid_sim_->com_mod.saveIncr == 0)
+                && (cTS >= fluid_sim_->com_mod.saveATS);
       double time_elapsed = main_sim_->com_mod.timer.get_elapsed_time();
 
-      // Screen: tabular format (same as coupling.dat) for easy logging
+      // Screen and coupling.dat: tabular format for easy logging
       char buf[256];
-      snprintf(buf, sizeof(buf), "  %4d %3d %10.3e %5d %10.3e %10.3e %10.3e %10.3e",
-               cTS, cp + 1, time_elapsed,
+      snprintf(buf, sizeof(buf), " CP %d-%d%s %10.3e %5d %10.3e %10.3e %10.3e %10.3e",
+               cTS, cp + 1, saved ? "s" : " ",
+               time_elapsed,
                dB_val, ri_r1, rel, omega_, disp_norm);
       std::cout << buf << std::endl;
 
-      // coupling.dat: same tabular format
       if (coupling_log_.is_open()) {
         coupling_log_ << buf << std::endl;
       }
-
-      // histor.dat: compact solver-style format
       if (histor_log_.is_open()) {
-        char hbuf[256];
-        snprintf(hbuf, sizeof(hbuf),
-                 " CP %d-%d%s %4.3e  [%d %4.3e %4.3e %4.3e]",
-                 cTS, cp + 1, conv ? "s" : " ",
-                 time_elapsed,
-                 dB_val, ri_r1, rel, omega_);
-        histor_log_ << hbuf << std::endl;
+        histor_log_ << buf << std::endl;
       }
     }
 
