@@ -299,8 +299,9 @@ void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
       dw[j] = xt1[j] - xt0[j];
       dv[j] = r1[j] - r0[j];
     }
-    W_cols_.push_back(dw);
-    V_cols_.push_back(dv);
+    // Prepend: newest columns first so QR prioritizes recent information
+    V_cols_.insert(V_cols_.begin(), dv);
+    W_cols_.insert(W_cols_.begin(), dw);
   }
 
   // Use constant relaxation until we have enough V/W columns
@@ -309,23 +310,23 @@ void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
     return;
   }
 
-  // Trim to max columns
+  // Trim oldest columns (at the end) to max
   const int nq = config_.iqn_ils_q;
   while (static_cast<int>(V_cols_.size()) > nq) {
-    V_cols_.erase(V_cols_.begin());
-    W_cols_.erase(W_cols_.begin());
+    V_cols_.pop_back();
+    W_cols_.pop_back();
   }
 
   int q = static_cast<int>(V_cols_.size());
-
-  // QR decomposition with filtering (modified Gram-Schmidt)
-  // Removes columns where ||v_orth|| < eps * ||v_orig||
   const double eps = config_.iqn_ils_eps;
-  // Work on copies so we can remove columns
+
+  // Work on copies so we can remove columns during filtering
   auto V_work = V_cols_;
   auto W_work = W_cols_;
 
-  // Iterative QR with column removal (matching svFSGe QRfiltering_mod)
+  // QR decomposition with column filtering (svFSGe QRfiltering)
+  // Filter criterion: |R[i,i]| < eps * ||R||_2
+  // Approximation: use max(|R[i,i]|) for ||R||_2
   std::vector<std::vector<double>> Q;
   std::vector<std::vector<double>> R_mat;
   bool restart;
@@ -336,33 +337,19 @@ void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
     Q.assign(q, std::vector<double>(n, 0.0));
     R_mat.assign(q, std::vector<double>(q, 0.0));
 
-    // First column
-    double norm0 = 0;
-    for (int k = 0; k < n; k++) norm0 += V_work[0][k] * V_work[0][k];
-    norm0 = sqrt(norm0);
-    if (norm0 < 1e-30) { V_work.erase(V_work.begin()); W_work.erase(W_work.begin()); restart = true; continue; }
-    R_mat[0][0] = norm0;
-    for (int k = 0; k < n; k++) Q[0][k] = V_work[0][k] / norm0;
-
-    for (int j = 1; j < q; j++) {
+    // Modified Gram-Schmidt
+    for (int j = 0; j < q; j++) {
       auto vbar = V_work[j];
-      double orig_norm = 0;
-      for (int k = 0; k < n; k++) orig_norm += vbar[k] * vbar[k];
-      orig_norm = sqrt(orig_norm);
-
       for (int i = 0; i < j; i++) {
         double dot = 0;
         for (int k = 0; k < n; k++) dot += Q[i][k] * vbar[k];
         R_mat[i][j] = dot;
         for (int k = 0; k < n; k++) vbar[k] -= dot * Q[i][k];
       }
-
       double norm = 0;
       for (int k = 0; k < n; k++) norm += vbar[k] * vbar[k];
       norm = sqrt(norm);
-
-      if (norm < eps * orig_norm) {
-        // Linearly dependent: remove and restart QR
+      if (norm < 1e-30) {
         V_work.erase(V_work.begin() + j);
         W_work.erase(W_work.begin() + j);
         restart = true;
@@ -370,6 +357,25 @@ void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
       }
       R_mat[j][j] = norm;
       for (int k = 0; k < n; k++) Q[j][k] = vbar[k] / norm;
+    }
+
+    if (restart) continue;
+
+    // Filter: remove columns where |R[i,i]| < eps * ||R||_F
+    // (svFSGe uses eps * ||R||_2; Frobenius norm is a practical upper bound)
+    double R_norm = 0;
+    for (int i = 0; i < q; i++)
+      for (int j = i; j < q; j++)
+        R_norm += R_mat[i][j] * R_mat[i][j];
+    R_norm = sqrt(R_norm);
+
+    for (int j = 0; j < q; j++) {
+      if (std::abs(R_mat[j][j]) < eps * R_norm) {
+        V_work.erase(V_work.begin() + j);
+        W_work.erase(W_work.begin() + j);
+        restart = true;
+        break;
+      }
     }
   } while (restart && !V_work.empty());
 
@@ -379,11 +385,12 @@ void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
   q = static_cast<int>(V_cols_.size());
 
   if (q == 0) {
-    relax_aitken(cp, nsd, disp_current, vel_current);
+    relax_constant(cp, nsd, disp_current, vel_current);
     return;
   }
 
-  // Solve R * c = Q^T * (-r)
+  // Solve R * c = Q^T * (-r) with modified back-substitution
+  // (svFSGe solve_upper_triangular_mod: set c[i]=0 if |R[i,i]| too small)
   std::vector<double> rhs(q);
   for (int j = 0; j < q; j++) {
     double dot = 0;
@@ -391,25 +398,25 @@ void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
     rhs[j] = dot;
   }
 
+  double R_norm_solve = 0;
+  for (int i = 0; i < q; i++)
+    for (int j = i; j < q; j++)
+      R_norm_solve += R_mat[i][j] * R_mat[i][j];
+  R_norm_solve = sqrt(R_norm_solve);
+  double solve_tol = eps * R_norm_solve;
+
   std::vector<double> c(q, 0.0);
   for (int j = q - 1; j >= 0; j--) {
-    c[j] = rhs[j];
-    for (int k = j + 1; k < q; k++) c[j] -= R_mat[j][k] * c[k];
-    c[j] /= R_mat[j][j];
-  }
-
-  // Check for NaN/Inf
-  for (int j = 0; j < q; j++) {
-    if (std::isnan(c[j]) || std::isinf(c[j])) {
-      V_cols_.clear(); W_cols_.clear();
-      relax_aitken(cp, nsd, disp_current, vel_current);
-      return;
+    if (std::abs(R_mat[j][j]) <= solve_tol) {
+      c[j] = 0.0;
+    } else {
+      c[j] = rhs[j];
+      for (int k = j + 1; k < q; k++) c[j] -= R_mat[j][k] * c[k];
+      c[j] /= R_mat[j][j];
     }
   }
 
-  // Update: x_{k+1} = x_k + ΔX * c  where ΔX = W - V (iterate differences)
-  // Equivalently: x_{k+1} = x̃ + (W - V) * c  since x_k = x̃ - r
-  // (The simplified x̃ + W*c only holds when V*c = -r exactly)
+  // Update: x_{k+1} = x̃ + (W - V) * c
   for (int a = 0; a < solid_face_->nNo; a++)
     for (int i = 0; i < nsd; i++) {
       int idx = a * nsd + i;
