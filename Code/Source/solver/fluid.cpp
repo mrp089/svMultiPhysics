@@ -527,7 +527,7 @@ void construct_fluid(ComMod& com_mod, const mshType& lM, const Array<double>& Ag
   Array<double> xl(nsd,eNoN);
 
   // local acceleration vector (for a single element)
-  Array<double> al(yl_nrows,eNoN);
+  Array<double> al(tDof,eNoN);
 
   // local velocity vector (for a single element)
   Array<double> yl(yl_nrows,eNoN);

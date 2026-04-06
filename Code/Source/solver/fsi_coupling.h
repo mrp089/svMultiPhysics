@@ -54,11 +54,6 @@ Array<double> extract_solid_displacement(
     const ComMod& com_mod, const eqType& solid_eq,
     const faceType& solid_face, const SolutionStates& solutions);
 
-/// @brief Extract solid velocity at interface face nodes.
-Array<double> extract_solid_velocity(
-    const ComMod& com_mod, const eqType& solid_eq,
-    const faceType& solid_face, const SolutionStates& solutions);
-
 /// @brief Apply velocity as strong Dirichlet BC on fluid interface nodes.
 /// Directly sets Yn at the fluid equation DOF range for the face nodes.
 void apply_velocity_on_fluid(
@@ -102,26 +97,6 @@ void apply_displacement_on_mesh(
 ///
 /// Uses the shared global node IDs established by set_projector() to map
 /// data from source face nodes to target face nodes. The faces must be
-/// a projected pair (e.g., lumen_wall and wall_inner in a pipe FSI case).
-///
-/// @param com_mod Common module
-/// @param source_face Source face (e.g., fluid-side interface)
-/// @param target_face Target face (e.g., solid-side interface)
-/// @param source_data Array(nrows, source_face.nNo) of data to transfer
-/// @return Array(nrows, target_face.nNo) of transferred data
-Array<double> transfer_face_data(
-    const ComMod& com_mod,
-    const faceType& source_face, const faceType& target_face,
-    const Array<double>& source_data);
-
-/// @brief Regularize the linear system for nodes not belonging to the current equation.
-///
-/// In partitioned coupling, each equation only assembles on its own mesh.
-/// Nodes from other meshes have zero rows in Val and zero entries in R,
-/// making the system singular. This function sets the diagonal to 1.0
-/// for those unused rows.
-void regularize_unassembled_nodes(ComMod& com_mod, const mshType& active_mesh);
-
 /// @brief Enforce Dirichlet BC at face nodes in the assembled linear system.
 ///
 /// Zeros the residual and diagonalizes the system matrix rows for the

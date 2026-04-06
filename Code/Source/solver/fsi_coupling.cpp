@@ -74,13 +74,16 @@ Array<double> extract_fluid_traction(
     int cDmn = all_fun::domain(com_mod, lM, cEq, Ec);
     if (cDmn == -1) continue;
 
-    // Load volume element nodal data (following bpost lines 199-218)
-    // Use deformed coordinates (reference + mesh displacement from Dg DOFs 4-6)
-    // to match construct_fsi which deforms xl by dl(nsd+1..2*nsd).
+    // Load volume element nodal data.
+    // In partitioned FSI, com_mod.x is already deformed (updated each
+    // coupling iteration).  In monolithic FSI, mesh displacement lives
+    // in Dg at DOFs nsd+1..2*nsd, but that layout doesn't exist for the
+    // partitioned fluid sub-sim (tDof = nsd+1).  Using com_mod.x directly
+    // is correct for both cases.
     for (int a = 0; a < eNoN; a++) {
       int Ac = lM.IEN(a, Ec);
       for (int i = 0; i < nsd; i++) {
-        xl(i, a) = com_mod.x(i, Ac) + Dg(nsd + 1 + i, Ac);
+        xl(i, a) = com_mod.x(i, Ac);
         ul(i, a) = Yg(i, Ac);  // velocity DOFs 0..nsd-1
       }
     }
@@ -224,27 +227,6 @@ Array<double> extract_solid_displacement(
 }
 
 //----------------------------------------------------------------------
-// extract_solid_velocity
-//----------------------------------------------------------------------
-Array<double> extract_solid_velocity(
-    const ComMod& com_mod, const eqType& solid_eq,
-    const faceType& lFa, const SolutionStates& solutions)
-{
-  const int nsd = com_mod.nsd;
-  const int s = solid_eq.s;
-  const auto& Yn = solutions.current.get_velocity();
-
-  Array<double> result(nsd, lFa.nNo);
-  for (int a = 0; a < lFa.nNo; a++) {
-    int Ac = lFa.gN(a);
-    for (int i = 0; i < nsd; i++) {
-      result(i, a) = Yn(i + s, Ac);
-    }
-  }
-  return result;
-}
-
-//----------------------------------------------------------------------
 // apply_velocity_on_fluid
 //----------------------------------------------------------------------
 void apply_velocity_on_fluid(
@@ -271,11 +253,11 @@ void apply_velocity_on_fluid(
       double a_old = Ao(i + s, Ac);
 
       Yn(i + s, Ac) = v_new;
-      // Set An = 0: the enforce_dirichlet callback zeros the correction
-      // at wall nodes, so An doesn't affect the wall solution. Setting
-      // An = 0 avoids a huge temporal acceleration term in the assembly
-      // that would fight the prescribed velocity.
-      An(i + s, Ac) = 0.0;
+
+      // Newmark-consistent acceleration:
+      //   Yn = Yo + dt*((1-gamma)*Ao + gamma*An)  =>  solve for An
+      An(i + s, Ac) = (v_new - v_old) / (gam * dt)
+                    - (1.0 - gam) / gam * a_old;
     }
   }
 }
@@ -341,78 +323,6 @@ void apply_displacement_on_mesh(
 
       An(i + s, Ac) = a_new;
       Yn(i + s, Ac) = v_new;
-    }
-  }
-}
-
-//----------------------------------------------------------------------
-// transfer_face_data
-//----------------------------------------------------------------------
-Array<double> transfer_face_data(
-    const ComMod& com_mod,
-    const faceType& source_face, const faceType& target_face,
-    const Array<double>& source_data)
-{
-  const int nrows = source_data.nrows();
-
-  // Build reverse map: global_node_id -> source face local index
-  std::unordered_map<int, int> global_to_source;
-  global_to_source.reserve(source_face.nNo);
-  for (int a = 0; a < source_face.nNo; a++) {
-    global_to_source[source_face.gN(a)] = a;
-  }
-
-  // Transfer: for each target node, find matching source node via shared global ID
-  Array<double> result(nrows, target_face.nNo);
-  for (int a = 0; a < target_face.nNo; a++) {
-    int global_id = target_face.gN(a);
-    auto it = global_to_source.find(global_id);
-    if (it != global_to_source.end()) {
-      result.set_col(a, source_data.col(it->second));
-    }
-    // If not found, the node is not on the projected interface -- leave as zero
-  }
-
-  return result;
-}
-
-//----------------------------------------------------------------------
-// regularize_unassembled_nodes
-//----------------------------------------------------------------------
-void regularize_unassembled_nodes(ComMod& com_mod, const mshType& active_mesh)
-{
-  const auto& eq = com_mod.eq[com_mod.cEq];
-  const int dof = eq.dof;
-  const auto& rowPtr = com_mod.rowPtr;
-  const auto& colPtr = com_mod.colPtr;
-  auto& R = com_mod.R;
-  auto& Val = com_mod.Val;
-
-  // Mark nodes belonging to the active mesh
-  std::vector<bool> is_active(com_mod.tnNo, false);
-  for (int a = 0; a < active_mesh.nNo; a++) {
-    is_active[active_mesh.gN(a)] = true;
-  }
-
-  // For inactive nodes: zero R, zero all Val entries, set diagonal to 1
-  for (int Ac = 0; Ac < com_mod.tnNo; Ac++) {
-    if (is_active[Ac]) continue;
-
-    // Zero residual
-    for (int i = 0; i < dof; i++) {
-      R(i, Ac) = 0.0;
-    }
-
-    // Zero entire row in Val and set diagonal to identity
-    for (int j = rowPtr(Ac); j <= rowPtr(Ac + 1) - 1; j++) {
-      for (int iDof = 0; iDof < dof * dof; iDof++) {
-        Val(iDof, j) = 0.0;
-      }
-      if (colPtr(j) == Ac) {
-        for (int i = 0; i < dof; i++) {
-          Val(i * dof + i, j) = 1.0;
-        }
-      }
     }
   }
 }

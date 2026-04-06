@@ -119,41 +119,25 @@ private:
   // Temp XML file paths (cleaned up in destructor)
   std::vector<std::string> temp_xml_paths_;
 
-  /// Create and initialize the 3 sub-simulations from temp XML files
-  void create_sub_simulations();
-
-  /// Generate a temporary XML file for one sub-field ("fluid", "struct", "mesh")
-  std::string generate_sub_xml(const std::string& field_type);
-
-  /// Initialize one sub-simulation through the standard pipeline
-  void init_sub_simulation(Simulation* sim, const std::string& xml_path);
-
   /// Resolve face/mesh pointers within the initialized sub-simulations
   void resolve_faces();
 
   /// Build coordinate-based node maps between interface faces of different sub-sims
   void build_node_maps();
 
-  /// Relax interface displacement and velocity after solid solve.
-  /// Dispatches to the configured coupling method.
-  void relax_interface(int cp, int nsd,
-                       const Array<double>& disp_current,
-                       const Array<double>& vel_current);
+  /// Relax interface displacement after solid solve.
+  /// Dispatches to the configured coupling method. vel_prev_ is recomputed
+  /// from the relaxed disp_prev_ via Newmark in the coupling loop.
+  void relax_interface(int cp, int nsd, const Array<double>& disp_current);
 
   /// Fixed relaxation with omega = initial_relaxation
-  void relax_constant(int cp, int nsd,
-                      const Array<double>& disp_current,
-                      const Array<double>& vel_current);
+  void relax_constant(int cp, int nsd, const Array<double>& disp_current);
 
   /// Aitken Delta^2 relaxation (Küttler & Wall 2008)
-  void relax_aitken(int cp, int nsd,
-                    const Array<double>& disp_current,
-                    const Array<double>& vel_current);
+  void relax_aitken(int cp, int nsd, const Array<double>& disp_current);
 
   /// IQN-ILS (Degroote et al. 2009)
-  void relax_iqn_ils(int cp, int nsd,
-                     const Array<double>& disp_current,
-                     const Array<double>& vel_current);
+  void relax_iqn_ils(int cp, int nsd, const Array<double>& disp_current);
 
   /// Build a one-directional node map from face_a to face_b using coordinate matching
   static void build_face_node_map(const faceType& face_a, const ComMod& com_a,

@@ -142,15 +142,11 @@ void Simulation::initialize_partitioned_fsi(const std::string& xml_file_path)
   config.omega_max = pcp.omega_max.value();
 
   // Parse coupling method: "constant", "aitken" (default), "iqn-ils"
-  if (pcp.coupling_method.defined()) {
-    std::string method = pcp.coupling_method.value();
-    if (method == "constant")      config.coupling_method = CouplingMethod::constant;
-    else if (method == "aitken")   config.coupling_method = CouplingMethod::aitken;
-    else if (method == "iqn-ils")  config.coupling_method = CouplingMethod::iqn_ils;
-    else throw std::runtime_error("[PartitionedFSI] Unknown Coupling_method: " + method);
-  } else if (pcp.use_aitken.defined() && !pcp.use_aitken.value()) {
-    config.coupling_method = CouplingMethod::constant;
-  }
+  std::string method = pcp.coupling_method.value();
+  if (method == "constant")      config.coupling_method = CouplingMethod::constant;
+  else if (method == "aitken")   config.coupling_method = CouplingMethod::aitken;
+  else if (method == "iqn-ils")  config.coupling_method = CouplingMethod::iqn_ils;
+  else throw std::runtime_error("[PartitionedFSI] Unknown Coupling_method: " + method);
 
   config.iqn_ils_q = pcp.iqn_ils_q.value();
   config.iqn_ils_eps = pcp.iqn_ils_eps.value();

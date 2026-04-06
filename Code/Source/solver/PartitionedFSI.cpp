@@ -4,17 +4,14 @@
 #include "PartitionedFSI.h"
 #include "fsi_coupling.h"
 #include "set_bc.h"
-#include "all_fun.h"
 #include "distribute.h"
 #include "initialize.h"
 #include "output.h"
 #include "vtk_xml.h"
-#include "txt.h"
 #include "read_files.h"
 
 #include <cmath>
 #include <iostream>
-#include <iomanip>
 #include <stdexcept>
 
 // Forward declaration of add_eq_linear_algebra (defined in main.cpp)
@@ -167,9 +164,6 @@ void PartitionedFSI::build_node_maps()
                       *solid_face_, solid_sim_->com_mod, fluid_to_solid_map_);
   build_face_node_map(*solid_face_, solid_sim_->com_mod,
                       *mesh_face_,  mesh_sim_->com_mod,  solid_to_mesh_map_);
-
-  auto& cm = main_sim_->com_mod.cm;
-  auto& cm_mod = main_sim_->cm_mod;
 }
 
 //----------------------------------------------------------------------
@@ -194,18 +188,17 @@ Array<double> PartitionedFSI::transfer_data(
 // relax_interface — updates disp_prev_ and vel_prev_
 //----------------------------------------------------------------------
 void PartitionedFSI::relax_interface(int cp, int nsd,
-                                     const Array<double>& disp_current,
-                                     const Array<double>& vel_current)
+                                     const Array<double>& disp_current)
 {
   switch (config_.coupling_method) {
     case CouplingMethod::constant:
-      relax_constant(cp, nsd, disp_current, vel_current);
+      relax_constant(cp, nsd, disp_current);
       break;
     case CouplingMethod::aitken:
-      relax_aitken(cp, nsd, disp_current, vel_current);
+      relax_aitken(cp, nsd, disp_current);
       break;
     case CouplingMethod::iqn_ils:
-      relax_iqn_ils(cp, nsd, disp_current, vel_current);
+      relax_iqn_ils(cp, nsd, disp_current);
       break;
   }
 }
@@ -214,8 +207,7 @@ void PartitionedFSI::relax_interface(int cp, int nsd,
 // relax_constant — fixed relaxation
 //----------------------------------------------------------------------
 void PartitionedFSI::relax_constant(int cp, int nsd,
-                                     const Array<double>& disp_current,
-                                     const Array<double>& vel_current)
+                                     const Array<double>& disp_current)
 {
   omega_ = config_.initial_relaxation;
   for (int a = 0; a < solid_face_->nNo; a++)
@@ -227,8 +219,7 @@ void PartitionedFSI::relax_constant(int cp, int nsd,
 // relax_aitken — Aitken Delta^2 (Küttler & Wall 2008, Eq. 44)
 //----------------------------------------------------------------------
 void PartitionedFSI::relax_aitken(int cp, int nsd,
-                                   const Array<double>& disp_current,
-                                   const Array<double>& vel_current)
+                                   const Array<double>& disp_current)
 {
   const int u = nsd * solid_face_->nNo;
 
@@ -269,8 +260,7 @@ void PartitionedFSI::relax_aitken(int cp, int nsd,
 // removes linearly dependent columns.
 //----------------------------------------------------------------------
 void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
-                                    const Array<double>& disp_current,
-                                    const Array<double>& vel_current)
+                                    const Array<double>& disp_current)
 {
   const int n = nsd * solid_face_->nNo;
   const int cTS = main_sim_->com_mod.cTS;
@@ -306,7 +296,7 @@ void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
 
   // Use constant relaxation until we have enough V/W columns
   if (static_cast<int>(V_cols_.size()) < config_.iqn_ils_warmup) {
-    relax_constant(cp, nsd, disp_current, vel_current);
+    relax_constant(cp, nsd, disp_current);
     return;
   }
 
@@ -385,7 +375,7 @@ void PartitionedFSI::relax_iqn_ils(int cp, int nsd,
   q = static_cast<int>(V_cols_.size());
 
   if (q == 0) {
-    relax_constant(cp, nsd, disp_current, vel_current);
+    relax_constant(cp, nsd, disp_current);
     return;
   }
 
@@ -553,7 +543,9 @@ bool PartitionedFSI::step()
   SavedState solid_pred = save(solid_sol);
   SavedState mesh_pred  = save(mesh_sol);
 
-  // Save reference mesh coordinates (restored each coupling iteration)
+  // Save mesh coordinates at start of time step = x_original + Do.
+  // Restored each coupling iteration; mesh deformation applies the
+  // INCREMENT (Dn - Do) so that fluid_com.x = x_original + Dn.
   Array<double> x_ref(fluid_com.x);
 
   // ALE mesh velocity: save predictor mesh velocity for injection into fluid.
@@ -572,13 +564,28 @@ bool PartitionedFSI::step()
       }
   }
 
-  // Initial displacement and velocity from predictor
+  // Initial displacement from predictor; velocity via Newmark
   auto disp_current = fsi_coupling::extract_solid_displacement(
       solid_com, solid_com.eq[0], *solid_face_, solid_sol);
-  auto vel_current = fsi_coupling::extract_solid_velocity(
-      solid_com, solid_com.eq[0], *solid_face_, solid_sol);
   disp_prev_ = disp_current;
-  vel_prev_ = vel_current;
+  {
+    const auto& eq = solid_com.eq[0];
+    const int s = eq.s;
+    const double dt_s = solid_com.dt;
+    const auto& Do = solid_sol.old.get_displacement();
+    const auto& Yo = solid_sol.old.get_velocity();
+    const auto& Ao = solid_sol.old.get_acceleration();
+    vel_prev_.resize(nsd, solid_face_->nNo);
+    for (int a = 0; a < solid_face_->nNo; a++) {
+      int Ac = solid_face_->gN(a);
+      for (int i = 0; i < nsd; i++) {
+        double a_new = (disp_prev_(i, a) - Do(i + s, Ac) - dt_s * Yo(i + s, Ac))
+                     / (eq.beta * dt_s * dt_s)
+                     - (0.5 - eq.beta) / eq.beta * Ao(i + s, Ac);
+        vel_prev_(i, a) = Yo(i + s, Ac) + dt_s * ((1.0 - eq.gam) * Ao(i + s, Ac) + eq.gam * a_new);
+      }
+    }
+  }
 
   bool converged = false;
 
@@ -599,7 +606,6 @@ bool PartitionedFSI::step()
     }
 
     // ---- 1. FLUID SOLVE with relaxed wall velocity ----
-    // vel_prev_ comes directly from the solid solver (no Newmark recomputation).
     auto fluid_vel = transfer_data(solid_to_fluid_map_, vel_prev_, fluid_face_->nNo);
 
     set_bc::set_bc_dir(fluid_com, fluid_sol);
@@ -645,10 +651,8 @@ bool PartitionedFSI::step()
       return false;
     }
 
-    // ---- 4. Extract displacement AND velocity from solid ----
+    // ---- 4. Extract displacement from solid ----
     disp_current = fsi_coupling::extract_solid_displacement(
-        solid_com, solid_com.eq[0], *solid_face_, solid_sol);
-    auto vel_current = fsi_coupling::extract_solid_velocity(
         solid_com, solid_com.eq[0], *solid_face_, solid_sol);
 
     // ---- Convergence check (BEFORE relaxation) ----
@@ -664,7 +668,7 @@ bool PartitionedFSI::step()
     double rel = (disp_norm > 1e-30) ? res_norm / disp_norm : res_norm;
 
     // ---- 5. Relaxation (updates disp_prev_) ----
-    relax_interface(cp, nsd, disp_current, vel_current);
+    relax_interface(cp, nsd, disp_current);
 
     // Compute vel_prev_ consistent with relaxed disp_prev_ via Newmark
     {
@@ -814,9 +818,3 @@ void PartitionedFSI::save_results()
   }
 }
 
-//----------------------------------------------------------------------
-// Stubs for unused methods declared in the header
-//----------------------------------------------------------------------
-void PartitionedFSI::create_sub_simulations() {}
-std::string PartitionedFSI::generate_sub_xml(const std::string&) { return ""; }
-void PartitionedFSI::init_sub_simulation(Simulation*, const std::string&) {}

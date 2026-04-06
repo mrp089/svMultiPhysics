@@ -2784,7 +2784,6 @@ PartitionedCouplingParameters::PartitionedCouplingParameters()
   set_parameter("Coupling_tolerance", 1e-6, !required, coupling_tolerance);
   set_parameter("Initial_relaxation", 1.0, !required, initial_relaxation);
   set_parameter("Omega_max", 1.0, !required, omega_max);
-  set_parameter("Use_Aitken", true, !required, use_aitken);
   set_parameter("Coupling_method", "aitken", !required, coupling_method);
   set_parameter("IQN_ILS_q", 10, !required, iqn_ils_q);
   set_parameter("IQN_ILS_eps", 1e-2, !required, iqn_ils_eps);

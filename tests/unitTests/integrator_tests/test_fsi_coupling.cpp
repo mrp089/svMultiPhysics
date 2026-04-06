@@ -5,8 +5,7 @@
  * @brief Integration tests for fsi_coupling namespace functions.
  *
  * Tests the FSI interface data exchange functions: extract_fluid_traction,
- * extract_solid_displacement, apply_traction_on_solid, apply_displacement_on_mesh,
- * and transfer_face_data.
+ * extract_solid_displacement, apply_traction_on_solid, apply_displacement_on_mesh.
  *
  * Requires MPI and access to the FSI pipe_3d test case data files.
  */
@@ -161,46 +160,6 @@ static const mshType* find_mesh_for_face(const ComMod& com_mod, const std::strin
 // Tests
 // ===========================================================================
 
-/// @brief Transfer data between projected FSI faces and verify round-trip.
-TEST(FSICoupling, TransferFaceData)
-{
-  if (!test_data_available()) GTEST_SKIP() << "Test data not available";
-
-  auto sim = setup_fsi_simulation();
-  auto& com_mod = sim->com_mod;
-  const int nsd = com_mod.nsd;
-
-  auto* fluid_face = find_face(com_mod, "lumen_wall");
-  auto* solid_face = find_face(com_mod, "wall_inner");
-  ASSERT_NE(fluid_face, nullptr) << "lumen_wall face not found";
-  ASSERT_NE(solid_face, nullptr) << "wall_inner face not found";
-
-  // Create test data on the fluid face
-  Array<double> test_data(nsd, fluid_face->nNo);
-  for (int a = 0; a < fluid_face->nNo; a++) {
-    for (int i = 0; i < nsd; i++) {
-      test_data(i, a) = 1.0 + i + 0.1 * a;  // some non-trivial pattern
-    }
-  }
-
-  // Transfer fluid -> solid
-  auto solid_data = fsi_coupling::transfer_face_data(com_mod, *fluid_face, *solid_face, test_data);
-
-  // Transfer solid -> fluid (round trip)
-  auto roundtrip = fsi_coupling::transfer_face_data(com_mod, *solid_face, *fluid_face, solid_data);
-
-  // Verify round-trip preserves data exactly
-  double max_diff = 0.0;
-  for (int a = 0; a < fluid_face->nNo; a++) {
-    for (int i = 0; i < nsd; i++) {
-      double diff = std::abs(roundtrip(i, a) - test_data(i, a));
-      if (diff > max_diff) max_diff = diff;
-    }
-  }
-  EXPECT_LT(max_diff, 1e-14) << "Round-trip transfer should preserve data exactly";
-
-  teardown_sim(sim);
-}
 
 /// @brief Extract solid displacement from a converged FSI solution.
 TEST(FSICoupling, ExtractSolidDisplacement)
@@ -301,62 +260,3 @@ TEST(FSICoupling, ExtractFluidTraction)
   teardown_sim(sim);
 }
 
-/// @brief Transfer traction from fluid face to solid face and verify total force is preserved.
-TEST(FSICoupling, TractionTransferPreservesForce)
-{
-  if (!test_data_available()) GTEST_SKIP() << "Test data not available";
-
-  auto sim = setup_fsi_simulation();
-  auto& com_mod = sim->com_mod;
-  const int nsd = com_mod.nsd;
-
-  run_one_fsi_timestep(sim);
-
-  auto& integrator = sim->get_integrator();
-  auto& solutions = integrator.get_solutions();
-  auto& eq = com_mod.eq[0];
-
-  auto* fluid_face = find_face(com_mod, "lumen_wall");
-  auto* solid_face = find_face(com_mod, "wall_inner");
-  auto* fluid_mesh = find_mesh_for_face(com_mod, "lumen_wall");
-  ASSERT_NE(fluid_face, nullptr);
-  ASSERT_NE(solid_face, nullptr);
-
-  com_mod.cEq = 0;
-  auto fluid_traction = fsi_coupling::extract_fluid_traction(
-      com_mod, sim->cm_mod, *fluid_mesh, *fluid_face, eq,
-      integrator.get_Yg(), integrator.get_Dg(), solutions);
-
-  // Transfer to solid face
-  auto solid_traction = fsi_coupling::transfer_face_data(
-      com_mod, *fluid_face, *solid_face, fluid_traction);
-
-  // Compare total force before and after transfer
-  Vector<double> force_fluid(nsd), force_solid(nsd);
-  for (int a = 0; a < fluid_face->nNo; a++) {
-    for (int i = 0; i < nsd; i++) {
-      force_fluid(i) += fluid_traction(i, a);
-    }
-  }
-  for (int a = 0; a < solid_face->nNo; a++) {
-    for (int i = 0; i < nsd; i++) {
-      force_solid(i) += solid_traction(i, a);
-    }
-  }
-
-  // Total force should be preserved by the transfer.
-  // Use combined absolute + relative tolerance since some components are near zero
-  // (pipe flow is axial, so transverse force components are roundoff-level).
-  double force_scale = 0;
-  for (int i = 0; i < nsd; i++) {
-    force_scale = std::max(force_scale, std::abs(force_fluid(i)));
-  }
-  for (int i = 0; i < nsd; i++) {
-    double abs_diff = std::abs(force_fluid(i) - force_solid(i));
-    EXPECT_LT(abs_diff, 1e-8 * force_scale + 1e-10)
-        << "Total force component " << i << " should be preserved by transfer"
-        << " (fluid=" << force_fluid(i) << " solid=" << force_solid(i) << ")";
-  }
-
-  teardown_sim(sim);
-}
