@@ -141,8 +141,9 @@ void cep_init_l(cepModelType& cep, int nX, int nG, Vector<double>& X, Vector<dou
 //-----------
 // State variable integration.
 //
-void cep_integ(Simulation* simulation, const int iEq, const int iDof, const Array<double>& Dg)
+void cep_integ(Simulation* simulation, const int iEq, const int iDof, SolutionStates& solutions)
 {
+  auto& Yo = solutions.old.get_velocity();
   static bool IPASS = true;
 
   using namespace consts;
@@ -164,7 +165,6 @@ void cep_integ(Simulation* simulation, const int iEq, const int iDof, const Arra
   auto& cem = cep_mod.cem;
   auto& eq = com_mod.eq[iEq];
 
-  auto& Yo = com_mod.Yo;
   auto& Xion = cep_mod.Xion;
   int nXion = cep_mod.nXion;
 
@@ -183,7 +183,7 @@ void cep_integ(Simulation* simulation, const int iEq, const int iDof, const Arra
 
       if (msh.nFn != 0) {
         Vector<double> sA(msh.nNo);
-        post::fib_strech(simulation, iEq, msh, Dg, sA);
+        post::fib_strech(simulation, iEq, msh, solutions, sA);
         for (int a = 0; a < msh.nNo; a++) {
           int Ac = msh.gN(a);
           I4f(Ac) = sA(a);
