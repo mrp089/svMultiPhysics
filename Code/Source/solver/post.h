@@ -43,7 +43,6 @@ Array<double> compute_face_traction(
     ComMod& com_mod, const CmMod& cm_mod,
     const mshType& fluid_mesh, const faceType& fluid_face,
     const eqType& fluid_eq,
-    const Array<double>& Yg, const Array<double>& Dg,
     const SolutionStates& solutions);
 
 };
