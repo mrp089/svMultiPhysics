@@ -234,8 +234,7 @@ TEST(FSICoupling, ExtractFluidTraction)
   // Extract consistent nodal traction forces
   com_mod.cEq = 0;  // ensure correct equation is active
   auto traction = post::compute_face_traction(
-      com_mod, sim->cm_mod, *fluid_mesh, *fluid_face, eq,
-      integrator.get_Yg(), integrator.get_Dg(), solutions);
+      com_mod, sim->cm_mod, *fluid_mesh, *fluid_face, eq, solutions);
 
   // Check dimensions
   EXPECT_EQ(traction.nrows(), nsd);

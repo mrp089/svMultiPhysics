@@ -31,6 +31,56 @@ class Simulation {
     Integrator& get_integrator();
     PartitionedFSI* get_partitioned_fsi();
     void initialize_partitioned_fsi(const std::string& xml_file_path);
+
+    // Initialize the Integrator object after simulation setup is complete
+    // Takes ownership of solution states via move semantics
+    void initialize_integrator(SolutionStates&& solutions);
+
+    // Read a solver paramerer input XML file.
+    void read_parameters(const std::string& fileName);
+
+    // Set simulation and module member data from Parameters.
+    void set_module_parameters();
+
+    //----- Fortran subroutines -----//
+    //void read_msh();
+
+    //----- Fortran modules -----//
+    CepMod cep_mod;
+    ChnlMod chnl_mod;
+    CmMod cm_mod;
+    ComMod com_mod;
+
+    // Solver parameters read in from solver input XML file.
+    Parameters parameters;
+
+    // Log solution information.
+    SimulationLogger logger;
+
+    // Number of time steps
+    int nTs;
+
+    // Simulation initialization file path
+    std::string fTmp;
+
+    // Spectral radius of infinite time step; this is later used in equations.
+    double roInf;
+
+    // Simulation requires remeshing
+
+    bool isReqd;
+
+    // Name of the history file.
+    std::string history_file_name;
+
+    LinearAlgebra* linear_algebra = nullptr;
+
+  private:
+    // Time integrator for Newton iteration loop
+    std::unique_ptr<Integrator> integrator_;
+
+    // Partitioned FSI coupling (null if not configured)
+    std::unique_ptr<PartitionedFSI> partitioned_fsi_;
 };
 
 #endif

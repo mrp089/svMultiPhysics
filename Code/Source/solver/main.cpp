@@ -10,6 +10,348 @@
 #include "Simulation.h"
 #include "Integrator.h"
 #include "PartitionedFSI.h"
+
+#include "all_fun.h"
+#include "bf.h"
+#include "contact.h"
+#include "distribute.h"
+#include "eq_assem.h"
+#include "fs.h"
+#include "initialize.h"
+#include "ls.h"
+#include "output.h"
+#include "read_files.h"
+#include "read_msh.h"
+#include "remesh.h"
+#include "set_bc.h"
+#include "txt.h"
+#include "ustruct.h"
+#include "vtk_xml.h"
+#include "ris.h"
+#include "uris.h"
+
+#include <stdlib.h>
+#include <iomanip>
+#include <iostream>
+#include <cmath>
+#include <fstream>
+
+//------------------------
+// add_eq_linear_algebra
+//------------------------
+// Create a LinearAlgebra object for an equation.
+//
+void add_eq_linear_algebra(ComMod& com_mod, eqType& lEq)
+{
+  lEq.linear_algebra = LinearAlgebraFactory::create_interface(lEq.linear_algebra_type);
+  lEq.linear_algebra->set_preconditioner(lEq.linear_algebra_preconditioner);
+  lEq.linear_algebra->initialize(com_mod, lEq);
+
+  if (lEq.linear_algebra_assembly_type != consts::LinearAlgebraType::none) {
+    lEq.linear_algebra->set_assembly(lEq.linear_algebra_assembly_type);
+  }
+}
+
+void finalize_linear_algebra(eqType& lEq)
+{
+  lEq.linear_algebra->finalize();
+}
+
+/// @brief Read in a solver XML file and all mesh and BC data.  
+//
+void read_files(Simulation* simulation, const std::string& file_name)
+{
+  simulation->com_mod.timer.set_time();
+
+  if (simulation->com_mod.cm.slv(simulation->cm_mod)) {
+    return;
+  }
+
+  read_files_ns::read_files(simulation, file_name);
+
+/*
+  try {
+    read_files_ns::read_files(simulation, file_name);
+
+  } catch (const std::exception& exception) {
+    std::cout << "[svMultiPhysics] ERROR: The svMultiPhysics program has failed." << std::endl;
+    std::cout << "[svMultiPhysics] ERROR: " << exception.what() << std::endl;
+    exit(1);
+  }
+*/
+  
+}
+
+
+
+/// @brief Iterate the precomputed state-variables in time using linear interpolation to the current time step size
+//
+void iterate_precomputed_time(Simulation* simulation, SolutionStates& solutions) {
+  using namespace consts;
+
+  auto& com_mod = simulation->com_mod;
+  auto& cm_mod = simulation->cm_mod;
+  auto& cm = com_mod.cm;
+  auto& cep_mod = simulation->get_cep_mod();
+
+  auto& An = solutions.current.get_acceleration();
+  auto& Yn = solutions.current.get_velocity();
+  auto& Ao = solutions.old.get_acceleration();
+  auto& Yo = solutions.old.get_velocity();
+  auto& Do = solutions.old.get_displacement();
+
+  int nTS = com_mod.nTS;
+  int stopTS = nTS;
+  int tDof = com_mod.tDof;
+  int tnNo = com_mod.tnNo;
+  int nFacesLS = com_mod.nFacesLS;
+  int nsd = com_mod.nsd;
+
+  auto& Ad = com_mod.Ad;      // Time derivative of displacement
+  auto& Rd = com_mod.Rd;      // Residual of the displacement equation
+  auto& Kd = com_mod.Kd;      // LHS matrix for displacement equation
+
+  int& cTS = com_mod.cTS;
+  int& nITs = com_mod.nITs;
+  double& dt = com_mod.dt;
+
+  if (com_mod.usePrecomp) {
+#ifdef debug_iterate_solution
+        dmsg << "Use precomputed values ..." << std::endl;
+#endif
+    // This loop is used to interpolate between known time values of the precomputed
+    // state-variable solution
+    for (int l = 0; l < com_mod.nMsh; l++) {
+      auto lM = com_mod.msh[l];
+      if (lM.Ys.nslices() > 1) {
+        // If there is only one temporal slice, then the solution is assumed constant
+        // in time and no interpolation is performed
+        // If there are multiple temporal slices, then the solution is linearly interpolated
+        // between the known time values and the current time.
+        double precompDt = com_mod.precompDt;
+        double preTT = precompDt * (lM.Ys.nslices() - 1);
+        double cT = cTS * dt;
+        double rT = std::fmod(cT, preTT);
+        int n1, n2;
+        double alpha;
+        if (precompDt == dt) {
+          alpha =  0.0;
+          if (cTS < lM.Ys.nslices()) {
+            n1 = cTS - 1;
+          } else {
+            n1 = cTS % lM.Ys.nslices() - 1;
+          }
+        } else {
+          n1 = static_cast<int>(rT / precompDt) - 1;
+          alpha = std::fmod(rT, precompDt);
+        }
+        n2 = n1 + 1;
+        for (int i = 0; i < tnNo; i++) {
+          for (int j = 0; j < nsd; j++) {
+            if (alpha == 0.0) {
+              Yn(j, i) = lM.Ys(j, i, n2);
+            } else {
+              Yn(j, i) = (1.0 - alpha) * lM.Ys(j, i, n1) + alpha * lM.Ys(j, i, n2);
+            }
+          }
+        }
+      } else {
+        for (int i = 0; i < tnNo; i++) {
+          for (int j = 0; j < nsd; j++) {
+            Yn(j, i) = lM.Ys(j, i, 0);
+          }
+        }
+      }
+    }
+  }
+}
+
+/// @brief Iterate the simulation in time.
+///
+/// Reproduces the outer and inner loops in Fortan MAIN.f.
+//
+void iterate_solution(Simulation* simulation)
+{
+  using namespace consts;
+
+  auto& com_mod = simulation->com_mod;
+  auto& cm_mod = simulation->cm_mod;
+  auto& cm = com_mod.cm;
+  auto& cep_mod = simulation->get_cep_mod();
+  
+  // number of time steps
+  int nTS = com_mod.nTS;
+  
+  int stopTS = nTS;
+  
+  // total number of degrees of freedom per node
+  int tDof = com_mod.tDof;
+  
+  // total number of nodes across all meshes, but only on current processor
+  int tnNo = com_mod.tnNo;
+  
+  int nFacesLS = com_mod.nFacesLS;
+  int nsd = com_mod.nsd;
+
+  std::cout << std::scientific << std::setprecision(16);
+
+  #define n_debug_iterate_solution
+  #ifdef debug_iterate_solution
+  DebugMsg dmsg(__func__, com_mod.cm.idcm());
+  dmsg.banner();
+  #endif
+
+  #ifdef debug_iterate_solution
+  dmsg << "========== iterate_solution ==========" << std::endl;
+  dmsg << "tDof: " << tDof;
+  dmsg << "tnNo: " << tnNo;
+  dmsg << "nFacesLS: " << nFacesLS;
+  dmsg << "stopTS: " << stopTS;
+  dmsg << "cmmInit: " << com_mod.cmmInit;
+  #endif
+
+  // Get Integrator object (created at end of initialize())
+  auto& integrator = simulation->get_integrator();
+
+  // current time step
+  int& cTS = com_mod.cTS;
+  
+  int& nITs = com_mod.nITs;
+  
+  // time step size
+  double& dt = com_mod.dt;
+  
+  #ifdef debug_iterate_solution
+  dmsg;
+  dmsg << "cTS: " << cTS;
+  dmsg << "nITs: " << nITs;
+  dmsg << "dt: " << dt;
+  #endif
+
+  if (cTS <= nITs) { 
+    dt = dt / 10.0;
+  }
+
+  double& time = com_mod.time;
+  auto& cEq = com_mod.cEq;
+
+  auto& Ad = com_mod.Ad;      // Time derivative of displacement 
+  auto& Rd = com_mod.Rd;      // Residual of the displacement equation
+  auto& Kd = com_mod.Kd;      // LHS matrix for displacement equation
+
+  // Get reference to solution states from integrator
+  auto& solutions = integrator.get_solutions();
+
+  // Local aliases for convenience
+  auto& Ao = solutions.old.get_acceleration();    // Old time derivative of variables (acceleration)
+  auto& Yo = solutions.old.get_velocity();        // Old variables (velocity)
+  auto& Do = solutions.old.get_displacement();    // Old integrated variables (displacement)
+
+  auto& An = solutions.current.get_acceleration(); // New time derivative of variables (acceleration)
+  auto& Yn = solutions.current.get_velocity();     // New variables (velocity)
+  auto& Dn = solutions.current.get_displacement(); // New integrated variables (displacement)
+
+  bool l1 = false;
+  bool l2 = false;
+  bool l3 = false;
+
+  #ifdef debug_iterate_solution
+  dmsg << "Start Outer Loop ..." << std::endl;
+  #endif
+
+  bool exit_now = false;
+  double elapsed_time = 0.0;
+
+  // Uncomment these two lines to enable writting values to a file.
+  //Array<double>::write_enabled = true;
+  //Array3<double>::write_enabled = true;
+
+  // Outer loop for marching in time. When entering this loop, all old
+  // variables are completely set and satisfy BCs.
+  // 
+  while (true) {
+    #ifdef debug_iterate_solution
+    dmsg << "========================================= " << std::endl;
+    dmsg << "=============== Outer Loop ============== " << std::endl;
+    dmsg << "========================================= " << std::endl;
+    #endif
+
+    // Adjusting the time step size once initialization stage is over
+    //
+    if (cTS == nITs) {
+      dt = 10.0 * dt;
+      #ifdef debug_iterate_solution
+      dmsg << "New time step size (dt): " << dt;
+      #endif
+    }
+
+    // Incrementing time step, hence cTS will be associated with new
+    // variables, i.e. An, Yn, and Dn
+    //
+    cTS = cTS + 1;
+    time = time + dt;
+    cEq = 0;
+    std::string cstr = "_cts_" + std::to_string(cTS);
+    #ifdef debug_iterate_solution
+    dmsg << "nITs: " << nITs;
+    dmsg << "cTS: " << cTS;
+    dmsg << "dt: " << dt;
+    dmsg << "time: " << time;
+    dmsg << "mvMsh: " << com_mod.mvMsh;
+    dmsg << "rmsh.isReqd: " << com_mod.rmsh.isReqd;
+    #endif
+
+    for (auto& eq : com_mod.eq) {
+      eq.itr = 0;
+      eq.ok = false;
+    }
+
+    // Compute mesh properties to check if remeshing is required
+    //
+    if (com_mod.mvMsh && com_mod.rmsh.isReqd) {
+      read_msh_ns::calc_mesh_props(com_mod, cm_mod, com_mod.nMsh, com_mod.msh, solutions);
+      if (com_mod.resetSim) {
+        #ifdef debug_iterate_solution
+        dmsg << "#### resetSim is true " << std::endl;
+        dmsg << "#### Breaking out from Outer Loop " << std::endl;
+        #endif
+        break;
+      }
+    }
+
+    // Predictor step
+    #ifdef debug_iterate_solution
+    dmsg << "Predictor step ... " << std::endl;
+    #endif
+    integrator.predictor();
+
+    // Apply Dirichlet BCs strongly
+    //
+    // Modifes
+    //  An - New time derivative of variables
+    //  Yn - New variables
+    //  Dn -  New integrated variables
+    //  com_mod.Ad - Time derivative of displacement
+    //
+    #ifdef debug_iterate_solution
+    dmsg << "Apply Dirichlet BCs strongly ..." << std::endl;
+    #endif
+
+    set_bc::set_bc_dir(com_mod, solutions);
+
+    if (com_mod.urisFlag) {uris::uris_calc_sdf(com_mod);}
+
+    iterate_precomputed_time(simulation, solutions);
+
+    // Inner loop for Newton iteration
+    //
+    #ifdef debug_iterate_solution
+    dmsg << "Starting Newton iteration via Integrator ..." << std::endl;
+    #endif
+
+    int iEqOld = cEq;
+
+    // Monolithic Newton iteration loop
     integrator.step();
 
     #ifdef debug_iterate_solution

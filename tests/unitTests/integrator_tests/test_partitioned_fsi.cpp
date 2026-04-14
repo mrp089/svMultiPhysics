@@ -166,7 +166,7 @@ TEST(PartitionedFSI, TractionSignAndMagnitude)
   // Extract traction at lumen_wall
   auto traction = post::compute_face_traction(
       com_mod, cm_mod, *fluid_mesh, *wall_face, com_mod.eq[0],
-      integrator.get_Yg(), integrator.get_Dg(), integrator.get_solutions());
+      integrator.get_solutions());
 
   // Sum all nodal forces → total force vector
   double total_force[3] = {0, 0, 0};
@@ -240,7 +240,7 @@ TEST(PartitionedFSI, TractionMatchesNeumannBC)
   // Extract traction at inlet
   auto traction = post::compute_face_traction(
       com_mod, cm_mod, *lumen_mesh, *inlet_face, com_mod.eq[0],
-      integrator.get_Yg(), integrator.get_Dg(), integrator.get_solutions());
+      integrator.get_solutions());
 
   // Sum axial (z) component of traction at inlet
   double total_axial = 0.0;

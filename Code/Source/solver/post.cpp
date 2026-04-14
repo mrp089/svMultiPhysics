@@ -2137,9 +2137,11 @@ Array<double> compute_face_traction(
     ComMod& com_mod, const CmMod& cm_mod,
     const mshType& lM, const faceType& lFa,
     const eqType& eq,
-    const Array<double>& Yg, const Array<double>& Dg,
     const SolutionStates& solutions)
 {
+  const auto& Yg = solutions.intermediate.get_velocity();
+  const auto& Dg = solutions.intermediate.get_displacement();
+
   const int nsd = com_mod.nsd;
   const int eNoN = lM.eNoN;
 
