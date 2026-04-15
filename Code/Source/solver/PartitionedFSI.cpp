@@ -515,21 +515,36 @@ bool PartitionedFSI::step()
     restore_state(fluid_sol, fluid_pred);
     restore_state(solid_sol, solid_pred);
     restore_state(mesh_sol, mesh_pred);
-    fluid_com.x = x_ref;
 
-    // ---- 1. Fluid solve ----
+    // ---- 1. Mesh solve + deform fluid mesh ----
+    // Use latest disp_prev_ (relaxed from previous iter, or predictor on iter 0).
+    // Writes fluid_com.x = x_ref + (Dn - Do) so the fluid solves on the deformed mesh.
+    if (!solve_mesh(x_ref, mesh_s)) {
+      if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in mesh solve" << std::endl;
+      return false;
+    }
+
+    // Update ALE mesh velocity from this iteration's mesh solve
+    {
+      auto& mYn = mesh_sol.current.get_velocity();
+      for (int a = 0; a < mesh_com.tnNo; a++)
+        for (int i = 0; i < nsd; i++)
+          mesh_vel_Yn(i, a) = mYn(mesh_s + i, a);
+    }
+
+    // ---- 2. Fluid solve ----
     if (!solve_fluid(mesh_vel_Yo, mesh_vel_Yn)) {
       if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in fluid solve" << std::endl;
       return false;
     }
 
-    // ---- 2. Solid solve ----
+    // ---- 3. Solid solve ----
     if (!solve_solid()) {
       if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in solid solve" << std::endl;
       return false;
     }
 
-    // ---- 3. Extract displacement, check convergence ----
+    // ---- 4. Extract displacement, check convergence ----
     disp_current = fsi_coupling::extract_solid_displacement(
         solid_com, solid_com.eq[0], *solid_face_, solid_sol);
 
@@ -544,7 +559,7 @@ bool PartitionedFSI::step()
     disp_norm = sqrt(disp_norm);
     double rel = (disp_norm > 1e-30) ? res_norm / disp_norm : res_norm;
 
-    // ---- 4. Relaxation ----
+    // ---- 5. Relaxation ----
     relax_interface(cp, nsd, disp_current);
     compute_interface_velocity();
 
@@ -562,20 +577,6 @@ bool PartitionedFSI::step()
         if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN/divergence after relaxation" << std::endl;
         return false;
       }
-    }
-
-    // ---- 5. Mesh solve + deform fluid mesh ----
-    if (!solve_mesh(x_ref, mesh_s)) {
-      if (cm.mas(cm_mod)) std::cout << "  ABORT: NaN in mesh solve" << std::endl;
-      return false;
-    }
-
-    // Update ALE mesh velocity for next coupling iteration
-    {
-      auto& mYn = mesh_sol.current.get_velocity();
-      for (int a = 0; a < mesh_com.tnNo; a++)
-        for (int i = 0; i < nsd; i++)
-          mesh_vel_Yn(i, a) = mYn(mesh_s + i, a);
     }
 
     // ---- 6. Output ----
