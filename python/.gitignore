@@ -1,0 +1,4 @@
+# Generated data artifacts (regenerate via load_lv_data.py / *_inverse.py / *_sweep.py)
+*.vtu
+*.npz
+*.npy
