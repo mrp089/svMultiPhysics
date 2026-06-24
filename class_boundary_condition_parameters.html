@@ -12,6 +12,22 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
+<script type="text/javascript">
+window.MathJax = {
+  options: {
+    ignoreHtmlClass: 'tex2jax_ignore',
+    processHtmlClass: 'tex2jax_process'
+  },
+  loader: {
+    load: ['[tex]/ams']
+  },
+  tex: {
+    macros: {},
+    packages: ['base','configmacros','ams']
+  }
+};
+</script>
+<script type="text/javascript" id="MathJax-script" async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 <link href="doxygen-awesome.css" rel="stylesheet" type="text/css"/>
 </head>
@@ -131,9 +147,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_parameter</b> (co
 <tr class="memitem:a09feae36022f5ebf7cd9a8c86bcbca78 inherit pub_methods_class_parameter_lists" id="r_a09feae36022f5ebf7cd9a8c86bcbca78"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_parameter_lists.html#a09feae36022f5ebf7cd9a8c86bcbca78">check_required</a> ()</td></tr>
 <tr class="memdesc:a09feae36022f5ebf7cd9a8c86bcbca78 inherit pub_methods_class_parameter_lists"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if any required parameters have not been set.  <br /></td></tr>
 <tr class="separator:a09feae36022f5ebf7cd9a8c86bcbca78 inherit pub_methods_class_parameter_lists"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2f00a499245e0190cd1da7a0d0773932 inherit pub_methods_class_parameter_lists" id="r_a2f00a499245e0190cd1da7a0d0773932"><td class="memItemLeft" align="right" valign="top">std::map&lt; std::string, std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_parameter_lists.html#a2f00a499245e0190cd1da7a0d0773932">get_parameter_list</a> ()</td></tr>
-<tr class="memdesc:a2f00a499245e0190cd1da7a0d0773932 inherit pub_methods_class_parameter_lists"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the defined parameters as a map of strings.  <br /></td></tr>
-<tr class="separator:a2f00a499245e0190cd1da7a0d0773932 inherit pub_methods_class_parameter_lists"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9fe04f3c28dec4a1fe01da2c468b75f6 inherit pub_methods_class_parameter_lists" id="r_a9fe04f3c28dec4a1fe01da2c468b75f6"><td class="memItemLeft" align="right" valign="top">std::map&lt; std::string, std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_parameter_lists.html#a9fe04f3c28dec4a1fe01da2c468b75f6">get_parameter_list</a> () const</td></tr>
+<tr class="memdesc:a9fe04f3c28dec4a1fe01da2c468b75f6 inherit pub_methods_class_parameter_lists"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the defined parameters as a map of strings.  <br /></td></tr>
+<tr class="separator:a9fe04f3c28dec4a1fe01da2c468b75f6 inherit pub_methods_class_parameter_lists"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab2f5c08258f5805a7f2f9c50c8939fe4 inherit pub_methods_class_parameter_lists" id="r_ab2f5c08258f5805a7f2f9c50c8939fe4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_parameter_lists.html#ab2f5c08258f5805a7f2f9c50c8939fe4">print_parameter_list</a> ()</td></tr>
 <tr class="memdesc:ab2f5c08258f5805a7f2f9c50c8939fe4 inherit pub_methods_class_parameter_lists"><td class="mdescLeft">&#160;</td><td class="mdescRight">Print the parameters.  <br /></td></tr>
 <tr class="separator:ab2f5c08258f5805a7f2f9c50c8939fe4 inherit pub_methods_class_parameter_lists"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -143,6 +159,9 @@ Public Attributes</h2></td></tr>
 <tr class="memitem:a2b4580d2f58df84062786d6c850ae976" id="r_a2b4580d2f58df84062786d6c850ae976"><td class="memItemLeft" align="right" valign="top"><a id="a2b4580d2f58df84062786d6c850ae976" name="a2b4580d2f58df84062786d6c850ae976"></a>
 <a class="el" href="class_boundary_condition_r_c_r_parameters.html">BoundaryConditionRCRParameters</a>&#160;</td><td class="memItemRight" valign="bottom"><b>rcr</b></td></tr>
 <tr class="separator:a2b4580d2f58df84062786d6c850ae976"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acbf5e4b236236d04f873a75540225fbe" id="r_acbf5e4b236236d04f873a75540225fbe"><td class="memItemLeft" align="right" valign="top"><a id="acbf5e4b236236d04f873a75540225fbe" name="acbf5e4b236236d04f873a75540225fbe"></a>
+<a class="el" href="class_coupling_interface_parameters.html">CouplingInterfaceParameters</a>&#160;</td><td class="memItemRight" valign="bottom"><b>coupling_interface</b></td></tr>
+<tr class="separator:acbf5e4b236236d04f873a75540225fbe"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9d692912b296bdc5a7fade488f5b2459" id="r_a9d692912b296bdc5a7fade488f5b2459"><td class="memItemLeft" align="right" valign="top"><a id="a9d692912b296bdc5a7fade488f5b2459" name="a9d692912b296bdc5a7fade488f5b2459"></a>
 <a class="el" href="class_parameter.html">Parameter</a>&lt; std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>name</b></td></tr>
 <tr class="separator:a9d692912b296bdc5a7fade488f5b2459"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -206,9 +225,6 @@ Public Attributes</h2></td></tr>
 <tr class="memitem:a156e3192cbef01d2fa444143fdbf0a74" id="r_a156e3192cbef01d2fa444143fdbf0a74"><td class="memItemLeft" align="right" valign="top"><a id="a156e3192cbef01d2fa444143fdbf0a74" name="a156e3192cbef01d2fa444143fdbf0a74"></a>
 <a class="el" href="class_parameter.html">Parameter</a>&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>stiffness</b></td></tr>
 <tr class="separator:a156e3192cbef01d2fa444143fdbf0a74"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acdb52158f9daf0be16508e539f523380" id="r_acdb52158f9daf0be16508e539f523380"><td class="memItemLeft" align="right" valign="top"><a id="acdb52158f9daf0be16508e539f523380" name="acdb52158f9daf0be16508e539f523380"></a>
-<a class="el" href="class_parameter.html">Parameter</a>&lt; std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>svzerod_solver_block</b></td></tr>
-<tr class="separator:acdb52158f9daf0be16508e539f523380"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a273b13d2619c040184c015c24261f46c" id="r_a273b13d2619c040184c015c24261f46c"><td class="memItemLeft" align="right" valign="top"><a id="a273b13d2619c040184c015c24261f46c" name="a273b13d2619c040184c015c24261f46c"></a>
 <a class="el" href="class_parameter.html">Parameter</a>&lt; std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>temporal_and_spatial_values_file_path</b></td></tr>
 <tr class="separator:a273b13d2619c040184c015c24261f46c"><td class="memSeparator" colspan="2">&#160;</td></tr>

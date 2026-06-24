@@ -12,6 +12,22 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
+<script type="text/javascript">
+window.MathJax = {
+  options: {
+    ignoreHtmlClass: 'tex2jax_ignore',
+    processHtmlClass: 'tex2jax_process'
+  },
+  loader: {
+    load: ['[tex]/ams']
+  },
+  tex: {
+    macros: {},
+    packages: ['base','configmacros','ams']
+  }
+};
+</script>
+<script type="text/javascript" id="MathJax-script" async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 <link href="doxygen-awesome.css" rel="stylesheet" type="text/css"/>
 </head>
@@ -78,25 +94,26 @@ $(function() {
 <table class="directory">
   <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>bType</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>clsFlgRis</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>cplBCptr</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>eDrn</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>flwP</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>g</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>gm</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>gt</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>gx</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>h</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>iFa</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>iM</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>lsPtr</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>masN</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>r</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>RCR</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>resistance</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>robin_bc</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>robin_vtp_file</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>tauB</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>weakDir</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>coupled_bc</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>cplBCptr</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>eDrn</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>flwP</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>g</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>gm</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>gt</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>gx</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>h</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>iFa</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>iM</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>lsPtr</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>masN</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>r</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>RCR</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>resistance</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>robin_bc</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>robin_vtp_file</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>tauB</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>weakDir</b> (defined in <a class="el" href="classbc_type.html">bcType</a>)</td><td class="entry"><a class="el" href="classbc_type.html">bcType</a></td><td class="entry"></td></tr>
 </table></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>

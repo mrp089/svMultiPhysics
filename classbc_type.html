@@ -12,6 +12,22 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
+<script type="text/javascript">
+window.MathJax = {
+  options: {
+    ignoreHtmlClass: 'tex2jax_ignore',
+    processHtmlClass: 'tex2jax_process'
+  },
+  loader: {
+    load: ['[tex]/ams']
+  },
+  tex: {
+    macros: {},
+    packages: ['base','configmacros','ams']
+  }
+};
+</script>
+<script type="text/javascript" id="MathJax-script" async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 <link href="doxygen-awesome.css" rel="stylesheet" type="text/css"/>
 </head>
@@ -147,6 +163,9 @@ double&#160;</td><td class="memItemRight" valign="bottom"><b>resistance</b> = 0.
 <tr class="memitem:afa62f15896d4bd6883819b91ce7deec9" id="r_afa62f15896d4bd6883819b91ce7deec9"><td class="memItemLeft" align="right" valign="top"><a id="afa62f15896d4bd6883819b91ce7deec9" name="afa62f15896d4bd6883819b91ce7deec9"></a>
 <a class="el" href="class_robin_boundary_condition.html">RobinBoundaryCondition</a>&#160;</td><td class="memItemRight" valign="bottom"><b>robin_bc</b></td></tr>
 <tr class="separator:afa62f15896d4bd6883819b91ce7deec9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a99b752c063f0e98329ead383a59afdc5" id="r_a99b752c063f0e98329ead383a59afdc5"><td class="memItemLeft" align="right" valign="top"><a id="a99b752c063f0e98329ead383a59afdc5" name="a99b752c063f0e98329ead383a59afdc5"></a>
+<a class="el" href="class_coupled_boundary_condition.html">CoupledBoundaryCondition</a>&#160;</td><td class="memItemRight" valign="bottom"><b>coupled_bc</b></td></tr>
+<tr class="separator:a99b752c063f0e98329ead383a59afdc5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Boundary condition data type. </p>

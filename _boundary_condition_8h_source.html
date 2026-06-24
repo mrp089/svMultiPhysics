@@ -12,6 +12,22 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
+<script type="text/javascript">
+window.MathJax = {
+  options: {
+    ignoreHtmlClass: 'tex2jax_ignore',
+    processHtmlClass: 'tex2jax_process'
+  },
+  loader: {
+    load: ['[tex]/ams']
+  },
+  tex: {
+    macros: {},
+    packages: ['base','configmacros','ams']
+  }
+};
+</script>
+<script type="text/javascript" id="MathJax-script" async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 <link href="doxygen-awesome.css" rel="stylesheet" type="text/css"/>
 </head>
@@ -497,10 +513,10 @@ $(document).ready(function() { init_codefold(0); });
 <div class="ttc" id="aclass_boundary_condition_vtp_array_dimension_exception_html"><div class="ttname"><a href="class_boundary_condition_vtp_array_dimension_exception.html">BoundaryConditionVtpArrayDimensionException</a></div><div class="ttdoc">Exception thrown when a VTP array has incorrect dimensions.</div><div class="ttdef"><b>Definition</b> BoundaryCondition.h:293</div></div>
 <div class="ttc" id="aclass_boundary_condition_vtp_array_exception_html"><div class="ttname"><a href="class_boundary_condition_vtp_array_exception.html">BoundaryConditionVtpArrayException</a></div><div class="ttdoc">Exception thrown when a VTP file doesn't contain a required array.</div><div class="ttdef"><b>Definition</b> BoundaryCondition.h:286</div></div>
 <div class="ttc" id="aclass_cm_mod_html"><div class="ttname"><a href="class_cm_mod.html">CmMod</a></div><div class="ttdoc">The CmMod class duplicates the data structures in the Fortran CMMOD module defined in COMU....</div><div class="ttdef"><b>Definition</b> CmMod.h:35</div></div>
-<div class="ttc" id="aclass_com_mod_html"><div class="ttname"><a href="class_com_mod.html">ComMod</a></div><div class="ttdoc">The ComMod class duplicates the data structures in the Fortran COMMOD module defined in MOD....</div><div class="ttdef"><b>Definition</b> ComMod.h:1525</div></div>
+<div class="ttc" id="aclass_com_mod_html"><div class="ttname"><a href="class_com_mod.html">ComMod</a></div><div class="ttdoc">The ComMod class duplicates the data structures in the Fortran COMMOD module defined in MOD....</div><div class="ttdef"><b>Definition</b> ComMod.h:1563</div></div>
 <div class="ttc" id="aclass_simulation_logger_html"><div class="ttname"><a href="class_simulation_logger.html">SimulationLogger</a></div><div class="ttdoc">The SimulationLogger class is used to write information to a text file and optionally to cout.</div><div class="ttdef"><b>Definition</b> SimulationLogger.h:13</div></div>
 <div class="ttc" id="aclasscm_type_html"><div class="ttname"><a href="classcm_type.html">cmType</a></div><div class="ttdoc">The cmType class stores data and defines methods used for mpi communication.</div><div class="ttdef"><b>Definition</b> CmMod.h:55</div></div>
-<div class="ttc" id="aclassface_type_html"><div class="ttname"><a href="classface_type.html">faceType</a></div><div class="ttdoc">The face type containing mesh at boundary.</div><div class="ttdef"><b>Definition</b> ComMod.h:519</div></div>
+<div class="ttc" id="aclassface_type_html"><div class="ttname"><a href="classface_type.html">faceType</a></div><div class="ttdoc">The face type containing mesh at boundary.</div><div class="ttdef"><b>Definition</b> ComMod.h:524</div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>

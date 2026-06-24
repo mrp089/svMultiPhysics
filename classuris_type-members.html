@@ -12,6 +12,22 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
+<script type="text/javascript">
+window.MathJax = {
+  options: {
+    ignoreHtmlClass: 'tex2jax_ignore',
+    processHtmlClass: 'tex2jax_process'
+  },
+  loader: {
+    load: ['[tex]/ams']
+  },
+  tex: {
+    macros: {},
+    packages: ['base','configmacros','ams']
+  }
+};
+</script>
+<script type="text/javascript" id="MathJax-script" async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 <link href="doxygen-awesome.css" rel="stylesheet" type="text/css"/>
 </head>
@@ -80,8 +96,10 @@ $(function() {
   <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>cnt</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>DxClose</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>DxOpen</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>elemCounter</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>elemId</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>elemId</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>include_uris_velocity</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>invert_normal</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>localNode</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>meanPD</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>meanPU</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>msh</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
@@ -89,15 +107,20 @@ $(function() {
   <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>nFa</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>nrm</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>relax_factor</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>savedOnce</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>scF</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>sdf</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>resistance</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>savedOnce</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>scF</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>sdf</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>sdf_computed</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>sdf_default</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>sdf_deps</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>sdf_deps_close</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>tnNo</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>valve_velocity</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>valve_velocity_fluid</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
   <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>x</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>Yd</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>x_prev</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
+  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>Yd</b> (defined in <a class="el" href="classuris_type.html">urisType</a>)</td><td class="entry"><a class="el" href="classuris_type.html">urisType</a></td><td class="entry"></td></tr>
 </table></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>

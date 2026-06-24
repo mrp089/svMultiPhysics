@@ -12,6 +12,22 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
+<script type="text/javascript">
+window.MathJax = {
+  options: {
+    ignoreHtmlClass: 'tex2jax_ignore',
+    processHtmlClass: 'tex2jax_process'
+  },
+  loader: {
+    load: ['[tex]/ams']
+  },
+  tex: {
+    macros: {},
+    packages: ['base','configmacros','ams']
+  }
+};
+</script>
+<script type="text/javascript" id="MathJax-script" async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 <link href="doxygen-awesome.css" rel="stylesheet" type="text/css"/>
 </head>
@@ -134,9 +150,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_parameter</b> (co
 <tr class="memitem:a09feae36022f5ebf7cd9a8c86bcbca78 inherit pub_methods_class_parameter_lists" id="r_a09feae36022f5ebf7cd9a8c86bcbca78"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_parameter_lists.html#a09feae36022f5ebf7cd9a8c86bcbca78">check_required</a> ()</td></tr>
 <tr class="memdesc:a09feae36022f5ebf7cd9a8c86bcbca78 inherit pub_methods_class_parameter_lists"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if any required parameters have not been set.  <br /></td></tr>
 <tr class="separator:a09feae36022f5ebf7cd9a8c86bcbca78 inherit pub_methods_class_parameter_lists"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2f00a499245e0190cd1da7a0d0773932 inherit pub_methods_class_parameter_lists" id="r_a2f00a499245e0190cd1da7a0d0773932"><td class="memItemLeft" align="right" valign="top">std::map&lt; std::string, std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_parameter_lists.html#a2f00a499245e0190cd1da7a0d0773932">get_parameter_list</a> ()</td></tr>
-<tr class="memdesc:a2f00a499245e0190cd1da7a0d0773932 inherit pub_methods_class_parameter_lists"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the defined parameters as a map of strings.  <br /></td></tr>
-<tr class="separator:a2f00a499245e0190cd1da7a0d0773932 inherit pub_methods_class_parameter_lists"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9fe04f3c28dec4a1fe01da2c468b75f6 inherit pub_methods_class_parameter_lists" id="r_a9fe04f3c28dec4a1fe01da2c468b75f6"><td class="memItemLeft" align="right" valign="top">std::map&lt; std::string, std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_parameter_lists.html#a9fe04f3c28dec4a1fe01da2c468b75f6">get_parameter_list</a> () const</td></tr>
+<tr class="memdesc:a9fe04f3c28dec4a1fe01da2c468b75f6 inherit pub_methods_class_parameter_lists"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the defined parameters as a map of strings.  <br /></td></tr>
+<tr class="separator:a9fe04f3c28dec4a1fe01da2c468b75f6 inherit pub_methods_class_parameter_lists"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab2f5c08258f5805a7f2f9c50c8939fe4 inherit pub_methods_class_parameter_lists" id="r_ab2f5c08258f5805a7f2f9c50c8939fe4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_parameter_lists.html#ab2f5c08258f5805a7f2f9c50c8939fe4">print_parameter_list</a> ()</td></tr>
 <tr class="memdesc:ab2f5c08258f5805a7f2f9c50c8939fe4 inherit pub_methods_class_parameter_lists"><td class="mdescLeft">&#160;</td><td class="mdescRight">Print the parameters.  <br /></td></tr>
 <tr class="separator:ab2f5c08258f5805a7f2f9c50c8939fe4 inherit pub_methods_class_parameter_lists"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -161,15 +177,18 @@ std::vector&lt; <a class="el" href="class_u_r_i_s_face_parameters.html">URISFace
 <tr class="memitem:a5a138d38fa0d62b7d05e60909e13cec4" id="r_a5a138d38fa0d62b7d05e60909e13cec4"><td class="memItemLeft" align="right" valign="top"><a id="a5a138d38fa0d62b7d05e60909e13cec4" name="a5a138d38fa0d62b7d05e60909e13cec4"></a>
 <a class="el" href="class_parameter.html">Parameter</a>&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>resistance</b></td></tr>
 <tr class="separator:a5a138d38fa0d62b7d05e60909e13cec4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3b8f43add6b9a04d7771bb2f8ae11b3c" id="r_a3b8f43add6b9a04d7771bb2f8ae11b3c"><td class="memItemLeft" align="right" valign="top"><a id="a3b8f43add6b9a04d7771bb2f8ae11b3c" name="a3b8f43add6b9a04d7771bb2f8ae11b3c"></a>
-<a class="el" href="class_parameter.html">Parameter</a>&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>resistance_close</b></td></tr>
-<tr class="separator:a3b8f43add6b9a04d7771bb2f8ae11b3c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8b7bbee38d05e45cd8f3618bbdea37fe" id="r_a8b7bbee38d05e45cd8f3618bbdea37fe"><td class="memItemLeft" align="right" valign="top"><a id="a8b7bbee38d05e45cd8f3618bbdea37fe" name="a8b7bbee38d05e45cd8f3618bbdea37fe"></a>
 <a class="el" href="class_parameter.html">Parameter</a>&lt; bool &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>valve_starts_as_closed</b></td></tr>
 <tr class="separator:a8b7bbee38d05e45cd8f3618bbdea37fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af122732e6c1180ddd8ee6783b1c80f1e" id="r_af122732e6c1180ddd8ee6783b1c80f1e"><td class="memItemLeft" align="right" valign="top"><a id="af122732e6c1180ddd8ee6783b1c80f1e" name="af122732e6c1180ddd8ee6783b1c80f1e"></a>
+<a class="el" href="class_parameter.html">Parameter</a>&lt; bool &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>invert_normal</b></td></tr>
+<tr class="separator:af122732e6c1180ddd8ee6783b1c80f1e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a05dd489718079eea9b33583169d0a162" id="r_a05dd489718079eea9b33583169d0a162"><td class="memItemLeft" align="right" valign="top"><a id="a05dd489718079eea9b33583169d0a162" name="a05dd489718079eea9b33583169d0a162"></a>
 <a class="el" href="class_parameter.html">Parameter</a>&lt; std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>positive_flow_normal_file_path</b></td></tr>
 <tr class="separator:a05dd489718079eea9b33583169d0a162"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a62a24f36fe93e6aec0fb5a8699d179fb" id="r_a62a24f36fe93e6aec0fb5a8699d179fb"><td class="memItemLeft" align="right" valign="top"><a id="a62a24f36fe93e6aec0fb5a8699d179fb" name="a62a24f36fe93e6aec0fb5a8699d179fb"></a>
+<a class="el" href="class_parameter.html">Parameter</a>&lt; bool &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>include_uris_velocity</b></td></tr>
+<tr class="separator:a62a24f36fe93e6aec0fb5a8699d179fb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_attribs_class_parameter_lists"><td colspan="2" onclick="javascript:toggleInherit('pub_attribs_class_parameter_lists')"><img src="closed.png" alt="-"/>&#160;Public Attributes inherited from <a class="el" href="class_parameter_lists.html">ParameterLists</a></td></tr>
 <tr class="memitem:a6131758a550b2e63f34e7554933e27f8 inherit pub_attribs_class_parameter_lists" id="r_a6131758a550b2e63f34e7554933e27f8"><td class="memItemLeft" align="right" valign="top">std::map&lt; std::string, std::variant&lt; <a class="el" href="class_parameter.html">Parameter</a>&lt; bool &gt; *, <a class="el" href="class_parameter.html">Parameter</a>&lt; double &gt; *, <a class="el" href="class_parameter.html">Parameter</a>&lt; int &gt; *, <a class="el" href="class_parameter.html">Parameter</a>&lt; std::string &gt; *, <a class="el" href="class_vector_parameter.html">VectorParameter</a>&lt; double &gt; *, <a class="el" href="class_vector_parameter.html">VectorParameter</a>&lt; int &gt; *, <a class="el" href="class_vector_parameter.html">VectorParameter</a>&lt; std::string &gt; * &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_parameter_lists.html#a6131758a550b2e63f34e7554933e27f8">params_map</a></td></tr>
 <tr class="memdesc:a6131758a550b2e63f34e7554933e27f8 inherit pub_attribs_class_parameter_lists"><td class="mdescLeft">&#160;</td><td class="mdescRight">Map used for storing parameters by name / <a class="el" href="class_parameter.html" title="The Parameter class template is used to store a named paramater and its scalar value as a basic type:...">Parameter</a> template union.  <br /></td></tr>
