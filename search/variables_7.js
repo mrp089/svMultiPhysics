@@ -1,26 +1,5 @@
 var searchData=
 [
-  ['ib_0',['ib',['../class_com_mod.html#a0a17c8e0799b1f087322fd3de69d8d72',1,'ComMod']]],
-  ['ibflag_1',['ibFlag',['../class_com_mod.html#a0f0ef34d97d343541dfa3c72b0614e9a',1,'ComMod']]],
-  ['iblank_2',['iblank',['../class_com_mod.html#ad0c1e2a845e0d327e51334d19a0ee14b',1,'ComMod']]],
-  ['ichckien_3',['ichckIEN',['../class_com_mod.html#a52260b8dcfd78af6f74d1af3eca6aad3',1,'ComMod']]],
-  ['icntct_4',['iCntct',['../class_com_mod.html#abc4cc109baf35b50f891c85194ebc4fd',1,'ComMod']]],
-  ['idmap_5',['idMap',['../class_com_mod.html#aaa059386bb4cf004dfb31f6f3c63fb5d',1,'ComMod']]],
-  ['ien_6',['IEN',['../classmsh_type.html#af675d03d8fbfe19bbf7e1cdd2a6db639',1,'mshType']]],
-  ['igc_7',['iGC',['../classmsh_type.html#a211ce02acf372820151822f7ac8d3486',1,'mshType']]],
-  ['imyo_8',['imyo',['../classcep_model_type.html#adf8dae39eb269c22c4d7cc52a4192588',1,'cepModelType']]],
-  ['inifilepath_9',['iniFilePath',['../class_com_mod.html#a53c58a3df16e853c9d0793abd3352390',1,'ComMod']]],
-  ['initial_5fx_10',['initial_x',['../class_aliev_panfilov.html#a857f55970fe18af6a8787a4397494095',1,'AlievPanfilov::initial_X'],['../class_bueno_orovio.html#a2d193850d8e249d7a46b0b47388f5267',1,'BuenoOrovio::initial_X'],['../class_fitz_hugh_nagumo.html#a3315fc4bbf2aef78a1fecf69ba114b01',1,'FitzHughNagumo::initial_X'],['../class_ionic_model.html#aef059fff33668be7285b183b6fa1d46d',1,'IonicModel::initial_X'],['../class_t_t_p.html#a0a886fefd3ab86435e099304835fd5a4',1,'TTP::initial_X']]],
-  ['initial_5fx_5fparameters_11',['initial_X_parameters',['../class_ionic_model_parameters.html#a37dc44ef5407b11be3484a58bd0fa398',1,'IonicModelParameters']]],
-  ['initial_5fxg_12',['initial_xg',['../class_t_t_p.html#a34d41ae123dc3e5be52e8d2f27014808',1,'TTP::initial_Xg'],['../class_bueno_orovio.html#a8c0ce7dc837ad154d16c3e6911b17f68',1,'BuenoOrovio::initial_Xg'],['../class_ionic_model.html#a29d9cfdcacd68081c789d24951b01ee8',1,'IonicModel::initial_Xg'],['../class_fitz_hugh_nagumo.html#abc5f68032dd3de81b9ac76dfe838e0d5',1,'FitzHughNagumo::initial_Xg'],['../class_aliev_panfilov.html#a86a1852c7eb8083ace0eb1673c897f28',1,'AlievPanfilov::initial_Xg']]],
-  ['initial_5fxg_5fparameters_13',['initial_Xg_parameters',['../class_ionic_model_parameters.html#a4d43613abdb902248060230c2512f02e',1,'IonicModelParameters']]],
-  ['inn_14',['INN',['../classmsh_type.html#afed7c4978bdd5134780f568a1265c784',1,'mshType']]],
-  ['inorm_15',['inorm',['../classls_type.html#af2dd8facc342eb84b37054ba41db432d',1,'lsType::iNorm'],['../classeq_type.html#a8651a65d06d8ef4e6bec9fde9d2a585f',1,'eqType::iNorm'],['../classrmsh_type.html#a2a038d5fbf669b3884da98be3466a7bb',1,'rmshType::iNorm']]],
-  ['intermediate_16',['intermediate',['../struct_solution_states.html#a49784e5ca1664a5fde436340e409e503',1,'SolutionStates']]],
-  ['intrp_17',['intrp',['../classib_type.html#a56cd65c9894d9ff296a4ce559c4394f4',1,'ibType']]],
-  ['io_18',['io',['../class_com_mod.html#a98eb9eedd63b102ba50e1492630aa54c',1,'ComMod']]],
-  ['ionic_5fmodel_19',['ionic_model',['../classcep_model_type.html#a88c28fd3839cb1634a3fa9de77b2e65c',1,'cepModelType']]],
-  ['isreqd_20',['isReqd',['../classrmsh_type.html#afe01d3fba20254f640ae6796827b499e',1,'rmshType']]],
-  ['istim_21',['Istim',['../classcep_model_type.html#ac017c20295f3b14715b7dbb3d0aeb15f',1,'cepModelType']]],
-  ['itr_22',['itr',['../classls_type.html#aa1fc30ce2b86d0aba12f67d208882903',1,'lsType::itr'],['../classeq_type.html#a729d8409204c2eca46848dfdf463e066',1,'eqType::itr']]]
+  ['has_5fdata_0',['has_data',['../classsv_one_d_solver_interface_data.html#a3d44647f20eb77620d717d2f08a0ea90',1,'svOneDSolverInterfaceData']]],
+  ['have_5finitial_5fhomogeneous_5fpressure_1',['have_initial_homogeneous_pressure',['../class_com_mod.html#a2531f9b8c811b8704b842ab878ce643b',1,'ComMod']]]
 ];
